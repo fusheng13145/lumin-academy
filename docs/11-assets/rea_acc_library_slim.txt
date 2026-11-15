@@ -1,0 +1,310 @@
+[image] 
+[link] 首页
+  [StaticText] 首页
+[link] 书库
+  [StaticText] 书库
+[link] 书架
+  [StaticText] 书架
+[link] 原创榜
+  [StaticText] 原创榜
+[link] 作家专区
+  [StaticText] 作家专区
+[link] 版权专区
+  [StaticText] 版权专区
+[textbox] 请输入书名或作者名  <editable,invalid,multiline,readonly,required>
+[StaticText] 
+[StaticText] 登录
+[StaticText] 注册
+[link]  番茄小说
+  [StaticText] 
+  [StaticText] 番茄小说
+[link]  帮助中心
+  [StaticText] 
+  [StaticText] 帮助中心
+[link]  作家助手
+  [StaticText] 
+  [StaticText] 作家助手
+[StaticText] 读者
+[StaticText] ：
+[StaticText] 全部
+[StaticText] 男生
+[StaticText] 女生
+[StaticText] 分类
+[StaticText] ：
+[StaticText] 全部
+[StaticText] 主题
+[StaticText] 角色
+[StaticText] 情节
+[StaticText] 状态
+[StaticText] ：
+[StaticText] 全部
+[StaticText] 已完结
+[StaticText] 连载中
+[StaticText] 字数
+[StaticText] ：
+[StaticText] 全部
+[StaticText] 30万以下
+[StaticText] 30-50万
+[StaticText] 50-100万
+[StaticText] 100-200万
+[StaticText] 200万以上
+[StaticText] 最热
+[StaticText] 最新
+[StaticText] 字数
+[image] 骇夜：恐怖游戏暴富
+[link] 骇夜：恐怖游戏暴富
+  [StaticText] 骇夜：恐怖游戏暴富
+[StaticText] 作者：
+[StaticText] 阿阿二
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【评刚涨，限流+微惊悚+创副+】 栋屹永夜楼，群困楼玩。 必须断参诡异极游戏，换取存食资。 穿红绣鞋杀狂，球，探险队亡诡…… 诡局，九。 玩：！ 邵澜：，包
+[StaticText] 22小时前
+[image] 
+[link] 
+  [StaticText] 
+[StaticText] 作者：
+[StaticText] 蚕土豆
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 灵，异骨，铭刻承载诸灵妙，执掌伟，化火引，叱雷吒，吞摘星，镇魔囚。 ，骨。 具骨，谓...。
+[StaticText] 16小时前
+[image] 游戏劲，挖矿！
+[link] 游戏劲，挖矿！
+  [StaticText] 游戏劲，挖矿！
+[StaticText] 作者：
+[StaticText] 易
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【域降临球】 职业杨凌「域」款游戏松松，环境恶劣，离线。 奈，，始断挖矿冲级，努！
+[StaticText] 1小时前
+[image] 系统害，选择交
+[link] 系统害，选择交
+  [StaticText] 系统害，选择交
+[StaticText] 作者：
+[StaticText] 超级吹宝泡泡糖
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【签版】 【非规交，聚焦角双奔赴】 消息！系统！ 坏消息！系统貌似弄！ 致宿抹杀系统，李策‘违背祖宗’决。 系统交！ ：，精品，节奏，简介，慢热步，百订涨，
+[StaticText] 12小时前
+[image] 终焉
+[link] 终焉
+  [StaticText] 终焉
+[StaticText] 作者：
+[StaticText] 杀虫队队
+[StaticText] 已完结
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 番茄巅峰榜 |  “网络影响榜” |  “”奖 | 版销售量超册 （宫，套，敌，系统，脑，爽，介慎。） 寻，捉终焉。 需断参亡游戏
+[StaticText] 2025-10-31 22:10
+[image] 戏
+[link] 戏
+  [StaticText] 戏
+[StaticText] 作者：
+[StaticText] 九域
+[StaticText] 已完结
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 《斩》九域 | 澳际科幻奖佳科幻网络 | 逆转式怪诞巨 赤流星划际，类陷停滞。 ，制造枚火箭，颗核弹，架飞，台汽……近科堆砌塔轰坍塌，灾，止。 灰随赤流星降临，镜
+[StaticText] 2026-04-30 20:28
+[image] 球考：刚刑考试
+[link] 球考：刚刑考试
+  [StaticText] 球考：刚刑考试
+[StaticText] 作者：
+[StaticText] 猫片哇
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【智+微恐+限流】 亡考降临，千考狱。 考题替换各恐怖片灾景，奢。 获奖励，败抹杀！ 兑换千，百兑换暴君基，千兑换末启。 ？？考试。 ------- 调查，球监狱，“请”***夜林。 
+[StaticText] 2小时前
+[image] 武侠：局破庙夜帮
+[link] 武侠：局破庙夜帮
+  [StaticText] 武侠：局破庙夜帮
+[StaticText] 作者：
+[StaticText] 
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【游戏】【影响】【武】【】 陈玄触款类‘游戏’《武》，惊讶，游戏，仅逼怕，甚，影响。 醒殊赋，属归价，游戏奇遇务触！ 【触凡级奇遇‘领悟’，基础武
+[StaticText] 23小时前
+[image] 规则怪谈：谓，系统
+[link] 规则怪谈：谓，系统
+  [StaticText] 规则怪谈：谓，系统
+[StaticText] 作者：
+[StaticText] 巡
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 慈航舞台，挂。 陈穿越异，简阴。 “村育。” “哈！穿越，逮。” “买彩票。” “哈！，逮。” “，阴吧，必装君。” 陈，刷系统。 系统极限，穿
+[StaticText] 12小时前
+[image] 末选择：局亿洲蠊
+[link] 末选择：局亿洲蠊
+  [StaticText] 末选择：局亿洲蠊
+[StaticText] 作者：
+[StaticText] 忆临
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] （评刚，涨） “袋包，需选择选择项，选择……” “：胜-型末蟑螂。” “：亿洲蠊封闭房待。” ，末选择降临。 诡异侵，怪降临，城市沦陷，类迫弃园，迁移，求线。 ，各随
+[StaticText] 10小时前
+[image] 持械宋
+[link] 持械宋
+  [StaticText] 持械宋
+[StaticText] 作者：
+[StaticText] 茶根
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 宋末，烽火连。支执务五队，坠空隧，携械穿越宋。队林昭 —— 京片冷静决，统帅局。狙击谢、械振邦 —— 北碴，。兵王浩川 —— 广仔，组网，观六。湘妹医官陈素 —— 妙春，玫瑰。视角宋，
+[StaticText] 14小时前
+[image] 恐怖游戏：局皮嫁骨吓哭球！
+[link] 恐怖游戏：局皮嫁骨吓哭球！
+  [StaticText] 恐怖游戏：局皮嫁骨吓哭球！
+[StaticText] 作者：
+[StaticText] 芝黑桃
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【古搓++微恐】 恐怖游戏降临！ 林夜穿越，选参球恐怖游戏设计。 掏“鬼娘”拯救夏，化断层！ 夏传统怪谈烂，绝！ 夏连败，诡异降临，饿殍遍野！ “既祖宗招，识式恐怖！” 林夜冷，反输【
+[StaticText] 10小时前
+[image] 精病院斩
+[link] 精病院斩
+  [StaticText] 精病院斩
+[StaticText] 作者：
+[StaticText] 九域
+[StaticText] 已完结
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 番茄站必读爆款 | 爆款漫《斩》著 | 网络影响榜影响 |  否，霓虹璀璨市，潜藏古怪？ 否，悬顶亮，伫守？ 否，潮汹涌城市，存替
+[StaticText] 2024-07-31 09:55
+[image] 游戏侵：抢缘瘾诶
+[link] 游戏侵：抢缘瘾诶
+  [StaticText] 游戏侵：抢缘瘾诶
+[StaticText] 作者：
+[StaticText] 猫秃
+[StaticText] 已完结
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【游戏侵++升级流+独狼+游戏】（：游戏侵） 虞寻歌件弟弟灌瓶，错游戏测。 辈临躲背算计，频赘婿爽反派...遭恶背甩锅。 辈换躲背。 缘。 参
+[StaticText] 2026-05-31 06:01
+[image] 序列：
+[link] 序列：
+  [StaticText] 序列：
+[StaticText] 作者：
+[StaticText] 脑脑
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【番茄频 版质量保证，架空武+群权谋+套娃慢节奏设+越越】 巨鸟吞，剧。诡异，类超序列。 ，领。补，饭永。 ，！ 嗯？！醒【】
+[StaticText] 10小时前
+[image] 渊
+[link] 渊
+  [StaticText] 渊
+[StaticText] 作者：
+[StaticText] 沐潇
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] （版，网购买） 百，陈青源渊禁区，魂灯熄灭，皆。 今，陈青源虽禁区，修尽废，灵根断裂。 红颜悔婚，各宗欺压，陈青源该？ “陈青源，选择：，娶;二......” 渊红裙姑娘，眸若星辰，
+[StaticText] 12小时前
+[image] 北派盗墓笔
+[link] 北派盗墓笔
+  [StaticText] 北派盗墓笔
+[StaticText] 作者：
+[StaticText] 云峰
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] 【版，线台售】【北派笔 横屏剧线】【盗墓+悬疑+鉴宝】北村穷，二纪初，，北派盗墓团伙。南北，江湖百态，九流，混，酒量，蹉跎，曾触奇异，各兴趣，妨搬板凳，，
+[StaticText] 5天前
+[image] 副：造九九八
+[link] 副：造九九八
+  [StaticText] 副：造九九八
+[StaticText] 作者：
+[StaticText] 嫁纱
+[StaticText] 连载中
+[StaticText] ·
+[StaticText] 
+[StaticText] .
+[StaticText] （评刚。） 怪杀。 付怪，副。 苏牧穿越副。 ，灾降临百，怪巢穴肿瘤般遍布。 类唯武器，醒制造属副——副，碾碎怪灭规则。 八醒。苏牧校灵魂，醒…… 块级石核卡。 
+[StaticText] 10小时前
+[list] 
+  [listitem]   <level>
+    [StaticText] 上一页
+  [listitem]   <level>
+    [StaticText] 1
+  [listitem]   <level>
+    [StaticText] 2
+  [listitem]   <level>
+    [StaticText] 3
+  [listitem]   <level>
+    [StaticText] 4
+  [listitem]   <level>
+    [StaticText] 5
+  [listitem]   <level>
+    [image] 
+  [listitem]   <level>
+    [StaticText] 99
+  [listitem]   <level>
+    [StaticText] 下一页
+[image] 
+[link] 《番茄小说网用户协议》
+  [StaticText] 《番茄小说网用户协议》
+[link] 《番茄小说网隐私政策》
+  [StaticText] 《番茄小说网隐私政策》
+[paragraph] 
+  [StaticText] ©
+  [StaticText] 2026
+  [StaticText] 北京时光荏苒科技有限公司
+[link] 京ICP备18018851号-8
+  [StaticText] 京ICP备18018851号-8
+[link] 京公网安备 11010802030409号
+  [StaticText] 京公网安备 11010802030409号
+[link] 京ICP证 京B2-20200085
+  [StaticText] 京ICP证 京B2-20200085
+[link] 营业执照
+  [StaticText] 营业执照
+[link] 出版物经营许可证
+  [StaticText] 出版物经营许可证
+[link] 广播电视节目制作经营许可证
+  [StaticText] 广播电视节目制作经营许可证
+[link] 中国互联网举报中心
+  [StaticText] 中国互联网举报中心
+[paragraph] 
+  [StaticText] 广告投放：
+  [link] www.oceanengine.com
+    [StaticText] www.oceanengine.com
+[paragraph] 
+  [StaticText] 不良信息举报邮箱：
+  [StaticText] fanqiejubao@bytedance.com
+[paragraph] 
+  [StaticText] 意见建议邮箱：original_articles@bytedance.com
+[paragraph] 
+  [StaticText] 违法和不良信息举报电话：957124
+[paragraph] 
+  [StaticText] 版权咨询：2947820142@qq.com
+[image] 
+[StaticText] 打开微信扫码关注微信公众号
+[image] 
+[StaticText] 打开抖音扫码关注官方帐号

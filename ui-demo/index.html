@@ -1,0 +1,3370 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light" data-contrast="normal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>启明书院 · UI 设计 demo（设计评审稿 · 番茄小说视觉语言 · 逆向对齐版）</title>
+<style>
+/* ============================================================
+   启明书院 UI 设计 demo · 视觉改版「纸页与朱印」
+   依据 docs/06-原型设计.md、docs/09-附录A-UI-Demo规格.md、
+   docs/11-番茄小说逆向对比分析.md。
+   单文件静态原型：无外部资源、无框架、无网络请求。
+
+   改版口径（只动组合层，不动令牌数值）：
+   · 色彩 / 间距 / 圆角 / 字号 / 阅读参数 / 120ms 动效沿用原精确值；
+   · 标题与书籍封面回到 06 §1.1 的宋体栈，界面正文仍用系统无衬线；
+   · 撤掉满屏投影浮卡、渐变封面、胶囊按钮堆叠与居中色块横幅；
+   · 朱红只做标记色（下划线、圆点、当前项、主按钮），不做大面积底色。
+   ============================================================ */
+
+/* ---------- 设计令牌：番茄小说视觉语言（精确值，不得改动） ---------- */
+:root {
+  --surface:          #F2F3F5;
+  --paper:            #FFFFFF;
+  --ink:              #1A1A1A;
+  --secondary:        #6B6F76;
+  --accent:           #E8453B;   /* 番茄红品牌色 */
+  --accent-soft:      #FCE9E7;
+  --danger:           #C0392B;
+  --border:           #E6E8EB;
+  --night-surface:    #1A1C1E;
+  --night-paper:      #242628;
+  --night-ink:        #E8E8E8;
+
+  --space-1: 4px;  --space-2: 8px;   --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px;  --space-7: 48px;
+
+  /* 圆角：卡片 16px，控件/胶囊按钮 999px */
+  --radius-card: 16px;
+  --radius-control: 999px;
+  --radius-overlay: 16px;
+
+  /* 字体：标题/阅读宋体栈（06 §1.1），界面无衬线与等宽栈；仅系统字体，无外链 */
+  --font-title: "Noto Serif SC", "Songti SC", "Source Han Serif SC", "STSong", "SimSun", serif;
+  --font-read:  "Noto Serif SC", "Songti SC", "Source Han Serif SC", "STSong", "SimSun", serif;
+  --font-ui:    -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --title-1: 26px; --title-2: 22px; --title-3: 18px;
+  --ui-body: 15px; --ui-aux: 13px;
+
+  --reader-size: 18px;
+  --reader-leading: 1.8;
+  --reader-measure: 44em;
+
+  --panel-motion: 120ms;
+  --focus-color: var(--accent);
+
+  /* 派生变量：只补齐层次与可读性，不改动上面的精确令牌 */
+  --text-aux:    var(--secondary);
+  --text-action: #B23A31;      /* 白底小字用深一档朱红，达到 4.5:1 以上 */
+  --text-danger: var(--danger);
+  --skeleton:    #E9EBEE;
+  --shadow-card: 0 1px 2px rgba(26,28,30,.04);
+  --shadow-soft: 0 6px 24px rgba(26,28,30,.10);
+  --hairline:        #E6E8EB;
+  --hairline-strong: #D8DBE0;
+  --paper-soft:      #FAFAFA;
+  --cover-ink:       #2A2724;
+}
+[data-theme="night"] {
+  --surface:      var(--night-surface);
+  --paper:        var(--night-paper);
+  --ink:          var(--night-ink);
+  --border:       #34373A;
+  --focus-color:  #FF8A80;
+  --text-aux:     #9AA0A6;
+  --text-action:  #FF8A80;
+  --text-danger:  #FF9E94;
+  --skeleton:     #2C2F31;
+  --shadow-soft:  0 6px 20px rgba(0,0,0,.45);
+  --shadow-card:  0 1px 2px rgba(0,0,0,.4);
+  --hairline:        #34373A;
+  --hairline-strong: #43464A;
+  --paper-soft:      #1F2124;
+  --cover-ink:       #E8E8E8;
+}
+[data-contrast="high"] {
+  --text-aux: var(--ink);
+}
+[data-contrast="high"] .sheet,
+[data-contrast="high"] .row,
+[data-contrast="high"] .rule,
+[data-contrast="high"] .state-pane,
+[data-contrast="high"] th,
+[data-contrast="high"] td,
+[data-contrast="high"] .book-cover { border-color: var(--ink); }
+[data-contrast="high"] .aux,
+[data-contrast="high"] .meta-item,
+[data-contrast="high"] .lead { font-weight: 600; }
+
+*:focus-visible {
+  outline: 3px solid var(--focus-color);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ---------- 基础 ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--ui-body);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--accent-soft); color: var(--ink); }
+[data-theme="night"] ::selection { background: #4A2A27; color: var(--night-ink); }
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: absolute;
+  top: -120px; left: var(--space-3);
+  z-index: 300;
+  display: inline-flex; align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-control);
+  font-size: 12px;
+  letter-spacing: .08em;
+}
+.skip-link:focus { top: var(--space-3); }
+
+code, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+code { font-size: 11.5px; padding: 1px 4px; border-radius: 2px; background: var(--paper-soft); color: var(--ink); }
+.aux {
+  font-size: 12.5px;
+  line-height: 1.75;
+  color: var(--text-aux);
+  margin: 0 0 var(--space-3);
+  max-width: 82ch;
+}
+.lead { font-size: 13px; line-height: 1.75; color: var(--text-aux); margin: 0 0 var(--space-5); max-width: 82ch; }
+.data-note {
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--text-aux);
+  border-left: 2px solid var(--accent-soft);
+  background: none;
+  padding: 2px 0 2px 12px;
+  border-radius: 0;
+  margin: 0 0 var(--space-5);
+  max-width: 80ch;
+}
+[data-theme="night"] .data-note { border-left-color: #4A3330; }
+.rule { border: 0; border-top: 1px solid var(--hairline); margin: var(--space-6) 0; }
+.danger-text { color: var(--text-danger); font-weight: 600; }
+.accent-text { color: var(--text-action); font-weight: 600; }
+
+/* ---------- 按钮与控件 ---------- */
+.btn {
+  font: inherit;
+  font-size: 13px;
+  min-height: 44px; min-width: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; text-align: center;
+  text-decoration: none;
+  letter-spacing: .02em;
+  transition: background var(--panel-motion) ease, border-color var(--panel-motion) ease, color var(--panel-motion) ease;
+}
+.btn:hover { border-color: var(--ink); color: var(--ink); background: var(--paper-soft); }
+.btn[aria-pressed="true"] { background: var(--paper); border-color: var(--ink); color: var(--ink); font-weight: 600; }
+[data-theme="night"] .btn[aria-pressed="true"] { background: transparent; border-color: var(--text-action); color: var(--text-action); }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn--primary:hover { background: #D6382F; border-color: #D6382F; color: #fff; }
+[data-theme="night"] .btn--primary { background: var(--text-action); border-color: var(--text-action); color: var(--night-surface); }
+.btn--danger { background: transparent; border-color: var(--danger); color: var(--text-danger); font-weight: 500; }
+.btn--danger:hover { background: var(--text-danger); border-color: var(--text-danger); color: #fff; }
+.btn--sm { font-size: 12px; padding: 0 14px; min-height: 40px; letter-spacing: .03em; }
+.btn:disabled { opacity: .5; cursor: not-allowed; color: var(--text-aux); }
+.btn:disabled:hover { border-color: var(--hairline-strong); background: var(--paper); color: var(--text-aux); }
+.btn svg { width: 16px; height: 16px; flex: none; opacity: .72; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: var(--space-2); }
+.view[data-view="M02"] .btn--primary { align-self: flex-start; width: auto; min-width: 220px; }
+
+/* 标签不是按钮：状态用「点 + 词」，适龄用细框小签 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: .04em;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: var(--text-aux);
+  background: none;
+  overflow-wrap: anywhere;
+}
+.tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; opacity: .9; }
+.tag--accent { border-color: transparent; color: var(--text-action); background: transparent; }
+.tag--danger { border-color: transparent; color: var(--text-danger); }
+.badge-age {
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  padding: 0 5px;
+  color: var(--text-aux);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+.badge-age::before { display: none; }
+.badge-pub { border-color: transparent; color: var(--ink); }
+.badge-off { border-color: transparent; color: var(--text-danger); }
+
+/* ---------- 页首与导航 ---------- */
+.app-header { background: var(--paper); border-bottom: 1px solid var(--hairline); }
+.header-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 14px 28px 0;
+  display: flex; flex-wrap: wrap;
+  gap: 10px 20px; align-items: center;
+}
+.brand {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 28px auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  font-family: var(--font-title);
+}
+.brand-dot {
+  grid-row: 1 / span 2;
+  width: 28px; height: 28px;
+  border-radius: 2px;
+  background: var(--accent);
+  color: #fff;
+  display: grid; place-items: center;
+  font-family: var(--font-title);
+  font-size: 15px; font-weight: 600; line-height: 1;
+  letter-spacing: 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.22);
+}
+.brand-dot::before { content: "启"; }
+.brand-text {
+  font-family: var(--font-title);
+  font-size: 21px; font-weight: 600;
+  letter-spacing: .14em; line-height: 1.2;
+  color: var(--ink);
+}
+.brand small {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 10.5px; font-weight: 400;
+  letter-spacing: .16em; line-height: 1.4;
+  color: var(--text-aux);
+}
+.demo-note { flex: 1 1 280px; margin: 0; font-size: var(--ui-aux); color: var(--text-aux); }
+.demo-note strong { color: var(--text-danger); font-weight: 600; }
+
+/* 评审说明：默认收起，只留一行提示 */
+.review-note { flex: 1 0 100%; margin: 0; padding: 4px 0 8px; border-top: 1px dashed var(--hairline); }
+.review-note summary {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 30px;
+  font-size: 10.5px; letter-spacing: .16em;
+  color: var(--text-aux);
+  cursor: pointer;
+  list-style: none;
+}
+.review-note summary::-webkit-details-marker { display: none; }
+.review-note summary::before { content: "＋"; font-size: 12px; color: var(--text-aux); }
+.review-note[open] summary::before { content: "－"; }
+.review-note summary strong { color: var(--ink); font-weight: 600; letter-spacing: .08em; }
+.review-note p {
+  margin: 4px 0 6px;
+  max-width: 92ch;
+  font-size: 12px; line-height: 1.75;
+  color: var(--text-aux);
+}
+.review-note p strong { color: var(--ink); font-weight: 600; }
+
+.ws-nav, .header-tools { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.ws-nav {
+  margin-left: auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--paper-soft);
+}
+.ws-nav .btn {
+  min-height: 38px; min-width: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text-aux);
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+.ws-nav .btn:hover { background: transparent; color: var(--ink); }
+.ws-nav .btn[aria-pressed="true"] {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(26,28,30,.08), inset 0 0 0 1px rgba(26,28,30,.04);
+}
+[data-theme="night"] .ws-nav .btn[aria-pressed="true"] { background: var(--night-surface); box-shadow: inset 0 0 0 1px #3A3D40; }
+.ws-nav .btn svg { width: 14px; height: 14px; opacity: .6; }
+
+.header-tools .btn {
+  min-height: 38px; min-width: 0;
+  padding: 0 12px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-aux);
+  font-size: 11.5px;
+  letter-spacing: .04em;
+}
+.header-tools .btn:hover { border-color: var(--hairline); background: var(--paper); color: var(--ink); }
+.header-tools .btn[aria-pressed="true"] { border-color: var(--hairline); background: var(--paper); color: var(--ink); font-weight: 600; }
+.header-tools .btn::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--hairline-strong); flex: none; }
+.header-tools .btn[aria-pressed="true"]::before { background: var(--accent); }
+
+.sub-nav {
+  position: sticky; top: 0; z-index: 90;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--paper);
+  box-shadow: 0 1px 0 rgba(26,28,30,.03);
+}
+.sub-nav-inner {
+  max-width: 1280px; margin: 0 auto;
+  padding: 0 28px;
+  display: flex; flex-wrap: nowrap;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.sub-nav button {
+  font: inherit; font-size: 12px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--text-aux);
+  cursor: pointer; white-space: nowrap;
+  letter-spacing: .04em;
+}
+.sub-nav button:hover { color: var(--ink); }
+.sub-nav button[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* 底部标签导航（<768px）：工作空间切换固定到底部 */
+.bottom-tab {
+  display: none;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 250;
+  background: var(--paper); border-top: 1px solid var(--hairline);
+  box-shadow: 0 -1px 0 rgba(26,28,30,.04);
+  padding: 4px 0 calc(4px + env(safe-area-inset-bottom, 0px));
+}
+.bottom-tab button {
+  flex: 1 1 0; min-height: 56px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 0;
+  background: transparent; color: var(--text-aux);
+  cursor: pointer; font-size: 11px; letter-spacing: .06em;
+}
+.bottom-tab button svg { width: 20px; height: 20px; opacity: .7; }
+.bottom-tab button[aria-pressed="true"] { color: var(--text-action); font-weight: 600; }
+.bottom-tab button[aria-pressed="true"] svg { opacity: 1; }
+@media (max-width: 767px) {
+  body { padding-bottom: 76px; }
+  .app-header .ws-nav { display: none; }
+  .bottom-tab { display: flex; }
+  .header-inner { padding: 12px 16px 0; gap: 8px 12px; }
+  .header-tools { margin-left: auto; }
+  .brand-text { font-size: 19px; }
+  .sub-nav-inner { padding: 0 8px; }
+  .btn--sm { min-height: 44px; }
+}
+
+/* ---------- 主区与视图 ---------- */
+.page { max-width: 1280px; margin: 0 auto; padding: 32px 28px 80px; }
+.sheet {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 40px 44px 48px;
+  box-shadow: 0 1px 2px rgba(26,28,30,.03), 0 32px 64px -48px rgba(26,28,30,.28);
+}
+@media (max-width: 1023px) {
+  .page { padding: 20px 16px 64px; }
+  .sheet { padding: 24px 20px 32px; border-radius: 2px; box-shadow: none; }
+}
+.view.is-entering { animation: viewIn var(--panel-motion) ease-out; }
+@keyframes viewIn { from { opacity: 0; } to { opacity: 1; } }
+
+.view h1 {
+  font-family: var(--font-title);
+  font-size: var(--title-1);
+  font-weight: 600;
+  line-height: 1.34;
+  letter-spacing: .01em;
+  margin: 0 0 var(--space-3);
+  text-wrap: balance;
+}
+.view h2 {
+  font-family: var(--font-title);
+  font-size: var(--title-3);
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin: var(--space-6) 0 var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--hairline);
+}
+.view h2:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.view h3 { font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: .02em; margin: var(--space-5) 0 var(--space-2); }
+.view p { margin: 0 0 var(--space-3); max-width: 88ch; }
+
+.view-head {
+  display: flex; flex-wrap: wrap;
+  gap: 10px var(--space-5);
+  justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 12px; margin-bottom: var(--space-5);
+}
+.view-meta {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: 4px 14px;
+  font-size: 11px; letter-spacing: .03em;
+  color: var(--text-aux);
+}
+.meta-item { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 5px; }
+.meta-item + .meta-item::before { content: "/"; color: var(--hairline-strong); margin-right: 6px; }
+.meta-item b { color: var(--ink); font-weight: 600; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0; }
+.meta-item code { background: none; padding: 0; font-size: 11px; color: var(--ink); }
+.synthetic {
+  border: 0; border-left: 1px solid var(--hairline-strong);
+  padding: 0 0 0 10px; margin-left: 2px;
+  font-size: 10px; letter-spacing: .16em;
+  color: var(--text-aux);
+  border-radius: 0;
+}
+.state-controls {
+  margin: 0 0 0 auto; padding: 0;
+  border: 0;
+  display: flex; align-items: center; gap: 8px;
+  background: transparent;
+  min-width: 0;
+}
+.state-controls legend {
+  float: none;
+  margin: 0; padding: 0;
+  font-size: 10px; letter-spacing: .14em;
+  color: var(--text-aux);
+  white-space: nowrap;
+}
+.state-buttons {
+  display: inline-flex; gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--paper-soft);
+}
+.state-buttons button {
+  font: inherit; font-size: 11px;
+  min-height: 34px; min-width: 44px;
+  padding: 0 10px;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-aux);
+  cursor: pointer; letter-spacing: .04em;
+}
+.state-buttons button:hover { color: var(--ink); }
+.state-buttons button[aria-pressed="true"] {
+  background: var(--paper); color: var(--ink); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(26,28,30,.10), inset 0 0 0 1px var(--hairline);
+}
+[data-theme="night"] .state-buttons button[aria-pressed="true"] { background: var(--night-surface); box-shadow: inset 0 0 0 1px #3A3D40; }
+
+/* ---------- 四态面板 ---------- */
+.state-pane {
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-card);
+  background: var(--paper-soft);
+  padding: var(--space-7) var(--space-5);
+  min-height: 240px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: var(--space-3); text-align: center;
+}
+.state-title { font-family: var(--font-title); font-size: var(--title-3); font-weight: 600; letter-spacing: .02em; margin: 0; }
+.state-title--error { color: var(--text-danger); }
+.state-sub { font-size: 12px; line-height: 1.75; color: var(--text-aux); margin: 0; max-width: 52ch; }
+.error-mark {
+  width: 44px; height: 44px;
+  display: grid; place-items: center;
+  border: 1px solid var(--text-danger);
+  border-radius: 50%;
+  font-family: var(--font-mono); font-size: 20px; font-weight: 600;
+  color: var(--text-danger);
+}
+.empty-mark {
+  position: relative;
+  width: 40px; height: 48px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  background: var(--paper);
+}
+.empty-mark::before,
+.empty-mark::after { content: ""; position: absolute; left: 10px; height: 1px; background: var(--hairline-strong); }
+.empty-mark::before { top: 16px; right: 10px; }
+.empty-mark::after { top: 28px; width: 60%; }
+.skeleton-stack { width: min(100%, 560px); display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.skeleton {
+  width: 100%; height: 10px;
+  background: linear-gradient(90deg, var(--skeleton) 0%, #F7F8FA 50%, var(--skeleton) 100%);
+  background-size: 200% 100%;
+  border: 0; border-radius: 2px;
+  animation: shimmer 1.8s linear infinite;
+}
+[data-theme="night"] .skeleton { background-image: linear-gradient(90deg, var(--skeleton) 0%, #34373A 50%, var(--skeleton) 100%); }
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.skeleton--short { width: 62%; }
+.skeleton--mid { width: 82%; }
+.state-list { text-align: left; width: min(100%, 720px); display: flex; flex-direction: column; gap: 12px; }
+.state-list > div { border-left: 2px solid rgba(192,57,43,.35); padding-left: 12px; }
+
+/* ---------- 通用布局 ---------- */
+.cols { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--space-6); }
+.cols--240 { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: var(--space-6); }
+.cols--side { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: var(--space-7); }
+@media (max-width: 1023px) {
+  .cols, .cols--240, .cols--side { grid-template-columns: minmax(0,1fr); gap: var(--space-5); }
+}
+.side-box { border-left: 1px solid var(--hairline); padding-left: var(--space-5); }
+@media (max-width: 1023px) { .side-box { border-left: 0; border-top: 1px solid var(--hairline); padding-left: 0; padding-top: var(--space-4); } }
+
+.row {
+  display: flex; flex-wrap: wrap;
+  gap: 8px var(--space-5);
+  align-items: flex-start; justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.row:last-child { border-bottom: 0; }
+.row-main { flex: 1 1 280px; min-width: 0; }
+.row-title { font-size: 14.5px; font-weight: 600; letter-spacing: .01em; margin: 0 0 4px; }
+.row-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; letter-spacing: .03em; color: var(--text-aux); }
+.row-desc { margin: 4px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--secondary); max-width: 72ch; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---------- 表单与表格 ---------- */
+.field { display: block; font-size: 12px; margin: 0 0 var(--space-4); }
+.field > span { display: block; font-size: 11px; letter-spacing: .1em; color: var(--text-aux); margin-bottom: 6px; }
+input[type="text"], select, textarea {
+  font: inherit; font-size: 14px;
+  width: 100%; max-width: 100%;
+  padding: 10px 12px;
+  min-height: 44px;
+  border: 1px solid var(--hairline-strong); border-radius: 4px;
+  background: var(--paper); color: var(--ink);
+  transition: border-color var(--panel-motion) ease;
+}
+input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--ink); }
+select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B6F76'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+[data-theme="night"] select { background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239AA0A6'/%3E%3C/svg%3E"); }
+textarea { min-height: 220px; resize: vertical; font-family: var(--font-read); line-height: 1.85; font-size: 15px; }
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; min-height: 32px; height: 32px;
+  background: transparent; cursor: pointer;
+  accent-color: var(--accent);
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 2px; background: var(--hairline-strong); border-radius: 1px; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; margin-top: -6px;
+  border-radius: 50%; border: 0; background: var(--accent);
+}
+input[type="range"]::-moz-range-track { height: 2px; background: var(--hairline-strong); border-radius: 1px; }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: var(--accent); }
+.range-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 12px; align-items: center; margin-bottom: 14px; }
+.range-row label { font-size: 11px; letter-spacing: .08em; color: var(--text-aux); }
+.range-row output { font-family: var(--font-mono); font-size: 11px; color: var(--text-action); }
+.range-row input[type="range"] { grid-column: 1 / -1; }
+.prefs { display: flex; flex-direction: column; gap: 10px; }
+.prefs .btn { justify-content: flex-start; }
+.field-hint { font-size: 11px; line-height: 1.7; color: var(--text-aux); margin: var(--space-2) 0 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+caption { text-align: left; font-size: 11px; letter-spacing: .06em; color: var(--text-aux); padding-bottom: 10px; }
+th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-size: 10.5px; font-weight: 600; letter-spacing: .14em; color: var(--text-aux); border-bottom: 1px solid var(--hairline-strong); }
+tbody tr:hover { background: var(--paper-soft); }
+@media (max-width: 767px) {
+  table, tbody, tr, th, td { display: block; width: 100%; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  tr { border: 1px solid var(--hairline); border-radius: 4px; margin-bottom: 12px; padding: 10px; }
+  tbody tr:hover { background: transparent; }
+  td { border-bottom: 1px dotted var(--hairline); padding: 8px 0; }
+  td::before { content: attr(data-label); display: block; font-size: 10px; letter-spacing: .12em; font-weight: 600; color: var(--text-aux); margin-bottom: 2px; }
+  td:last-child { border-bottom: 0; }
+}
+
+/* ---------- V0 令牌演示 ---------- */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+@media (max-width: 400px) { .swatches { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.swatch {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--hairline); border-radius: 4px;
+  padding: 10px; font-size: 11px;
+  box-shadow: none;
+}
+.swatch-chip { height: 56px; border: 0; margin: 0; border-radius: 2px; }
+.swatch-name { display: block; font-family: var(--font-mono); font-size: 11px; color: var(--ink); }
+.swatch-value { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-aux); }
+.space-bars > div { display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 12px; align-items: center; margin-bottom: 8px; font-size: 10.5px; }
+.space-bars > div > span:first-child { font-family: var(--font-mono); color: var(--text-aux); text-align: right; }
+.space-bar { height: 4px; background: var(--accent); border-radius: 0; }
+.radius-samples { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+.radius-sample {
+  width: 110px; height: 56px;
+  border: 1px solid var(--hairline);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; letter-spacing: .04em; color: var(--text-aux);
+  box-shadow: none;
+  background: var(--paper);
+}
+.type-steps > div { border-bottom: 1px solid var(--hairline); padding: 10px 0; }
+.type-steps > div:last-child { border-bottom: 0; }
+
+/* ---------- R01 书城：合规提示 / 多维筛选 / 书卡 ---------- */
+.compliance-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: transparent;
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 10px 0;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: .02em;
+  color: var(--text-aux);
+  margin: 0 0 var(--space-5);
+  text-align: left;
+}
+.compliance-banner::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+.filters { display: flex; flex-direction: column; gap: 0; margin-bottom: var(--space-5); border-top: 1px solid var(--hairline); }
+.filter-row {
+  display: flex; flex-wrap: wrap;
+  gap: 8px 16px; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.filter-row:last-child { border-bottom: 1px solid var(--hairline); }
+.filter-name { flex: 0 0 auto; width: 60px; font-size: 10.5px; letter-spacing: .12em; color: var(--text-aux); padding-top: 0; }
+.filter-chips { flex: 1 1 260px; display: flex; flex-wrap: wrap; gap: 0 18px; }
+.chip {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-aux);
+  cursor: pointer;
+  padding: 0 2px;
+  min-width: 0;
+  font-size: 12.5px;
+  box-shadow: none;
+}
+.chip:hover { border-bottom-color: var(--hairline-strong); color: var(--ink); background: transparent; }
+.chip[aria-pressed="true"] {
+  background: transparent;
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: none;
+}
+[data-theme="night"] .chip[aria-pressed="true"] { background: transparent; color: var(--night-ink); border-bottom-color: var(--text-action); box-shadow: none; }
+
+.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(172px, 1fr)); gap: var(--space-6) var(--space-5); margin: var(--space-3) 0 var(--space-5); }
+@media (max-width: 600px) { .book-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 24px 16px; } }
+@media (max-width: 600px) {
+  .filter-row { display: block; padding: 10px 0; }
+  .filter-name { width: auto; display: block; margin-bottom: 4px; }
+  .filter-chips { flex-basis: auto; }
+}
+.book-card {
+  display: flex; flex-direction: column; gap: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.book-card[role="button"] { cursor: pointer; transition: transform var(--panel-motion) ease; }
+.book-card[role="button"]:hover { transform: translateY(-2px); }
+.book-card[role="button"]:hover .book-title { text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
+.book-card:focus-visible .book-cover { outline: 3px solid var(--focus-color); outline-offset: 3px; }
+.book-card.is-muted { opacity: .5; }
+.book-cover {
+  position: relative;
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  width: 100%;
+  aspect-ratio: 3 / 4.25;
+  padding: 18px 16px 16px;
+  border-radius: 2px;
+  background: var(--cover-a, #FCE9E7);
+  border: 1px solid rgba(26,26,26,.10);
+  box-shadow: 0 1px 0 rgba(255,255,255,.55), 0 12px 26px -20px rgba(26,26,26,.55);
+  overflow: hidden;
+  font-family: var(--font-title);
+  color: var(--cover-ink);
+}
+[data-theme="night"] .book-cover { border-color: rgba(255,255,255,.14); box-shadow: 0 12px 26px -20px rgba(0,0,0,.8); }
+.book-cover::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 7px;
+  background: linear-gradient(90deg, rgba(0,0,0,.18), rgba(0,0,0,.02));
+}
+.book-cover::after {
+  content: "";
+  position: absolute; inset: 10px;
+  border: 1px solid rgba(26,26,26,.14);
+  pointer-events: none;
+}
+.book-cover--lg { aspect-ratio: 3 / 4.25; padding: 24px 22px 20px; }
+.cover-title {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-title);
+  font-size: 20px; font-weight: 600;
+  letter-spacing: .18em; line-height: 1.25;
+  max-height: 84%;
+  color: var(--cover-ink);
+  z-index: 1;
+}
+.book-cover--lg .cover-title { font-size: 26px; letter-spacing: .2em; }
+.cover-author {
+  position: absolute;
+  left: 18px; bottom: 16px;
+  z-index: 1;
+  font-family: var(--font-ui);
+  font-size: 10px; letter-spacing: .14em;
+  color: rgba(42,39,36,.62);
+}
+[data-theme="night"] .cover-author { color: rgba(232,232,232,.6); }
+.book-title { font-family: var(--font-title); font-size: 15px; font-weight: 600; letter-spacing: .02em; margin: 0; color: var(--ink); }
+.book-meta { font-size: 10.5px; letter-spacing: .04em; color: var(--text-aux); margin: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: center; }
+.book-meta > span { white-space: nowrap; }
+.book-desc { font-size: 12px; color: var(--text-aux); margin: 0; }
+.muted-note { font-size: 10.5px; letter-spacing: .04em; color: var(--text-danger); font-weight: 500; margin: 0; }
+
+/* ---------- R02 书详情 ---------- */
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .06em; margin: 0 0 var(--space-5); color: var(--text-aux); }
+.breadcrumb .crumb { font: inherit; font-size: 11px; min-height: 40px; padding: 0 4px; border: 0; background: transparent; color: var(--text-action); cursor: pointer; letter-spacing: .06em; }
+.breadcrumb .crumb:hover { text-decoration: underline; text-underline-offset: 3px; }
+.breadcrumb .crumb-sep { color: var(--hairline-strong); }
+.breadcrumb .crumb-current { color: var(--text-aux); }
+.book-head { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: var(--space-5) var(--space-7); align-items: start; }
+@media (max-width: 767px) { .book-head { grid-template-columns: minmax(0,1fr); gap: var(--space-5); } }
+.book-head-info { display: flex; flex-direction: column; gap: 8px; }
+.book-head-info h2 { margin: 0; border: 0; padding: 0; font-size: var(--title-2); }
+.book-badges { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.updated-line { font-size: 11px; letter-spacing: .04em; color: var(--text-aux); border-left: 2px solid var(--hairline-strong); padding-left: 10px; margin: var(--space-4) 0; }
+.author-card {
+  display: flex; align-items: center; gap: 12px;
+  border: 0; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 12px 0;
+  background: transparent;
+  box-shadow: none;
+  max-width: none;
+  margin-top: var(--space-3);
+}
+.avatar-circle {
+  width: 40px; height: 40px; flex: none;
+  border-radius: 2px;
+  background: var(--cover-a, #FCE9E7);
+  border: 1px solid rgba(26,26,26,.12);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-title); font-weight: 600;
+  color: var(--cover-ink);
+}
+.author-name { font-size: 13px; font-weight: 600; margin: 0; }
+.author-sig { font-size: 11px; color: var(--text-aux); margin: 0; }
+.vol-title { font-family: var(--font-ui); font-size: 10.5px; font-weight: 600; letter-spacing: .16em; color: var(--text-aux); margin: var(--space-5) 0 var(--space-2); }
+.chapter-list { display: flex; flex-direction: column; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); border-radius: 0; overflow: hidden; }
+.chapter-item {
+  display: flex; flex-wrap: wrap;
+  gap: 8px var(--space-4);
+  justify-content: space-between; align-items: center;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0; border-bottom: 1px solid var(--hairline);
+  background: transparent; color: var(--ink);
+  font: inherit; font-size: 12.5px;
+  cursor: pointer; text-align: left;
+  letter-spacing: .02em;
+}
+.chapter-item:last-child { border-bottom: 0; }
+.chapter-item:hover { background: var(--paper-soft); color: var(--text-action); }
+.chapter-item .ch-date { color: var(--text-aux); font-family: var(--font-mono); font-size: 10.5px; }
+
+/* ---------- R03 阅读器与章节边注轨道 ---------- */
+.reader-shell { display: grid; grid-template-columns: 200px minmax(0,1fr) 208px; gap: var(--space-6); align-items: start; }
+.reader-toc { border-right: 1px solid var(--hairline); padding-right: var(--space-4); }
+/* 桌面端目录随正文滚动保持可见（参考 LeiBox sailing-toc 的滚动跟随，纯 CSS 实现） */
+@media (min-width: 1024px) {
+  /* 62px = 吸顶页签 46px + 16px 间距，避免滚动时被页签盖住 */
+  .reader-toc { position: sticky; top: 62px; max-height: calc(100vh - 120px); overflow-y: auto; }
+}
+.reader-toc h2 { font-family: var(--font-ui); font-size: 10.5px; font-weight: 600; letter-spacing: .16em; color: var(--text-aux); margin: 0 0 8px; border: 0; padding: 0; }
+.reader-toc ol { margin: 0; padding-left: 0; font-size: 12px; list-style: none; }
+.reader-toc li { position: relative; padding: 0; border-bottom: 1px solid var(--hairline); }
+.reader-toc li:last-child { border-bottom: 0; }
+.reader-toc .toc-item {
+  width: 100%; min-height: 44px;
+  padding: 8px 6px 8px 0;
+  border: 0; background: transparent;
+  color: var(--text-aux);
+  font: inherit; font-size: 12px; line-height: 1.5;
+  text-align: left; cursor: pointer;
+}
+.reader-toc .toc-item:hover { color: var(--ink); }
+.reader-toc .toc-here .toc-item { color: var(--ink); font-weight: 600; padding-left: 12px; }
+.reader-toc .toc-here::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 2px; background: var(--accent); }
+.reader-paper {
+  --read-paper: #F5F0E6;
+  --read-ink: #2B2620;
+  background: var(--read-paper);
+  color: var(--read-ink);
+  border: 1px solid rgba(43,38,32,.14);
+  border-radius: 2px;
+  padding: var(--space-7) 56px var(--space-6);
+  box-shadow: 0 1px 2px rgba(43,38,32,.06), 0 24px 48px -36px rgba(43,38,32,.45);
+}
+.reader-paper[data-read-theme="rice"]      { --read-paper:#F5F0E6; --read-ink:#2B2620; }
+.reader-paper[data-read-theme="green"]     { --read-paper:#DCEBD8; --read-ink:#2E3B30; }
+.reader-paper[data-read-theme="parchment"] { --read-paper:#EADCB8; --read-ink:#3B3326; }
+.reader-paper[data-read-theme="night"]     { --read-paper:#1A1C1E; --read-ink:#C8C8C8; }
+.reader-layout { position: relative; }
+.reader-article {
+  max-width: var(--reader-measure);
+  margin: 0 auto;
+  font-family: var(--font-read);
+  font-size: var(--reader-size);
+  line-height: var(--reader-leading);
+  color: var(--read-ink);
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+.reader-article .chapter-no { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); letter-spacing: .22em; margin: 0 0 6px; text-align: left; }
+.reader-article h2 {
+  font-family: var(--font-title);
+  font-size: var(--title-2);
+  font-weight: 600;
+  letter-spacing: .02em;
+  margin: 0 0 10px;
+  border: 0; padding: 0;
+  color: var(--read-ink);
+  text-align: left;
+  line-height: 1.4;
+}
+.reader-article .chapter-meta { font-size: 10.5px; letter-spacing: .06em; color: rgba(43,38,32,.55); margin: 0 0 var(--space-6); border: 0; padding: 0; text-align: left; }
+[data-read-theme="night"] .reader-article .chapter-meta { color: rgba(200,200,200,.6); }
+.reader-article p { text-indent: 2em; margin: 0 0 .85em; }
+.margin-track { display: none; }
+.inline-notes { display: flex; flex-direction: column; gap: 2px; margin: var(--space-6) 0 0; padding-top: 6px; border-top: 1px solid rgba(43,38,32,.12); }
+.note {
+  display: block; width: 100%;
+  min-height: 44px;
+  padding: 8px 0 8px 12px;
+  border: 0; border-left: 2px solid rgba(43,38,32,.22);
+  background: transparent;
+  color: rgba(43,38,32,.74);
+  font: inherit; font-size: 11px;
+  line-height: 1.6; text-align: left;
+}
+.note--here { border-left: 2px solid var(--accent); color: #B23A31; font-weight: 600; }
+button.note--revised { cursor: pointer; }
+button.note--revised:hover { border-left-color: var(--accent); color: #B23A31; }
+.reader-paper .aux { font-size: 10.5px; line-height: 1.8; color: rgba(43,38,32,.52); }
+[data-read-theme="night"] .reader-paper .aux { color: rgba(200,200,200,.55); }
+.reader-paper .rule { background: rgba(43,38,32,.14); }
+[data-read-theme="night"] .reader-paper { border-color: #2E3134; }
+[data-read-theme="night"] .reader-paper .rule { background: rgba(200,200,200,.18); }
+[data-read-theme="night"] .note { color: rgba(200,200,200,.72); border-left-color: rgba(200,200,200,.22); }
+[data-read-theme="night"] .note--here { color: #FF8A80; border-left-color: var(--accent); }
+[data-read-theme="night"] button.note--revised:hover { border-left-color: var(--accent); color: #FF8A80; }
+[data-read-theme="night"] .inline-notes { border-top-color: rgba(200,200,200,.16); }
+/* 排版工具栏：≥1024px 右列常驻竖排（sticky，不遮正文）；<1024px 底部唤出。同一 DOM、同一组状态 */
+.reader-tap {
+  display: flex; width: max-content; align-items: center; gap: 8px;
+  margin: var(--space-5) auto 0;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--text-action);
+  font: inherit; font-size: 12px; font-weight: 600;
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+.reader-tap:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+.reader-toolbar {
+  position: sticky; top: 62px; /* 46px 吸顶页签 + 16px 间距 */
+  display: flex; flex-direction: column; gap: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  background: var(--paper);
+  padding: var(--space-4);
+  box-shadow: none;
+}
+.reader-toolbar .range-row { margin-bottom: 0; }
+.reader-toolbar .chips { flex-wrap: wrap; }
+.reader-toolbar .btn { justify-content: flex-start; }
+.toolbar-toc-btn, .toolbar-close-btn { display: none; }
+@media (min-width: 1024px) {
+  .reader-tap { display: none; }
+}
+@media (max-width: 1023px) {
+  .reader-shell { grid-template-columns: minmax(0,1fr); }
+  .reader-toc { border-right: 0; }
+  .reader-paper { padding: var(--space-5) var(--space-4); }
+  .reader-toolbar {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+    z-index: 130; border-radius: var(--radius-card) var(--radius-card) 0 0;
+    max-height: 72vh; overflow-y: auto;
+    transform: translateY(110%);
+    transition: transform var(--panel-motion) ease;
+    box-shadow: 0 -12px 32px -20px rgba(26,28,30,.4);
+  }
+  .reader-toolbar.is-open { transform: translateY(0); }
+  .toolbar-toc-btn, .toolbar-close-btn { display: inline-flex; }
+}
+.toc-toggle-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.toc-toggle-label, .toc-scrim, .toc-close, .mobile-reader-bar { display: none; }
+@media (max-width: 1023px) {
+  .toc-toggle-label, .toc-close { display: inline-flex; }
+  .reader-toc {
+    position: fixed; top: 0; bottom: 0; left: 0;
+    width: min(84vw, 300px); z-index: 120;
+    background: var(--paper);
+    border-right: 1px solid var(--hairline);
+    padding: var(--space-4);
+    overflow-y: auto;
+    transform: translateX(-105%);
+    transition: transform var(--panel-motion) ease;
+  }
+  .toc-toggle-input:checked ~ .reader-shell .reader-toc { transform: translateX(0); }
+  .toc-scrim { position: fixed; inset: 0; z-index: 110; background: rgba(26,28,30,.5); }
+  .toc-toggle-input:checked ~ .toc-scrim { display: block; }
+  .toc-toggle-input:focus-visible + .toc-toggle-label { outline: 3px solid var(--focus-color); outline-offset: 2px; }
+}
+@media (max-width: 767px) {
+  .mobile-reader-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--space-4); }
+  /* ≤767 由阅读工具条上的「目录」承担入口，避免出现两个并列的目录按钮 */
+  .toc-toggle-label { display: none; }
+}
+.after-note { border-left: 2px solid var(--accent); padding-left: 12px; margin-top: var(--space-4); font-size: 12px; line-height: 1.7; color: var(--text-action); }
+.kb-tip {
+  position: fixed; left: 50%; bottom: 96px; z-index: 140;
+  transform: translateX(-50%);
+  background: var(--ink); color: var(--paper);
+  border: 0; border-radius: var(--radius-control);
+  box-shadow: var(--shadow-soft);
+  padding: 10px 18px;
+  font-size: 11.5px; letter-spacing: .05em;
+  pointer-events: none;
+}
+
+/* ---------- 我的：治理公示 ---------- */
+.notice {
+  display: flex; flex-wrap: wrap;
+  gap: 6px 12px; align-items: baseline;
+  border: 0; border-left: 2px solid var(--hairline-strong);
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 12px 0 12px 14px;
+  margin-bottom: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.notice p { margin: 0; font-size: 12.5px; line-height: 1.7; flex: 1 1 260px; max-width: 78ch; }
+.notice--info { border-left-color: var(--secondary); }
+.notice--warning { border-left-color: var(--accent); }
+.notice--danger { border-left-color: var(--text-danger); }
+
+/* ---------- 全站页脚 ---------- */
+.site-footer { border-top: 1px solid var(--hairline); background: var(--paper); margin-top: var(--space-7); }
+.foot-inner { max-width: 1280px; margin: 0 auto; padding: var(--space-7) 28px var(--space-6); display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-6); }
+@media (max-width: 767px) { .foot-inner { grid-template-columns: minmax(0,1fr); gap: var(--space-5); padding: var(--space-5) 16px; } }
+.foot-col h2 { font-family: var(--font-ui); font-size: 10.5px; font-weight: 600; letter-spacing: .18em; color: var(--text-aux); margin: 0 0 14px; }
+.foot-col p { font-size: 12px; line-height: 1.8; color: var(--text-aux); margin: 0 0 8px; max-width: 40ch; }
+.foot-col .foot-name { font-family: var(--font-title); font-size: 16px; letter-spacing: .14em; color: var(--ink); margin: 0 0 10px; }
+.foot-link, .foot-line { display: block; width: 100%; text-align: left; font-size: 12px; color: var(--text-aux); min-height: 40px; padding: 0; line-height: 2.4; }
+.foot-link { border: 0; background: transparent; cursor: pointer; font-family: inherit; }
+.foot-link:hover { color: var(--text-action); }
+.foot-bottom { max-width: 1280px; margin: 0 auto; padding: 16px 28px var(--space-6); border-top: 1px dashed var(--hairline); font-size: 10.5px; letter-spacing: .06em; color: var(--text-aux); }
+@media (max-width: 767px) { .foot-bottom { padding: 14px 16px var(--space-5); } }
+
+/* ---------- 弹层 ---------- */
+.dialog-layer {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(20,21,23,.48);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-4); overflow-y: auto;
+}
+.dialog {
+  background: var(--paper); color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-overlay);
+  padding: var(--space-5) 28px 28px;
+  width: min(100%, 600px);
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 40px 80px -40px rgba(20,21,23,.55);
+}
+.dialog h2 { font-family: var(--font-title); font-size: var(--title-2); font-weight: 600; letter-spacing: .02em; margin: 0 0 var(--space-3); }
+.dialog p { margin: 0 0 var(--space-3); font-size: 13px; line-height: 1.75; }
+.dialog .aux { font-size: 11.5px; }
+.fact-list { margin: 0 0 var(--space-4); }
+.fact-list > div { display: grid; grid-template-columns: 120px minmax(0,1fr); gap: var(--space-3); padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: 12px; }
+.fact-list dt { color: var(--text-aux); font-size: 11px; letter-spacing: .06em; }
+.fact-list dd { margin: 0; }
+@media (max-width: 480px) { .fact-list > div { grid-template-columns: minmax(0,1fr); gap: 2px; } }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">跳到正文</a>
+
+<header class="app-header" role="banner">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <span class="brand-text">启明书院</span>
+      <small>读者端 · P0 设计评审稿</small>
+    </div>
+    <nav class="ws-nav" aria-label="工作空间切换（demo 视图切换，非登录态）">
+      <button class="btn btn--sm" type="button" data-ws="reader" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2z"/><path d="M20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2-2z"/></svg>
+        书城
+      </button>
+      <button class="btn btn--sm" type="button" data-ws="author" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        创作工作区
+      </button>
+      <button class="btn btn--sm" type="button" data-ws="reviewer" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+        审核工作区
+      </button>
+      <button class="btn btn--sm" type="button" data-ws="operator" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h5l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg>
+        运营与配置
+      </button>
+      <button class="btn btn--sm" type="button" data-ws="me" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        我的
+      </button>
+    </nav>
+    <div class="header-tools">
+      <button class="btn btn--sm" type="button" data-pref-toggle="theme" aria-pressed="false">夜间阅读：关</button>
+      <button class="btn btn--sm" type="button" data-pref-toggle="contrast" aria-pressed="false">高对比度：关</button>
+    </div>
+    <details class="review-note">
+      <summary><strong>评审说明</strong>　demo 视图切换 · 不产生业务数据</summary>
+      <p>本页为<strong>设计评审稿</strong>：以下是 <strong>demo 视图切换</strong>，不是登录态、不产生业务数据、不接后端；评审通过不等于视觉效果确认。P0 不设搜索框与书架空壳入口。</p>
+    </details>
+  </div>
+</header>
+
+<!-- 底部标签导航（<768px 工作空间切换，demo 视图切换，非登录态） -->
+<nav class="bottom-tab" aria-label="工作空间切换（窄屏，demo 视图切换，非登录态）">
+  <button class="btn btn--sm" type="button" data-ws="reader" aria-pressed="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2z"/><path d="M20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2-2z"/></svg>
+    书城
+  </button>
+  <button class="btn btn--sm" type="button" data-ws="author" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+    创作
+  </button>
+  <button class="btn btn--sm" type="button" data-ws="reviewer" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
+    审核
+  </button>
+  <button class="btn btn--sm" type="button" data-ws="operator" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.6h5l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/></svg>
+    运营
+  </button>
+  <button class="btn btn--sm" type="button" data-ws="me" aria-pressed="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+    我的
+  </button>
+</nav>
+
+<nav class="sub-nav" aria-label="当前工作空间的视图（demo 视图切换）">
+  <div class="sub-nav-inner" id="view-nav">
+    <button type="button" data-go="V0">V0 令牌与四态速览</button>
+    <button type="button" data-go="R01">R01 书城</button>
+    <button type="button" data-go="R02">R02 书详情</button>
+    <button type="button" data-go="R03">R03 阅读器</button>
+    <button type="button" data-go="A01">A01 工作台</button>
+    <button type="button" data-go="A03">A03 草稿</button>
+    <button type="button" data-go="A04">A04 发布进度</button>
+    <button type="button" data-go="M01">M01 审核队列</button>
+    <button type="button" data-go="M02">M02 案件裁决</button>
+    <button type="button" data-go="O02">O02 配置审批</button>
+    <button type="button" data-go="ME">我的</button>
+  </div>
+</nav>
+
+<main id="main" tabindex="-1">
+<div class="page">
+<div class="sheet">
+
+<!-- ============================ V0 ============================ -->
+<section class="view" data-view="V0" aria-labelledby="v0-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>V0</b></span>
+      <span class="meta-item">页面 ID <b>无（评审辅助页，非 06 §2.1 页面）</b></span>
+      <span class="meta-item">路由 <code>#tokens</code></span>
+      <span class="meta-item">单一目标 <b>一次性核对设计令牌与四态</b></span>
+      <span class="meta-item">依赖 operationId <b>无</b></span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="v0-title" tabindex="-1">设计令牌与四态速览</h1>
+  <p class="data-note">示例数据（合成）· 本页用于评审核对，所有色值、字号与文案仅为设计输入，不产生业务数据。视觉语言：以番茄小说的朱红品牌色为标记色，标题与书页用宋体栈、界面用系统无衬线，4 个阅读主题；信息架构已按 docs/11 逆向结论对齐。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols">
+      <div>
+        <h2>令牌色卡（11 个，含夜间 3 个）</h2>
+        <div class="swatches">
+          <div class="swatch"><div class="swatch-chip" style="background:var(--surface)"></div><span class="swatch-name">surface</span><span class="swatch-value">#F2F3F5</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--paper)"></div><span class="swatch-name">paper</span><span class="swatch-value">#FFFFFF</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--ink)"></div><span class="swatch-name">ink</span><span class="swatch-value">#1A1A1A</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--secondary)"></div><span class="swatch-name">secondary</span><span class="swatch-value">#6B6F76</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--accent)"></div><span class="swatch-name">accent</span><span class="swatch-value">#E8453B</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--accent-soft)"></div><span class="swatch-name">accentSoft</span><span class="swatch-value">#FCE9E7</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--danger)"></div><span class="swatch-name">danger</span><span class="swatch-value">#C0392B</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--night-surface)"></div><span class="swatch-name">nightSurface</span><span class="swatch-value">#1A1C1E</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--night-paper)"></div><span class="swatch-name">nightPaper</span><span class="swatch-value">#242628</span></div>
+          <div class="swatch"><div class="swatch-chip" style="background:var(--night-ink)"></div><span class="swatch-name">nightInk</span><span class="swatch-value">#E8E8E8</span></div>
+        </div>
+        <p class="aux">另有 <code>--border: #E6E8EB</code> 与 4 个阅读主题底色（米白 #F5F0E6 / 护眼绿 #DCEBD8 / 羊皮纸 #EADCB8 / 夜间 #1A1C1E），阅读主题作用于阅读器纸面，不影响界面令牌。</p>
+
+        <h2>间距 / 圆角 / 焦点</h2>
+        <div class="space-bars">
+          <div><span>4px</span><div class="space-bar" style="width:var(--space-1)"></div></div>
+          <div><span>8px</span><div class="space-bar" style="width:var(--space-2)"></div></div>
+          <div><span>12px</span><div class="space-bar" style="width:var(--space-3)"></div></div>
+          <div><span>16px</span><div class="space-bar" style="width:var(--space-4)"></div></div>
+          <div><span>24px</span><div class="space-bar" style="width:var(--space-5)"></div></div>
+          <div><span>32px</span><div class="space-bar" style="width:var(--space-6)"></div></div>
+          <div><span>48px</span><div class="space-bar" style="width:var(--space-7)"></div></div>
+        </div>
+        <div class="radius-samples">
+          <div class="radius-sample" style="border-radius:var(--radius-card)">卡片 16px</div>
+          <div class="radius-sample" style="border-radius:var(--radius-control)">胶囊 999px</div>
+        </div>
+        <p class="aux">按 Tab 键聚焦下方按钮，可查看 <code>3px</code> 实线焦点环与 <code>2px</code> 外偏移；夜间焦点改用亮红。</p>
+        <div class="btn-row"><button class="btn" type="button">焦点可见演示按钮</button></div>
+        <p class="aux" id="motion-status">正在检测系统动态效果偏好…</p>
+      </div>
+
+      <div>
+        <h2>字体阶梯与阅读参数</h2>
+        <div class="type-steps">
+          <div style="font-family:var(--font-title);font-size:var(--title-1)">标题一级 26px · 宋体栈</div>
+          <div style="font-family:var(--font-title);font-size:var(--title-2)">标题二级 22px · 宋体栈</div>
+          <div style="font-family:var(--font-title);font-size:var(--title-3)">标题三级 18px · 宋体栈</div>
+          <div style="font-size:var(--ui-body)">界面正文 15px · 系统无衬线栈</div>
+          <div style="font-size:var(--ui-aux)">辅助说明 13px · 系统无衬线栈</div>
+          <div class="mono" style="font-size:var(--ui-aux)">CH.07 / 00:18:42 · 等宽栈</div>
+        </div>
+        <p class="aux">阅读默认 18px / 行高 1.8 / 正文宽度 44em；以下三项与夜间、高对比度、阅读主题各自独立可调，仅体验层。</p>
+        <div class="prefs">
+          <div class="range-row">
+            <label for="v0-size">字号（14–22px）</label><output data-pref-out="size">18px</output>
+            <input id="v0-size" type="range" min="14" max="22" step="1" value="18" data-pref="size" aria-label="阅读字号，14 至 22 像素">
+          </div>
+          <div class="range-row">
+            <label for="v0-leading">行高（1.5–2.2）</label><output data-pref-out="leading">1.8</output>
+            <input id="v0-leading" type="range" min="1.5" max="2.2" step="0.1" value="1.8" data-pref="leading" aria-label="阅读行高，1.5 至 2.2">
+          </div>
+          <div class="range-row">
+            <label for="v0-measure">正文宽度（32–44em）</label><output data-pref-out="measure">44em</output>
+            <input id="v0-measure" type="range" min="32" max="44" step="1" value="44" data-pref="measure" aria-label="正文宽度，32 至 44 em">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn--sm" type="button" data-pref-toggle="theme" aria-pressed="false">夜间阅读：关</button>
+            <button class="btn btn--sm" type="button" data-pref-toggle="contrast" aria-pressed="false">高对比度：关</button>
+          </div>
+        </div>
+
+        <h2>对比度实测说明</h2>
+        <p class="aux">下列数值按 WCAG 相对亮度公式、以令牌色值与实际合成背景<strong>静态计算</strong>：ink/paper 17.4:1、secondary/paper 5.1:1、accent/paper 3.9:1（番茄红，仅用于大字与界面强调，常规正文不依赖红色；正文为近黑 ink）、danger/paper 5.4:1、nightInk/nightSurface 14.0:1、accent 焦点环/surface 3.5:1（焦点指示 ≥3:1 满足）。常规文字目标 ≥4.5:1、大字 ≥3:1、焦点与控件边界 ≥3:1。</p>
+        <p class="danger-text aux">色值只是设计输入，必须用实际合成背景重新测量；本页色卡不构成对比度已达标证明。本 demo 未进行浏览器或设备验收。</p>
+        <p class="aux">夜间模式仅覆写 surface / paper / ink / border / focus-color；辅助与操作文字通过派生变量做可读性补偿，日间令牌精确值保持不变。阅读主题为阅读器纸面的独立主题，不与夜间模式耦合。</p>
+      </div>
+    </div>
+
+    <hr class="rule">
+    <h2>四态 × 7 场景核对表</h2>
+    <p class="aux">下表为 06 §4 原文口径；请到各业务视图右上角「状态演示（评审用）」逐格复现。本 demo 只在此表给出全量核对，其余页面在 P0-B 按 06 §2.1 补齐。</p>
+    <table>
+      <caption>四态核对表（加载 / 空 / 错误 / 成功）</caption>
+      <thead><tr><th scope="col">场景</th><th scope="col">加载态</th><th scope="col">空态</th><th scope="col">错误态</th><th scope="col">成功态</th></tr></thead>
+      <tbody>
+        <tr><td data-label="场景">书城</td><td data-label="加载态">保留布局骨架，读屏提示加载</td><td data-label="空态">暂无适龄已发布作品</td><td data-label="错误态">重试入口，不回退展示未过滤缓存</td><td data-label="成功态">可读作品列表</td></tr>
+        <tr><td data-label="场景">草稿</td><td data-label="加载态">禁止重复提交，保存指示</td><td data-label="空态">引导创建章节</td><td data-label="错误态">412 保留本地，503 查询原请求</td><td data-label="成功态">已保存时间与 revision</td></tr>
+        <tr><td data-label="场景">提交</td><td data-label="加载态">按钮忙碌且同幂等键</td><td data-label="空态">无目标时不允许提交</td><td data-label="错误态">年龄/权限说明；超时先查状态</td><td data-label="成功态">已提交审核 + 进度入口</td></tr>
+        <tr><td data-label="场景">审核</td><td data-label="加载态">领取/裁决中锁按钮</td><td data-label="空态">当前队列暂无案件</td><td data-label="错误态">租约过期重新领取，不能继续裁决</td><td data-label="成功态">已记录裁决或等待二审</td></tr>
+        <tr><td data-label="场景">申诉</td><td data-label="加载态">上传/受理中</td><td data-label="空态">无新证据提示要求</td><td data-label="错误态">原审回避、重复申诉提示</td><td data-label="成功态">受理时限与跟踪入口</td></tr>
+        <tr><td data-label="场景">配置</td><td data-label="加载态">对比/审批中</td><td data-label="空态">无变更提案</td><td data-label="错误态">版本冲突刷新；不能降弱底线</td><td data-label="成功态">待生效 / 已生效分别显示</td></tr>
+        <tr><td data-label="场景">通知</td><td data-label="加载态">加载占位</td><td data-label="空态">暂无通知</td><td data-label="错误态">保留原列表并标明刷新失败</td><td data-label="成功态">已读态由服务回读确认</td></tr>
+      </tbody>
+    </table>
+
+    <hr class="rule">
+    <h2>导航与未纳入本 demo 的页面</h2>
+    <p class="aux">导航为 5 个工作空间：书城 / 创作工作区 / 审核工作区 / 运营与配置 / 我的；R02 书详情与「我的」为按 docs/11 裁决新增。未纳入：M03、O01、O03、O04、U01–U03、N01；账户与通知等横切入口并入「我的」，P1 未上线入口不设空壳。P0 不设搜索框与书架入口（K-1 / K-2 裁决）；书城不使用排行类机制、推荐流与轮播。</p>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入令牌速览…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">保留布局骨架，读屏提示加载；不展示旧缓存内容。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">暂无可核对内容</p>
+    <p class="state-sub">令牌与四态核对表为空时的占位说明，不产生业务数据。</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">速览载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明，不以颜色作为唯一传达手段。</p>
+    <button class="btn" type="button" data-retry="V0">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ R01 书城 ============================ -->
+<section class="view" data-view="R01" aria-labelledby="r01-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>R01</b></span>
+      <span class="meta-item">页面 ID <b>R01</b></span>
+      <span class="meta-item">路由 <code>/library</code></span>
+      <span class="meta-item">单一目标 <b>发现可读作品、继续阅读</b></span>
+      <span class="meta-item">依赖 operationId <code>listWorks</code>、<code>listCategories</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="r01-title" tabindex="-1">书城 · 多维筛选与选择作品</h1>
+  <p class="data-note">示例数据（合成）· 读者首页第一任务是继续阅读与选择作品；筛选为「与」组合，整卡可点进入书详情。封面以 CSS 排版（书脊、竖排书名与署名）表达，无外部图片。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="compliance-banner" role="note">适龄阅读 · 每一部作品都经过年龄分级审核</div>
+
+    <h2>筛选</h2>
+    <div class="filters">
+      <div class="filter-row">
+        <span class="filter-name">年龄带</span>
+        <div class="chips filter-chips" role="group" aria-label="按年龄带筛选">
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="all" aria-pressed="true">全部</button>
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="C0" aria-pressed="false">学龄前 C0</button>
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="C1" aria-pressed="false">小学 C1</button>
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="C2" aria-pressed="false">初中 C2</button>
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="C3" aria-pressed="false">高中 C3</button>
+          <button class="btn btn--sm chip" type="button" data-filter="age" data-value="C4" aria-pressed="false">成人 C4</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-name">状态</span>
+        <div class="chips filter-chips" role="group" aria-label="按作品状态筛选">
+          <button class="btn btn--sm chip" type="button" data-filter="status" data-value="all" aria-pressed="true">全部</button>
+          <button class="btn btn--sm chip" type="button" data-filter="status" data-value="published" aria-pressed="false">已发布</button>
+          <button class="btn btn--sm chip" type="button" data-filter="status" data-value="inreview" aria-pressed="false">审核中</button>
+          <button class="btn btn--sm chip" type="button" data-filter="status" data-value="removed" aria-pressed="false">已下架</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-name">字数</span>
+        <div class="chips filter-chips" role="group" aria-label="按字数档筛选">
+          <button class="btn btn--sm chip" type="button" data-filter="words" data-value="all" aria-pressed="true">全部</button>
+          <button class="btn btn--sm chip" type="button" data-filter="words" data-value="lt10" aria-pressed="false">10 万以下</button>
+          <button class="btn btn--sm chip" type="button" data-filter="words" data-value="w10_30" aria-pressed="false">10–30 万</button>
+          <button class="btn btn--sm chip" type="button" data-filter="words" data-value="w30_60" aria-pressed="false">30–60 万</button>
+          <button class="btn btn--sm chip" type="button" data-filter="words" data-value="gt60" aria-pressed="false">60 万以上</button>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="filter-name">排序</span>
+        <div class="chips filter-chips" role="group" aria-label="排序方式（单选）">
+          <button class="btn btn--sm chip" type="button" data-filter="sort" data-value="recent" aria-pressed="true">最近更新</button>
+          <button class="btn btn--sm chip" type="button" data-filter="sort" data-value="title" aria-pressed="false">书名字序</button>
+          <button class="btn btn--sm chip" type="button" data-filter="sort" data-value="words" aria-pressed="false">字数最多</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>可读作品</h2>
+    <p class="aux" id="library-count">正在准备示例书目…</p>
+    <div class="book-grid" id="book-grid"></div>
+    <p class="aux">封面以 CSS 排版（书脊、竖排书名与署名）表达，无外部图片；书城不设搜索框、书架入口，不使用排行类机制、推荐流与轮播。整卡可点进入书详情 R02。</p>
+    <hr class="rule">
+    <p class="aux">没有可阅读章节时提示「暂无可阅读章节」，不链接到草稿；下架作品统一显示「内容暂不可访问」，不暴露原因证据。超出「我的」页演示年龄带的作品灰显且不可点，仅作适龄边界演示。</p>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入可读作品…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">保留布局骨架，读屏提示加载；不出现旧缓存列表。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">暂无适龄已发布作品</p>
+    <p class="state-sub">可以稍后再来，或调整筛选条件。</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">目录载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明；不回退展示未过滤缓存。</p>
+    <button class="btn" type="button" data-retry="R01">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ R02 书详情 ============================ -->
+<section class="view" data-view="R02" aria-labelledby="r02-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>R02</b></span>
+      <span class="meta-item">页面 ID <b>R02</b></span>
+      <span class="meta-item">路由 <code>/works/:id</code></span>
+      <span class="meta-item">单一目标 <b>查看书籍信息与章节目录、选章进入阅读</b></span>
+      <span class="meta-item">依赖 operationId <code>getWork</code>、<code>listChapters</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="r02-title" tabindex="-1">书详情 · 信息、简介与章节目录</h1>
+  <p class="data-note">示例数据（合成）· 书头含封面、书名、状态与适龄徽章、标签与字数；目录按卷分组，章节可点直接进入阅读器定位该章。本页不展示任何运营数字。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <nav class="breadcrumb" aria-label="面包屑">
+      <button class="crumb" type="button" data-go="R01">首页</button>
+      <span class="crumb-sep" aria-hidden="true">/</span>
+      <span class="crumb-current" id="r02-crumb" aria-current="page">书名（由所选作品决定）</span>
+    </nav>
+    <div id="r02-body"></div>
+    <p class="aux">目录章节均可点击，点击后进入阅读器并定位该章；未上架章节不出现占位空壳。本页仅展示分级事实与作品信息。</p>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入书籍详情…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">保留布局骨架，读屏提示加载。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">内容暂不可访问</p>
+    <p class="state-sub">该作品当前不可查看；不暴露原因证据。</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">详情载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明，并提供重试入口。</p>
+    <button class="btn" type="button" data-retry="R02">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ R03 阅读器 ============================ -->
+<section class="view" data-view="R03" aria-labelledby="r03-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>R03</b></span>
+      <span class="meta-item">页面 ID <b>R03</b></span>
+      <span class="meta-item">路由 <code>/read/:id</code></span>
+      <span class="meta-item">单一目标 <b>连续阅读、排版、进度、举报</b></span>
+      <span class="meta-item">依赖 operationId <code>readChapter</code>、<code>getProgress</code>、<code>saveProgress</code>、<code>createReport</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="r03-title" tabindex="-1">阅读器 · 章节边注轨道</h1>
+  <p class="data-note">示例数据（合成）· 正文为原创合成段落；边注轨道只表达当前位置、版本变更与审核批注三类标记。≥1024px 为右侧常驻竖排工具栏；窄屏点击「Aa 排版」唤出底部工具栏；支持键盘 ← / → 切章。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="mobile-reader-bar">
+      <label class="btn btn--sm" for="toc-toggle">目录</label>
+      <button class="btn btn--sm" type="button" data-open-typeset>排版</button>
+      <button class="btn btn--sm" type="button" data-confirm="report">举报</button>
+    </div>
+    <div class="reader-root">
+      <input class="toc-toggle-input" type="checkbox" id="toc-toggle">
+      <label class="toc-toggle-label btn btn--sm" for="toc-toggle">打开目录</label>
+      <label class="toc-scrim" for="toc-toggle"><span class="sr-only">关闭目录</span></label>
+      <div class="reader-shell">
+        <aside class="reader-toc" aria-label="章节目录">
+          <label class="toc-close btn btn--sm" for="toc-toggle">关闭目录</label>
+          <h2>目录</h2>
+          <ol id="reader-toc-list"></ol>
+          <p class="aux">目录显示当前作品全部章节与当前章。</p>
+        </aside>
+
+        <div class="reader-paper" data-read-theme="rice">
+          <div class="reader-layout">
+            <article class="reader-article" aria-labelledby="chapter-title">
+              <p class="chapter-no" id="reader-chapter-no">CH.07</p>
+              <h2 id="chapter-title">第 7 章　堤上的第三盏灯</h2>
+              <p class="chapter-meta" id="reader-meta">本章字数：— 字 · 更新时间：—</p>
+              <div id="reader-body"></div>
+
+              <div class="inline-notes" aria-label="章节边注（段末行内标记）">
+                <div class="note note--here">你在此 · 示例章节</div>
+                <button class="note note--revised" type="button" data-confirm="revision">本章已修订 · v2</button>
+                <div class="note note--grade">内容等级 G · 已标注</div>
+              </div>
+            </article>
+
+            <aside class="margin-track" aria-label="章节边注轨道（当前位置 / 版本变更 / 审核批注）">
+              <div class="note note--here">你在此 · 示例章节</div>
+              <button class="note note--revised" type="button" data-confirm="revision">本章已修订 · v2</button>
+              <div class="note note--grade">内容等级 G · 已标注</div>
+              <p class="aux">轨道位于主栏右侧 176px 留白，与段落锚点顺序对齐；不新增导航列。</p>
+            </aside>
+          </div>
+          <hr class="rule">
+          <p class="aux">阅读进度已保存（会话内）。演示口径：滚动停止 2 秒后保存、前台最密 5 秒一次、退出时提交一次；游客只保留会话内进度，不伪装跨设备同步，后台与断网不产生虚假有效阅读时长。本 demo 不绑定滚动监听、不做滚动劫持。</p>
+          <p class="aux">点击「本章已修订 · v2」打开明确文案的确认层，确认后从章首重新定位，不把旧百分比强行写进新版本。</p>
+          <button class="reader-tap" type="button" data-open-typeset aria-label="点击唤出排版工具栏">Aa　排版</button>
+          <p class="after-note" id="v2-after-note" hidden></p>
+          <div class="btn-row"><button class="btn" type="button" data-confirm="report">举报（createReport 示例）</button></div>
+        </div>
+
+        <aside class="reader-toolbar" id="reader-toolbar" aria-label="阅读排版设置（仅体验层）">
+          <button class="btn btn--sm toolbar-toc-btn" type="button" id="toolbar-toc">目录</button>
+          <button class="btn btn--sm toolbar-close-btn" type="button" data-close-typeset>收起排版</button>
+          <button class="btn btn--sm" type="button" data-pref-toggle="theme" aria-pressed="false">夜间阅读：关</button>
+          <div class="prefs">
+            <div class="range-row">
+              <label for="v2-size">字号（14–22px）</label><output data-pref-out="size">18px</output>
+              <input id="v2-size" type="range" min="14" max="22" step="1" value="18" data-pref="size" aria-label="阅读字号，14 至 22 像素">
+            </div>
+            <div class="range-row">
+              <label for="v2-leading">行高（1.5–2.2）</label><output data-pref-out="leading">1.8</output>
+              <input id="v2-leading" type="range" min="1.5" max="2.2" step="0.1" value="1.8" data-pref="leading" aria-label="阅读行高，1.5 至 2.2">
+            </div>
+            <div class="range-row">
+              <label for="v2-measure">正文宽度（32–44em）</label><output data-pref-out="measure">44em</output>
+              <input id="v2-measure" type="range" min="32" max="44" step="1" value="44" data-pref="measure" aria-label="正文宽度，32 至 44 em">
+            </div>
+            <div class="chips" role="group" aria-label="阅读主题（4 个，仅体验层）">
+              <button class="btn btn--sm" type="button" data-read-theme-btn="rice" aria-pressed="true">米白</button>
+              <button class="btn btn--sm" type="button" data-read-theme-btn="green" aria-pressed="false">护眼绿</button>
+              <button class="btn btn--sm" type="button" data-read-theme-btn="parchment" aria-pressed="false">羊皮纸</button>
+              <button class="btn btn--sm" type="button" data-read-theme-btn="night" aria-pressed="false">夜间</button>
+            </div>
+          </div>
+          <p class="aux">五项（含阅读主题）各自独立可调，只影响体验层，不影响后端年龄与权限政策。</p>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入本章…</p>
+    <div class="skeleton-stack">
+      <p class="state-sub" style="text-align:left">目录骨架</p>
+      <div class="skeleton skeleton--short"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div>
+      <p class="state-sub" style="text-align:left">正文骨架</p>
+      <div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton"></div>
+    </div>
+    <p class="state-sub">保留布局骨架，读屏提示加载。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">本章暂无可阅读内容</p>
+    <p class="state-sub">不链接到草稿。</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">内容暂不可访问，请稍后重试</p>
+    <p class="state-sub">断网场景：内容暂不可用，请稍后重试。错误同时以文本说明，不暴露违规证据、不显示旧允许缓存；被下架内容的旧视图收到失效演示后停止拉取。</p>
+    <button class="btn" type="button" data-retry="R03">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ A01 工作台 ============================ -->
+<section class="view" data-view="A01" aria-labelledby="a01-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>A01</b></span>
+      <span class="meta-item">页面 ID <b>A01</b></span>
+      <span class="meta-item">路由 <code>/studio</code></span>
+      <span class="meta-item">单一目标 <b>查看本人作品及待处理稿件</b></span>
+      <span class="meta-item">依赖 operationId <code>listMyWorks</code>、<code>listMyDrafts</code>、<code>listMyPublicationWorkflows</code>、<code>createWork</code>、<code>createDraft</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="a01-title" tabindex="-1">作者工作台 · 作品与待处理稿件</h1>
+  <p class="data-note">示例数据（合成）· 保存状态与发布状态分区显示，不混用；提交受理文案与公开版本事实严格分开。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols--side">
+      <div>
+        <nav aria-label="作品与章节导航" style="border-bottom:1px solid var(--border);padding-bottom:var(--space-3);margin-bottom:var(--space-4)">
+          <div class="chips">
+            <button class="btn btn--sm" type="button" aria-pressed="true">《晚潮记》</button>
+            <button class="btn btn--sm" type="button" aria-pressed="false">章节 1–7</button>
+          </div>
+        </nav>
+        <h2>我的作品</h2>
+        <div class="row">
+          <div class="row-main">
+            <p class="row-title">《晚潮记》</p>
+            <div class="row-meta"><span>状态：ACTIVE（连载）</span><span>章节 7</span><span>当前公开版本：v1</span></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-main">
+            <p class="row-title">草稿：《第八章　入冬前的巡检》</p>
+            <div class="row-meta"><span>EDITABLE</span><span>上次保存 23:12 · revision 4</span></div>
+          </div>
+          <div class="row-actions"><button class="btn" type="button" data-go="A03">打开草稿</button></div>
+        </div>
+        <div class="row">
+          <div class="row-main">
+            <p class="row-title">流程：《第七章　堤上的第三盏灯》v2</p>
+            <div class="row-meta"><span>HUMAN_REVIEW</span><span>等待人工审核</span></div>
+          </div>
+          <div class="row-actions"><button class="btn" type="button" data-go="A04">查看发布进度</button></div>
+        </div>
+      </div>
+
+      <div class="side-box">
+        <h2>保存状态条</h2>
+        <p class="accent-text" id="save-status">已保存　23:12 · revision 4</p>
+        <p class="aux">保存状态与发布状态分开显示，点击下列按钮逐态核对（仅文案演示）。</p>
+        <div class="chips">
+          <button class="btn btn--sm" type="button" data-save-state="unsaved" aria-pressed="false">尚未保存</button>
+          <button class="btn btn--sm" type="button" data-save-state="saving" aria-pressed="false">保存中</button>
+          <button class="btn btn--sm" type="button" data-save-state="saved" aria-pressed="true">已保存</button>
+          <button class="btn btn--sm" type="button" data-save-state="failed" aria-pressed="false">保存失败</button>
+        </div>
+        <hr class="rule">
+        <h2>操作</h2>
+        <div class="btn-row">
+          <button class="btn" type="button">新建作品</button>
+          <button class="btn" type="button">新建草稿</button>
+          <button class="btn" type="button" data-go="A04">查看发布进度</button>
+        </div>
+        <p class="aux">保存草稿不会公开；本页不展示任何运营数字。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入我的作品…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">列表骨架 3 行；新建按钮禁用。</p>
+    <button class="btn" type="button" disabled>新建作品（载入中禁用）</button>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">还没有作品，创建第一部作品</p>
+    <button class="btn" type="button">新建作品</button>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">作品列表载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明，并提供重试入口。</p>
+    <button class="btn" type="button" data-retry="A01">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ A03 草稿 ============================ -->
+<section class="view" data-view="A03" aria-labelledby="a03-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>A03</b></span>
+      <span class="meta-item">页面 ID <b>A03</b></span>
+      <span class="meta-item">路由 <code>/studio/drafts/:id</code></span>
+      <span class="meta-item">单一目标 <b>保存草稿与提交审核</b></span>
+      <span class="meta-item">依赖 operationId <code>getDraft</code>、<code>saveDraft</code>、<code>submitDraft</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="a03-title" tabindex="-1">草稿编辑与提交 · 纯文本与乐观锁</h1>
+  <p class="data-note">示例数据（合成）· 正文编辑区为纯文本 textarea，不采用富 HTML 输入；字符计数为编辑器实时状态，非运营指标。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols--side">
+      <div>
+        <label class="field" for="draft-title"><span>标题</span>
+          <input id="draft-title" type="text" value="第八章　入冬前的巡检">
+        </label>
+        <label class="field" for="draft-text"><span>正文（纯文本，粘贴保留换行；上限 100000 字）</span>
+          <textarea id="draft-text" spellcheck="false">巡检从堤东开始。风比昨天更冷，石阶上结了一层薄霜。
+值守人把最后一页值班簿收进木箱，抬头看了看新装好的灯。</textarea>
+        </label>
+        <p class="aux">字符计数：<span class="mono" data-draft-count>0</span> 字（编辑器状态，非运营指标；上限 100000 字）。</p>
+        <p class="aux">刷新或关闭前有未保存提示；P0 不承诺离线持久草稿。</p>
+      </div>
+
+      <div class="side-box">
+        <h2>保存状态</h2>
+        <p class="accent-text">已保存　23:12 · revision 4</p>
+        <p class="aux">保存状态与发布状态分区显示；保存草稿不会公开。</p>
+        <hr class="rule">
+        <h2>提交审核</h2>
+        <p class="aux">提交审核确认层展示目标版本、内容字数、年龄/监护与版权资格、发布后修改须新建版本的说明。</p>
+        <button class="btn btn--primary" type="button" data-confirm="submit">提交审核（打开独立确认层）</button>
+        <p class="aux">按钮忙碌时保持同一幂等键；无目标时不允许提交并给出原因文本。</p>
+      </div>
+    </div>
+
+    <div id="submit-result" hidden style="margin-top:var(--space-5);border-left:3px solid var(--accent);padding-left:var(--space-4)">
+      <h2>已提交审核</h2>
+      <p>已受理，等待机器审核。可前往「查看发布进度」了解最终状态。</p>
+      <p class="aux">202 仅表示受理；只有公开指针回读吻合才显示公开版本事实，本 demo 不提供该演示，也不把受理表述为公开结果。</p>
+      <button class="btn" type="button" data-go="A04">查看发布进度</button>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在打开草稿… / 提交中…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <div class="state-list">
+      <div><p class="state-sub">草稿·加载：禁止重复提交，按钮禁用 + 保存指示。</p></div>
+      <div><p class="state-sub">提交·加载：按钮忙碌且同幂等键（文案标注），提交按钮禁用。</p></div>
+    </div>
+    <button class="btn" type="button" disabled>确认提交（忙碌中禁用）</button>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">引导创建章节</p>
+    <p class="state-sub">草稿·空：居中引导「新建章节草稿」。提交·空：无目标时不允许提交，提交按钮禁用并给出原因文本「无目标时不允许提交」。</p>
+    <div class="btn-row">
+      <button class="btn" type="button">新建章节草稿</button>
+      <button class="btn" type="button" disabled>确认提交（无目标，禁用）</button>
+    </div>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">草稿与提交错误态（同时以文本说明）</p>
+    <div class="state-list">
+      <div><p class="state-sub"><strong>412</strong>　内容已更新，请合并后重试。并排展示本地/服务端版本，不自动覆盖，保留本地编辑内存。</p></div>
+      <div><p class="state-sub"><strong>503</strong>　服务暂不可用，请查看处理状态；提示查询原请求。</p></div>
+      <div><p class="state-sub"><strong>提交·权限</strong>　当前年龄或监护状态不允许此操作。权限不足以明确文本解释，不以隐藏按钮作为唯一控制。</p></div>
+      <div><p class="state-sub"><strong>提交·超时</strong>　先查询提交状态，不重复提交、不伪造受理事实。</p></div>
+    </div>
+    <div class="cols" style="width:100%;text-align:left;margin-top:var(--space-4)">
+      <div>
+        <h3>本地编辑（保留）</h3>
+        <textarea readonly aria-label="本地编辑内容（只读展示）" style="min-height:120px">巡检从堤东开始。风比昨天更冷，石阶上结了一层薄霜。
+值守人把最后一页值班簿收进木箱，抬头看了看新装好的灯。</textarea>
+      </div>
+      <div>
+        <h3>服务端最新版本</h3>
+        <div style="border:1px solid var(--border);padding:var(--space-3);font-family:var(--font-read);line-height:1.8;min-height:120px">巡检从堤东开始。风比昨天更冷，石阶上结了一层薄霜。
+值守人把最后一页值班簿收进木箱，抬头看了看新装好的灯，又检查了一遍窗扣。（示例：服务端版本多出末句）</div>
+      </div>
+    </div>
+    <p class="state-sub">请复制合并后重新保存；本 demo 不产生业务数据。</p>
+    <button class="btn" type="button" data-retry="A03">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ A04 发布进度 ============================ -->
+<section class="view" data-view="A04" aria-labelledby="a04-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>A04</b></span>
+      <span class="meta-item">页面 ID <b>A04</b></span>
+      <span class="meta-item">路由 <code>/studio/workflows/:id</code></span>
+      <span class="meta-item">单一目标 <b>查看机审/人工/挂起/退回/发布事实</b></span>
+      <span class="meta-item">依赖 operationId <code>getWorkflow</code>、<code>cancelWorkflow</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="a04-title" tabindex="-1">发布进度与版本 · 状态时间线</h1>
+  <p class="data-note">示例数据（合成）· 202 仅表示受理；本 demo 只切换文案，不模拟公开指针回读、不产生发布事实。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols">
+      <div>
+        <h2>发布流程：WF-2041（示例）</h2>
+        <p>当前状态：<span class="tag tag--accent mono" id="wf-current-label">HUMAN_REVIEW</span>　<span class="aux" id="wf-current-note">机器审核完成，等待人工审核（当前）</span></p>
+        <label class="field" for="wf-state" style="margin-top:var(--space-4)"><span>状态切换器（仅文案演示，不产生业务数据）</span>
+          <select id="wf-state">
+            <option value="SUBMITTED">SUBMITTED</option>
+            <option value="AUTO_REVIEW">AUTO_REVIEW</option>
+            <option value="HUMAN_REVIEW" selected>HUMAN_REVIEW</option>
+            <option value="SUSPENDED">SUSPENDED</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="REJECTED">REJECTED</option>
+            <option value="CANCELLED">CANCELLED</option>
+          </select>
+        </label>
+        <h2>时间线</h2>
+        <div class="row"><div class="row-main"><p class="row-title mono">1　SUBMITTED</p><p class="row-desc">已受理，等待机器审核</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title mono">2　AUTO_REVIEW</p><p class="row-desc">机器审核进行中（已完成）</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title mono">3　HUMAN_REVIEW</p><p class="row-desc">机器审核完成，等待人工审核（当前）</p></div></div>
+        <p class="aux">其他状态文案：SUSPENDED　机审未完成，流程已挂起；恢复后进入人工队列。APPROVED　审核通过，已切换公开版本。REJECTED　本章已退回，需修订后重新提交。CANCELLED　已撤销，迟到的裁决不会再发布。</p>
+      </div>
+
+      <div>
+        <h2>版本对照</h2>
+        <div class="row"><div class="row-main"><p class="row-title">v1　公开版本</p><div class="row-meta"><span class="mono">2026-11-10（示例）</span></div></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">v2　待审</p><div class="row-meta"><span class="mono">2026-11-12（示例）</span></div></div></div>
+        <p class="aux">说明：v2 待审期间，读者仍见 v1；版本通过后原子切换，读者不选历史版本。单作品详情返回 ETag 概念以文案说明，审批前重新读详情及 ETag。</p>
+        <hr class="rule">
+        <h2>操作</h2>
+        <button class="btn btn--danger" type="button" data-confirm="cancelWorkflow">撤销流程（示例）</button>
+        <p class="aux">撤销后到达的裁决不恢复流程；本 demo 不把受理表述为公开事实，不伪造审核结论。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入发布进度…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">时间线骨架 3 行。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">暂无发布流程</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">进度载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明，并提供重试入口；不回退展示旧允许缓存。</p>
+    <button class="btn" type="button" data-retry="A04">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ M01 审核队列 ============================ -->
+<section class="view" data-view="M01" aria-labelledby="m01-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>M01</b></span>
+      <span class="meta-item">页面 ID <b>M01</b></span>
+      <span class="meta-item">路由 <code>/review/queue</code></span>
+      <span class="meta-item">单一目标 <b>领取授权案件，优先处理临期</b></span>
+      <span class="meta-item">依赖 operationId <code>listCases</code>、<code>claimCase</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="m01-title" tabindex="-1">审核队列 · 按优先级与截止时间稳定排序</h1>
+  <p class="data-note">示例数据（合成）· 仅案件编号与角色代号；剩余 SLA 属审核事实，允许展示。窄屏逐案卡片保持同一排序。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <table>
+      <caption>案件队列（按 priority、completion_due_at、id 稳定排序）</caption>
+      <thead><tr>
+        <th scope="col">优先级</th><th scope="col">风险</th><th scope="col">年龄层</th><th scope="col">来源</th><th scope="col">剩余 SLA</th><th scope="col">状态</th><th scope="col">操作</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="优先级">案件 C-2041 · P1</td><td data-label="风险">MEDIUM</td><td data-label="年龄层">C2</td><td data-label="来源">SUBMISSION</td>
+          <td data-label="剩余 SLA" class="mono">距响应截止 00:18:42</td><td data-label="状态">QUEUED</td>
+          <td data-label="操作"><button class="btn btn--sm btn--primary" type="button" data-go="M02">领取</button></td>
+        </tr>
+        <tr>
+          <td data-label="优先级">案件 C-2038 · P0</td><td data-label="风险">HIGH</td><td data-label="年龄层">C0</td><td data-label="来源">REPORT</td>
+          <td data-label="剩余 SLA" class="mono">需立即阻断</td><td data-label="状态">CLAIMED</td>
+          <td data-label="操作"><button class="btn btn--sm" type="button" disabled>已被领取</button><span class="aux" style="display:block;margin-top:var(--space-2)">该案件已被领取，请刷新；不覆盖他人租约。</span></td>
+        </tr>
+        <tr>
+          <td data-label="优先级">案件 C-2035 · P2</td><td data-label="风险">LOW</td><td data-label="年龄层">C3</td><td data-label="来源">APPEAL</td>
+          <td data-label="剩余 SLA" class="mono">距完成截止 06:41:09</td><td data-label="状态">WAITING_SECOND</td>
+          <td data-label="操作"><span class="aux">等待独立复核</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="aux">高风险案件首审后显示「等待独立复核」；领取与裁决中锁按钮。本页不出现审核员绩效排名或处理量类数字。</p>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入队列…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">领取/裁决中锁按钮，表格骨架 3 行。</p>
+    <button class="btn" type="button" disabled>领取（载入中锁定）</button>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">当前队列暂无案件</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">该案件已被领取，请刷新</p>
+    <p class="state-sub">错误同时以文本说明；不覆盖他人租约，领取按钮保持不可用。</p>
+    <button class="btn" type="button" data-retry="M01">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ M02 案件裁决 ============================ -->
+<section class="view" data-view="M02" aria-labelledby="m02-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>M02</b></span>
+      <span class="meta-item">页面 ID <b>M02</b></span>
+      <span class="meta-item">路由 <code>/review/cases/:id</code></span>
+      <span class="meta-item">单一目标 <b>阅读受控材料并填写证据与裁决</b></span>
+      <span class="meta-item">依赖 operationId <code>getCase</code>、<code>getReviewContent</code>、<code>decideCase</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="m02-title" tabindex="-1">案件详情与裁决 · 受控材料</h1>
+  <p class="data-note">示例数据（合成）· 身份仅使用角色代号，材料摘要不含个人身份信息；提供最少材料、查看留痕，不提供正文批量导出或下载入口。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols">
+      <div>
+        <p class="mono aux">案件 C-2041｜risk MEDIUM｜priority P1｜authorAgeBand C2｜policyVersion 7（示例）</p>
+        <p class="mono aux" style="border:1px solid var(--border);padding:var(--space-2)">水印：审核员 R-02 · 2026-11-12 23:15 · 本次查看已留痕</p>
+        <h2>材料摘要</h2>
+        <div class="row"><div class="row-main"><p class="row-title">版本</p><p class="row-desc">v2　目标：章节《第七章　堤上的第三盏灯》</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">版本差异</p><p class="row-desc">新增两段关于夜间值守的描写（示例）</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">规则版本</p><p class="row-desc mono">REVIEW_ROUTING revision 7（示例）</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">证据引用</p><p class="row-desc mono">EVID-2041-01（示例）</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">原裁决</p><p class="row-desc">无（首审）</p></div></div>
+        <p class="aux">不声称技术能绝对阻止截屏；申诉复核视图只在后端确认回避通过后开放。</p>
+      </div>
+
+      <div>
+        <h2>裁决表单</h2>
+        <label class="field" for="decision-result"><span>结果</span>
+          <select id="decision-result">
+            <option value="PASS">PASS</option><option value="LABEL" selected>LABEL</option><option value="LIMIT">LIMIT</option>
+            <option value="REVISE">REVISE</option><option value="HIDE">HIDE</option><option value="REMOVE">REMOVE</option>
+            <option value="BAN">BAN</option><option value="ESCALATE">ESCALATE</option>
+          </select>
+        </label>
+        <label class="field" for="decision-code"><span>理由码</span>
+          <select id="decision-code">
+            <option value="COMPLIANT">COMPLIANT</option><option value="AGE_LABEL" selected>AGE_LABEL</option><option value="AGE_LIMIT">AGE_LIMIT</option>
+            <option value="CONTENT_REVISION">CONTENT_REVISION</option><option value="COMMUNITY_VIOLATION">COMMUNITY_VIOLATION</option>
+            <option value="ILLEGAL_CONTENT">ILLEGAL_CONTENT</option><option value="COPYRIGHT">COPYRIGHT</option><option value="PRIVACY">PRIVACY</option>
+            <option value="MINOR_SAFETY">MINOR_SAFETY</option><option value="ACCOUNT_ABUSE">ACCOUNT_ABUSE</option><option value="UNCERTAIN">UNCERTAIN</option>
+          </select>
+        </label>
+        <label class="field" for="decision-reason"><span>理由（示例）</span>
+          <textarea id="decision-reason" style="min-height:96px;font-family:var(--font-ui)">章节中出现需要年龄标注的描写，建议标注 PG_12 后通过。</textarea>
+        </label>
+        <label class="field" for="decision-evidence"><span>证据引用</span>
+          <input id="decision-evidence" type="text" value="EVID-2041-01（示例）">
+        </label>
+        <label class="field" for="decision-grade"><span>内容等级（PASS / LABEL / LIMIT 必填）</span>
+          <select id="decision-grade">
+            <option value="G">G</option><option value="PG_12" selected>PG_12</option><option value="PG_16">PG_16</option><option value="A">A</option>
+          </select>
+        </label>
+        <p class="field-hint" id="grade-hint">该结果必须填写内容等级（PASS / LABEL / LIMIT）。</p>
+        <button class="btn btn--primary" type="button" data-confirm="decision">提交裁决（打开高危确认层）</button>
+        <p class="aux">提交后文案：已记录裁决，等待独立复核。首审不显示通过结论。双人分歧：需要新的 L2 裁决。</p>
+        <p class="after-note" id="v7-after-note" hidden></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在打开案件材料…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">领取/裁决中锁按钮，材料骨架。</p>
+    <button class="btn" type="button" disabled>提交裁决（载入中锁定）</button>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">当前无可审阅材料</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">租约已过期，请重新领取</p>
+    <div class="state-list">
+      <div><p class="state-sub">租约已过期，请重新领取：不能继续裁决，裁决表单停用。</p></div>
+      <div><p class="state-sub">原审回避，无法打开复核视图：申诉复核视图只在后端确认回避通过后开放。</p></div>
+    </div>
+    <button class="btn" type="button" disabled>提交裁决（已停用）</button>
+    <button class="btn" type="button" data-retry="M02">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ O02 配置审批 ============================ -->
+<section class="view" data-view="O02" aria-labelledby="o02-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>O02</b></span>
+      <span class="meta-item">页面 ID <b>O02</b></span>
+      <span class="meta-item">路由 <code>/operations/config</code></span>
+      <span class="meta-item">单一目标 <b>对比、提案、独立审批、激活、回滚</b></span>
+      <span class="meta-item">依赖 operationId <code>listConfigRevisions</code>、<code>createConfigRevision</code>、<code>getConfigRevision</code>、<code>reviewConfigRevision</code>、<code>activateConfigRevision</code></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="o02-title" tabindex="-1">配置提案与审批 · 独立审批与回滚</h1>
+  <p class="data-note">示例数据（合成）· 运营侧只能提案；审计链只读，无删除按钮与隐藏删除快捷键；不出现「直接修改审核结论」入口。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <div class="cols">
+      <div>
+        <h2>配置键：REVIEW_ROUTING（示例）</h2>
+        <p>当前 ACTIVE：<span class="tag tag--accent mono">revision 7</span>　待审提案：<span class="tag mono">revision 8 · IN_REVIEW</span></p>
+        <h2>提案差异（示例）</h2>
+        <div class="row"><div class="row-main"><p class="row-title">低风险抽检比例</p><p class="row-desc mono">5% → 8%</p><p class="aux">提高抽检，不降低保护底线</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">自动决策置信度下限</p><p class="row-desc mono">0.98 → 0.98</p><p class="aux">不变</p></div></div>
+        <div class="row"><div class="row-main"><p class="row-title">中风险质检比例</p><p class="row-desc mono">20% → 20%</p><p class="aux">不变</p></div></div>
+        <h2>审计链（只读）</h2>
+        <p class="aux">提案 → 独立审批 → 待生效 → 已生效（示例）。审批记录完整、不可删除。</p>
+        <p class="aux">提出人 <span class="mono">OPERATOR-01</span>（示例）　审批人 <span class="mono">ADMIN-02</span>（示例，独立审批）</p>
+      </div>
+
+      <div>
+        <h2>审批与激活计划</h2>
+        <p class="aux">生效时间：<span class="mono">2026-11-13 00:00</span>（示例，Asia/Shanghai）</p>
+        <p class="aux">灰度比例：<span class="mono">10000 bps</span>（全量；REVIEW_ROUTING 允许 1–10000，ACCESS_POLICY / CONTENT_CATALOG 固定 10000）</p>
+        <hr class="rule">
+        <h2>生效状态</h2>
+        <p class="accent-text" id="config-effect-label">待生效</p>
+        <p class="aux" id="config-effect-note">审批通过，等待生效时间；审批通过后仍显示「待生效」。</p>
+        <button class="btn" type="button" id="config-read-active">读取 ACTIVE 版本（演示）</button>
+        <p class="aux">只有读取 ACTIVE 版本后才显示「已生效」。</p>
+        <hr class="rule">
+        <div class="btn-row">
+          <button class="btn" type="button">创建提案（示例）</button>
+          <button class="btn btn--primary" type="button" data-confirm="activate">激活（打开高危确认层）</button>
+          <button class="btn btn--danger" type="button" data-confirm="rollback">回滚（创建新的回滚提案）</button>
+        </div>
+        <p class="aux">回滚走新提案并重复独立审批，不重写历史；文案：已创建新的回滚提案，需重新独立审批。</p>
+        <p class="after-note" id="v8-after-note" hidden></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在对比配置差异… / 审批处理中…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">对比/审批中锁按钮，保留布局骨架。</p>
+    <button class="btn" type="button" disabled>激活（处理中锁定）</button>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">无变更提案</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">配置错误态（同时以文本说明）</p>
+    <div class="state-list">
+      <div><p class="state-sub">版本冲突，请刷新：以最新 ETag 重新读取详情后再提案。</p></div>
+      <div><p class="state-sub">审批后不可替换提案内容：审批通过后 payload 不可覆盖。</p></div>
+      <div><p class="state-sub">不能降低合规保护底线：差异对照中不得降弱保护阈值。</p></div>
+    </div>
+    <button class="btn" type="button" data-retry="O02">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+<!-- ============================ ME 我的 ============================ -->
+<section class="view" data-view="ME" aria-labelledby="me-title" hidden>
+  <div class="view-head">
+    <div class="view-meta">
+      <span class="meta-item">视图 <b>ME</b></span>
+      <span class="meta-item">页面 ID <b>无（demo 横切聚合页，非 06 §2.1 P0 页面）</b></span>
+      <span class="meta-item">路由 <code>#me</code></span>
+      <span class="meta-item">单一目标 <b>夜间开关、年龄演示、治理公示与举报申诉入口</b></span>
+      <span class="meta-item">依赖 operationId <b>无（演示）</b></span>
+      <span class="synthetic">示例数据（合成）</span>
+    </div>
+    <fieldset class="state-controls">
+      <legend>状态演示（评审用）</legend>
+      <div class="state-buttons">
+        <button type="button" data-demo-state="loading" aria-pressed="false">加载</button>
+        <button type="button" data-demo-state="empty" aria-pressed="false">空</button>
+        <button type="button" data-demo-state="error" aria-pressed="false">错误</button>
+        <button type="button" data-demo-state="success" aria-pressed="true">成功</button>
+      </div>
+    </fieldset>
+  </div>
+  <h1 id="me-title" tabindex="-1">我的 · 偏好与治理公示</h1>
+  <p class="data-note">示例数据（合成）· 本页为页脚「治理公示」的锚点目标；审计通知为演示数据，不产生业务数据、不代表真实处置记录。</p>
+
+  <div class="view-body" data-state-pane="success">
+    <h2>偏好（仅体验层）</h2>
+    <div class="btn-row">
+      <button class="btn" type="button" data-pref-toggle="theme" aria-pressed="false">夜间阅读：关</button>
+      <button class="btn" type="button" data-pref-toggle="contrast" aria-pressed="false">高对比度：关</button>
+    </div>
+    <label class="field" for="age-demo" style="max-width:360px;margin-top:var(--space-4)"><span>演示年龄带（评审用，仅影响书城灰显）</span>
+      <select id="age-demo">
+        <option value="C0">学龄前 C0</option>
+        <option value="C1">小学 C1</option>
+        <option value="C2" selected>初中 C2</option>
+        <option value="C3">高中 C3</option>
+        <option value="C4">成人 C4</option>
+      </select>
+    </label>
+    <p class="aux">切换后，书城中超出该年龄带的作品将灰显且不可点；此为适龄边界演示，不代表真实年龄政策（真实判定由后端 AgePolicy 执行）。</p>
+
+    <hr class="rule">
+    <h2 id="me-governance">治理公示（页脚锚点目标）</h2>
+    <div class="notice notice--info">
+      <span class="tag">信息</span>
+      <p>审计公示：适龄分级规则已更新至 revision 7（示例数据，合成）。</p>
+    </div>
+    <div class="notice notice--warning">
+      <span class="tag tag--accent">提醒</span>
+      <p>处置通知：您提交的举报已进入人工复核，处理结果将以站内通知告知（示例）。</p>
+    </div>
+    <div class="notice notice--danger">
+      <span class="tag tag--danger">处置</span>
+      <p>处置通知：《雪线信箱》已按流程下架，内容暂不可访问（示例）。</p>
+    </div>
+
+    <hr class="rule">
+    <h2>举报与申诉</h2>
+    <div class="btn-row">
+      <button class="btn" type="button" data-confirm="report">站内举报（演示）</button>
+      <button class="btn" type="button" data-demo-note="申诉入口为演示占位：申诉须在原裁决送达后发起，提交新证据并等待受理。">申诉入口（演示）</button>
+    </div>
+    <p class="aux">本页不展示收益、等级、任务等任何运营数字；公示与通知均为合成演示数据。</p>
+  </div>
+
+  <div class="state-pane" data-state-pane="loading" hidden>
+    <p class="state-title">正在载入我的页…</p>
+    <div class="skeleton-stack"><div class="skeleton"></div><div class="skeleton skeleton--mid"></div><div class="skeleton skeleton--short"></div></div>
+    <p class="state-sub">保留布局骨架，读屏提示加载。</p>
+  </div>
+  <div class="state-pane" data-state-pane="empty" hidden>
+    <div class="empty-mark" aria-hidden="true"></div>
+    <p class="state-title">暂无公示与通知</p>
+    <p class="state-sub">空态保留布局骨架，不产生业务数据。</p>
+  </div>
+  <div class="state-pane" data-state-pane="error" hidden>
+    <div class="error-mark" aria-hidden="true">！</div>
+    <p class="state-title state-title--error">我的页载入失败，请重试</p>
+    <p class="state-sub">错误同时以文本说明，并提供重试入口。</p>
+    <button class="btn" type="button" data-retry="ME">重试（演示态切换，无网络请求）</button>
+  </div>
+</section>
+
+</div>
+</div>
+</main>
+
+<!-- 全站页脚（所有工作区共用；严禁虚构备案号/证照编号/电话） -->
+<footer class="site-footer">
+  <div class="foot-inner">
+    <div class="foot-col">
+      <h2>平台信息</h2>
+      <p class="foot-name">启明书院</p>
+      <p>面向青少年的适龄阅读平台（设计评审演示）。每一部作品都经过年龄分级审核后向适龄读者开放。</p>
+    </div>
+    <div class="foot-col">
+      <h2>治理公示</h2>
+      <button class="foot-link" type="button" data-go="ME">处置通知</button>
+      <button class="foot-link" type="button" data-go="ME">审计公示</button>
+      <button class="foot-link" type="button" data-go="ME">适龄分级说明</button>
+    </div>
+    <div class="foot-col">
+      <h2>规范与举报</h2>
+      <span class="foot-line">用户协议</span>
+      <span class="foot-line">隐私政策</span>
+      <span class="foot-line">未成年人保护</span>
+      <span class="foot-line">举报渠道：站内举报入口见我的页</span>
+      <button class="foot-link" type="button" data-go="ME">前往我的页</button>
+    </div>
+  </div>
+  <p class="foot-bottom">本页面为设计评审演示，平台证照与备案信息以正式上线为准。</p>
+</footer>
+
+<div id="live" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+<div id="kb-tip" class="kb-tip" hidden>试试使用键盘左右键切章吧！</div>
+
+<div class="dialog-layer" id="dialog-layer" hidden>
+  <div class="dialog" id="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+    <h2 id="confirm-title">确认</h2>
+    <dl class="fact-list" id="confirm-facts"></dl>
+    <p id="confirm-note"></p>
+    <p class="aux">本确认层写明具体对象、影响范围、原因与复核要求，不使用泛化确认语隐藏后果。仅演示文案，不产生业务数据。</p>
+    <div class="dialog-actions">
+      <button class="btn" type="button" data-dialog-close data-autofocus>取消</button>
+      <button class="btn btn--primary" type="button" id="confirm-ok">确认</button>
+    </div>
+  </div>
+
+  <div class="dialog" id="report-dialog" role="dialog" aria-modal="true" aria-labelledby="report-title" hidden>
+    <h2 id="report-title">举报（createReport 示例）</h2>
+    <p class="aux">示例数据（合成）· 提交后仅显示受理文案，不虚构处理结果、不产生业务数据。</p>
+    <label class="field" for="report-reason"><span>举报理由</span>
+      <select id="report-reason">
+        <option value="AGE_LABEL">需要年龄标注</option>
+        <option value="CONTENT_REVISION">内容需修订</option>
+        <option value="COPYRIGHT">版权问题</option>
+        <option value="PRIVACY">隐私问题</option>
+        <option value="UNCERTAIN">暂不确定</option>
+      </select>
+    </label>
+    <label class="field" for="report-detail"><span>补充说明（示例）</span>
+      <textarea id="report-detail" style="min-height:96px;font-family:var(--font-ui)" data-autofocus></textarea>
+    </label>
+    <div class="dialog-actions">
+      <button class="btn" type="button" data-dialog-close>取消</button>
+      <button class="btn btn--primary" type="button" id="report-submit">提交举报（演示）</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* 体验设置的本地存储白名单：仅此六项，禁止写入业务状态 */
+  var STORE = {
+    theme: 'qm.demo.theme',
+    contrast: 'qm.demo.contrast',
+    size: 'qm.demo.readerSize',
+    leading: 'qm.demo.readerLeading',
+    measure: 'qm.demo.readerMeasure',
+    readTheme: 'qm.demo.readTheme'
+  };
+
+  var WORKSPACE_OF = {
+    R01: 'reader', R02: 'reader', R03: 'reader',
+    A01: 'author', A03: 'author', A04: 'author',
+    M01: 'reviewer', M02: 'reviewer',
+    O02: 'operator',
+    ME: 'me'
+  };
+  var WS_VIEWS = {
+    reader: ['R01', 'R02', 'R03'],
+    author: ['A01', 'A03', 'A04'],
+    reviewer: ['M01', 'M02'],
+    operator: ['O02'],
+    me: ['ME']
+  };
+  var WS_LABEL = { reader: '书城', author: '创作工作区', reviewer: '审核工作区', operator: '运营与配置', me: '我的' };
+
+  function readStore(key, fallback) {
+    try {
+      var value = window.localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function writeStore(key, value) {
+    try {
+      window.localStorage.setItem(key, String(value));
+    } catch (e) {
+      /* 本地存储不可用时只保持内存态，不影响评审演示 */
+    }
+  }
+
+  var live = document.getElementById('live');
+  var lastAnnounce = '';
+  function announce(text) {
+    if (!text || text === lastAnnounce) { return; }
+    lastAnnounce = text;
+    live.textContent = '';
+    window.setTimeout(function () { live.textContent = text; }, 30);
+  }
+
+  /* ---------- ① 工作空间切换 / ② 视图切换 ---------- */
+  var currentView = 'R01';
+  var currentWs = 'reader';
+
+  function setWorkspace(ws, doShow) {
+    currentWs = ws;
+    var wsButtons = document.querySelectorAll('[data-ws]');
+    Array.prototype.forEach.call(wsButtons, function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute('data-ws') === ws ? 'true' : 'false');
+    });
+    var navButtons = document.querySelectorAll('#view-nav [data-go]');
+    Array.prototype.forEach.call(navButtons, function (button) {
+      var id = button.getAttribute('data-go');
+      button.hidden = !(id === 'V0' || WORKSPACE_OF[id] === ws);
+    });
+    if (doShow) { showView(WS_VIEWS[ws][0]); }
+  }
+
+  function showView(id, moveFocus, silent) {
+    var target = document.querySelector('.view[data-view="' + id + '"]');
+    if (!target) { return; }
+    if (id === 'R03') { ensureReader(); }
+    var views = document.querySelectorAll('.view');
+    Array.prototype.forEach.call(views, function (view) {
+      view.hidden = view !== target;
+      view.classList.remove('is-entering');
+    });
+    void target.offsetWidth;
+    target.classList.add('is-entering');
+    var navButtons = document.querySelectorAll('#view-nav [data-go]');
+    Array.prototype.forEach.call(navButtons, function (button) {
+      if (button.getAttribute('data-go') === id) { button.setAttribute('aria-current', 'page'); }
+      else { button.removeAttribute('aria-current'); }
+    });
+    var ws = WORKSPACE_OF[id];
+    if (ws && ws !== currentWs) { setWorkspace(ws, false); }
+    currentView = id;
+    if (moveFocus !== false) {
+      var heading = target.querySelector('h1');
+      if (heading) { heading.focus({ preventScroll: true }); }
+    }
+    if (!silent) {
+      announce('已切换到 ' + id + '（' + (ws ? WS_LABEL[ws] + '工作空间' : '评审辅助页') + '）。此为 demo 视图切换，非登录态。');
+    }
+  }
+
+  /* ---------- ④ 四态核对开关 ---------- */
+  var STATE_LABEL = { loading: '加载态', empty: '空态', error: '错误态', success: '成功态' };
+  function setState(viewId, state) {
+    var view = document.querySelector('.view[data-view="' + viewId + '"]');
+    if (!view) { return; }
+    var panes = view.querySelectorAll('[data-state-pane]');
+    Array.prototype.forEach.call(panes, function (pane) {
+      pane.hidden = pane.getAttribute('data-state-pane') !== state;
+    });
+    var buttons = view.querySelectorAll('[data-demo-state]');
+    Array.prototype.forEach.call(buttons, function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute('data-demo-state') === state ? 'true' : 'false');
+    });
+    announce(viewId + ' 状态演示（评审用）：' + STATE_LABEL[state] + '。仅切换展示态，不产生业务数据。');
+  }
+
+  /* ---------- ③ 夜间 / ⑤ 阅读参数 / 高对比度 / 阅读主题（仅体验层） ---------- */
+  var BOUNDS = { size: [14, 22], leading: [1.5, 2.2], measure: [32, 44] };
+  function clampNumber(key, value) {
+    var limit = BOUNDS[key];
+    var number = Number(value);
+    if (!isFinite(number)) { number = limit[0]; }
+    return Math.min(limit[1], Math.max(limit[0], number));
+  }
+  function applyPrefs() {
+    var size = clampNumber('size', readStore(STORE.size, 18));
+    var leading = clampNumber('leading', readStore(STORE.leading, 1.8));
+    var measure = clampNumber('measure', readStore(STORE.measure, 44));
+    var rootStyle = document.documentElement.style;
+    rootStyle.setProperty('--reader-size', size + 'px');
+    rootStyle.setProperty('--reader-leading', String(leading));
+    rootStyle.setProperty('--reader-measure', measure + 'em');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref="size"]'), function (el) { el.value = String(size); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref="leading"]'), function (el) { el.value = String(leading); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref="measure"]'), function (el) { el.value = String(measure); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref-out="size"]'), function (el) { el.textContent = size + 'px'; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref-out="leading"]'), function (el) { el.textContent = Number(leading).toFixed(1); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref-out="measure"]'), function (el) { el.textContent = measure + 'em'; });
+  }
+  function setTheme(night, silent) {
+    document.documentElement.setAttribute('data-theme', night ? 'night' : 'light');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref-toggle="theme"]'), function (button) {
+      button.setAttribute('aria-pressed', night ? 'true' : 'false');
+      button.textContent = night ? '夜间阅读：开' : '夜间阅读：关';
+    });
+    writeStore(STORE.theme, night ? 'night' : 'light');
+    if (!silent) { announce(night ? '已开启夜间阅读（仅体验层）。' : '已关闭夜间阅读（仅体验层）。'); }
+  }
+  function setContrast(high, silent) {
+    document.documentElement.setAttribute('data-contrast', high ? 'high' : 'normal');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pref-toggle="contrast"]'), function (button) {
+      button.setAttribute('aria-pressed', high ? 'true' : 'false');
+      button.textContent = high ? '高对比度：开' : '高对比度：关';
+    });
+    writeStore(STORE.contrast, high ? 'high' : 'normal');
+    if (!silent) { announce(high ? '已开启高对比度（仅体验层）。' : '已关闭高对比度（仅体验层）。'); }
+  }
+  /* 阅读主题：作用于阅读器纸面，独立于夜间模式 */
+  var READ_THEME_LABEL = { rice: '米白', green: '护眼绿', parchment: '羊皮纸', night: '夜间' };
+  function applyReadingTheme(theme, silent) {
+    Array.prototype.forEach.call(document.querySelectorAll('.reader-paper'), function (paper) {
+      paper.setAttribute('data-read-theme', theme);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-read-theme-btn]'), function (btn) {
+      btn.setAttribute('aria-pressed', btn.getAttribute('data-read-theme-btn') === theme ? 'true' : 'false');
+    });
+    writeStore(STORE.readTheme, theme);
+    if (!silent) { announce('阅读主题：' + (READ_THEME_LABEL[theme] || theme) + '。仅体验层。'); }
+  }
+
+  /* ---------- 阅读排版工具栏（≥1024px 右列常驻；<1024px 底部唤出，同一 DOM 同一组状态） ---------- */
+  var toolbar = document.getElementById('reader-toolbar');
+  var toolbarReturnFocus = null;
+  function toggleReaderToolbar(show) {
+    if (!toolbar) { return; }
+    var isOpen = toolbar.classList.contains('is-open');
+    var willShow = (typeof show === 'boolean') ? show : !isOpen;
+    if (willShow === isOpen) { return; }
+    toolbar.classList.toggle('is-open', willShow);
+    if (willShow) {
+      /* 打开前记录触发按钮（仅 data-open-typeset 触发器，避免记录到正文元素），收起时归还焦点 */
+      var active = document.activeElement;
+      if (active && typeof active.hasAttribute === 'function' && active.hasAttribute('data-open-typeset') && !toolbar.contains(active)) {
+        toolbarReturnFocus = active;
+      }
+      var first = toolbar.querySelector('input,button');
+      if (first) { first.focus({ preventScroll: true }); }
+      announce('已唤出排版工具栏：字号、行距、页边距与阅读主题。');
+    } else {
+      if (toolbarReturnFocus && typeof toolbarReturnFocus.focus === 'function') { toolbarReturnFocus.focus({ preventScroll: true }); }
+      toolbarReturnFocus = null;
+      announce('排版工具栏已收起。');
+    }
+  }
+
+  /* ---------- 示例书目数据（12 部原创合成作品） ---------- */
+  /* 字数档：lt10 <10万；w10_30 10–30万；w30_60 30–60万；gt60 ≥60万 */
+  var BOOKS = [
+    { id: 'b1', title: '晚潮记', author: '林砚', band: 'C2', status: 'published', tags: ['纪事', '海边', '值班簿'],
+      w: 41.1, wt: '41.1 万字', h: 3, t: '3 小时前', daysAgo: 0, seed: 7, coverA: '#FCE9E7', coverB: '#F6C6C0',
+      intro: '海堤修到第三年，值守人把潮汐写进值班簿。风、灯与石阶构成他全部的日常，也在一页页记录里，留下小镇与海相互退让的痕迹。这是一部关于守望与耐心的纪事作品。',
+      sig: '把潮水写进值班簿的人。',
+      chapters: ['海堤与值班簿', '第一场秋汛', '镇纸', '灯罩', '堤上的第一盏灯', '值班簿与潮时', '堤上的第三盏灯', '入冬前的巡检', '风向标', '潮汐表', '雪夜', '开春第一班'] },
+    { id: 'b2', title: '灯下拾稿', author: '周叙', band: 'C1', status: 'published', tags: ['散文', '台灯', '搬迁'],
+      w: 18.6, wt: '18.6 万字', h: 26, t: '昨天', daysAgo: 1, seed: 11, coverA: '#FCEFDB', coverB: '#F3D9A6',
+      intro: '一盏台灯、半沓稿纸，记下搬迁前最后几个傍晚。作者把旧居里的物件逐一写成短章，灯罩、门锁、纸箱都有各自的脾气。合上稿纸时，旧居已经空了，但灯还亮在字里行间。',
+      sig: '在台灯下收拾回忆的人。',
+      chapters: ['搬家前的清单', '半沓稿纸', '台灯的暖光', '旧地址', '纸箱与标签', '最后一个傍晚', '门锁转了两次', '新居第一夜'] },
+    { id: 'b3', title: '北行札记', author: '沈行', band: 'C3', status: 'published', tags: ['札记', '驿道', '碑刻'],
+      w: 55.2, wt: '55.2 万字', h: 50, t: '2 天前', daysAgo: 2, seed: 23, coverA: '#E7EEF6', coverB: '#C6D6EA',
+      intro: '沿旧驿道向北，逐站核对地名与碑刻。风物、方言与旧碑上的刻字彼此印证，路越走越长，笔记越写越厚。这不是一次观光，而是一场对地名由来的耐心求证。',
+      sig: '按碑认路的人。',
+      chapters: ['出发前的地图', '旧驿道', '第一块碑', '客栈夜话', '山口', '渡口', '地名考', '碑刻拓印', '归途', '未完的路'] },
+    { id: 'b4', title: '种籽手记', author: '麦青', band: 'C0', status: 'published', tags: ['纪事', '种植', '四季'],
+      w: 8.4, wt: '8.4 万字', h: 96, t: '4 天前', daysAgo: 4, seed: 5, coverA: '#E3F2E4', coverB: '#BFE0C0',
+      intro: '一把种籽，从育苗箱到移栽再到收籽，记录一季完整的种植周期。语言简单，节律和节气一样清楚，适合刚刚开始独立阅读的读者，也适合大人读给孩子听。',
+      sig: '和种籽一起等春天的人。',
+      chapters: ['一把种籽', '育苗箱', '春寒', '第一片真叶', '移栽', '虫害一夜', '收籽', '留种'] },
+    { id: 'b5', title: '山谷回信', author: '顾遥', band: 'C1', status: 'inreview', tags: ['散文', '书信', '山谷'],
+      w: 12.9, wt: '12.9 万字', h: 30, t: '昨天', daysAgo: 1, seed: 13, coverA: '#EDE7F6', coverB: '#D4C5EE',
+      intro: '寄往山谷的信总是回得很慢。邮戳、落款与孩子们歪歪扭扭的提问，把一座遥远的山谷写近了。本作正在接受年龄分级复核，通过后将向适龄读者开放。',
+      sig: '等回信的人，也在写信。',
+      chapters: ['寄往山谷的信', '回信迟了', '落款', '邮戳', '山里的学校', '孩子们的提问', '又一封回信', '约定'] },
+    { id: 'b6', title: '织补时光', author: '苏澈', band: 'C1', status: 'published', tags: ['札记', '手作', '家人'],
+      w: 27.3, wt: '27.3 万字', h: 150, t: '1 周前', daysAgo: 6, seed: 17, coverA: '#FFF3E0', coverB: '#F5D9AE',
+      intro: '旧毛衣拆出的线，织回袖口与补丁。针脚起落之间，母亲的针线笸箩、配色习惯与一句句叮嘱被重新记起。手作是慢的，记忆也是，正好彼此缝合。',
+      sig: '一针一线补时间的人。',
+      chapters: ['旧毛衣', '拆线', '配色', '针脚', '袖口', '母亲的针线笸箩', '补丁的位置', '织完', '传下去'] },
+    { id: 'b7', title: '长巷灯话', author: '陆知遥', band: 'C2', status: 'published', tags: ['纪事', '街巷', '夜班'],
+      w: 36.8, wt: '36.8 万字', h: 74, t: '3 天前', daysAgo: 3, seed: 19, coverA: '#E0F0F6', coverB: '#B9DAE6',
+      intro: '长巷的路灯亮了几十年，修灯人、小卖部、棋摊与夜班归人都在灯下交换过几句话。停电的那一夜，大家才发现这条巷子有多依赖这点光。',
+      sig: '收集灯下闲话的人。',
+      chapters: ['长巷的路灯', '修灯人', '巷口小卖部', '夜班归人', '灯下的棋摊', '停电一夜', '换新灯', '老邻居', '巷尾的猫', '灯又亮了'] },
+    { id: 'b8', title: '汛期来信', author: '温叙白', band: 'C3', status: 'published', tags: ['散文', '江河', '汛期'],
+      w: 63.5, wt: '63.5 万字', h: 55, t: '2 天前', daysAgo: 2, seed: 29, coverA: '#E8F4F8', coverB: '#C4E2EC',
+      intro: '每年汛期，值守点都会收到上游寄来的信：水位、雨量、路况。沙袋、撤离路线与堤上灯火，构成一部以书信为线索的江河纪事，平静的语气里有郑重的分量。',
+      sig: '读汛报像读家书的人。',
+      chapters: ['第一封汛报', '水位线', '沙袋', '撤离路线', '回水', '堤上灯火', '退水', '淤泥与青草', '重建', '第二年汛期'] },
+    { id: 'b9', title: '纸上渡口', author: '程一苇', band: 'C4', status: 'published', tags: ['札记', '渡口', '口述史'],
+      w: 71.2, wt: '71.2 万字', h: 220, t: '2 周前', daysAgo: 9, seed: 31, coverA: '#EFF3EA', coverB: '#D6E0C8',
+      intro: '渡口的班次、船票存根与摆渡人的口述，被逐一誊进笔记本。桥修好之后，渡口慢慢安静下来，最后一班船与渡口博物馆之间，隔着一代人的过渡。',
+      sig: '把渡口誊在纸上的人。',
+      chapters: ['渡口的班次', '船票存根', '摆渡人', '对岸的集市', '雾天停航', '夜渡', '桥修好了', '最后一班船', '渡口博物馆'] },
+    { id: 'b10', title: '候鸟站台', author: '韩栖', band: 'C2', status: 'inreview', tags: ['纪事', '小站', '慢车'],
+      w: 9.6, wt: '9.6 万字', h: 28, t: '昨天', daysAgo: 1, seed: 37, coverA: '#FBE9E7', coverB: '#F3C6BF',
+      intro: '小站站台的时刻表上，慢车与候鸟一样准时。值班室、道口与雪天延误，都被写进短章。本作正在接受年龄分级复核，通过后将向适龄读者开放。',
+      sig: '在小站等慢车的人。',
+      chapters: ['站台时刻表', '北上的候鸟', '小站值班室', '慢车', '道口', '雪天延误', '末班车', '站台春天的燕子'] },
+    { id: 'b11', title: '雪线信箱', author: '白山楸', band: 'C4', status: 'removed', tags: ['纪事', '邮路', '雪山'],
+      w: 47.9, wt: '47.9 万字', h: 360, t: '3 周前', daysAgo: 15, seed: 41, coverA: '#ECEFF4', coverB: '#CBD5E1',
+      intro: '雪线以上没有公路，邮件靠骡队翻过垭口。一封挂号信、一个风雪夜与送信人的手记，构成本作的主线。该作品已按流程下架，内容暂不可访问。',
+      sig: '记下邮路的人。',
+      chapters: ['雪线以上', '邮政骡队', '垭口', '一封挂号信', '风雪夜', '困在山腰', '送信人手记', '融雪', '信箱里的春天'] },
+    { id: 'b12', title: '星野晨读', author: '苗小满', band: 'C0', status: 'published', tags: ['散文', '观星', '晨读'],
+      w: 15.4, wt: '15.4 万字', h: 5, t: '5 小时前', daysAgo: 0, seed: 43, coverA: '#E8EAF6', coverB: '#C5CAEF',
+      intro: '每天晨读五分钟，认一颗星。从星图到四季星空，再到第一次用望远镜，语言浅白，比喻都来自操场与早餐桌，适合学龄前与小低年级的亲子共读。',
+      sig: '陪孩子认星的人。',
+      chapters: ['晨读五分钟', '星图', '第一颗认得的星', '秋季星空', '冬季亮星', '望远镜初体验', '春夜', '夏季大三角'] }
+  ];
+
+  var STATUS_LABEL = { published: '已发布', inreview: '审核中', removed: '已下架' };
+  var BAND_LABEL = { C0: '学龄前 C0', C1: '小学 C1', C2: '初中 C2', C3: '高中 C3', C4: '成人 C4' };
+  var BAND_RANK = { C0: 0, C1: 1, C2: 2, C3: 3, C4: 4 };
+
+  /* 原创合成段落池：非默认章正文按确定性索引取 3 段 */
+  var POOL = [
+    '纸页在灯下泛着浅浅的暖色，笔尖走过的地方，字迹一行行排开，像退潮后留在滩上的痕迹，整齐，又各有各的分量。',
+    '他把当天的记录读了一遍，又读了一遍，然后在页脚补了一个小小的记号。这个记号没有特别的意思，只是提醒明天的自己：这一页已经核对过了。',
+    '风从北面来的时候，屋里的声音会变。窗纸先响，桌上的纸跟着动，最后连灯罩里的小火也晃了晃，仿佛也在听。',
+    '路是旧的，走的人少了，草从石缝里长出来，把脚印一格一格填满。他停下步子，把眼前的样子记在本子上，字写得比平时慢。',
+    '信纸上有一处折痕，是从山谷寄出来时留下的。他把信纸抚平，读到第三遍，才把要回的话想清楚。',
+    '清早的光斜着照进屋，照在昨夜没写完的那一行上。他没有急着续写，先把窗打开，让屋里屋外的冷与暖先碰个面。',
+    '名字是有来历的。老人们说起一个地名，总要顺带说起一个人、一场雨或者一次没赶上的船。他把这些一并记下，注在正文旁边。',
+    '帐目、潮时、风向、来往的人数，都被记在同一本簿子里。字不大，行距很匀，看得出记的人心里有一把安静的尺子。'
+  ];
+  /* 默认章（晚潮记 CH.07）保留原评审稿正文 */
+  var DEFAULT_BODY = [
+    '入秋以后，海风换了一个方向。值守人把值班簿摊在窗边，先记潮时，再记风向，最后才写下当天有没有人经过堤坝。纸页被风掀起一角，他用镇纸压住，笔尖停在「晴」字后面，等一阵更稳的光。',
+    '他把第三盏灯挂上去的时候，天色已经暗透。灯罩是旧铁皮做的，边缘磨得发亮，光落在纸上只有一小圈，刚好够写完一行字。',
+    '第二天清早，潮水退到石阶以下。昨夜写下的字被风翻过一页，墨迹未干，却已经和前一页连成了一句完整的话。'
+  ];
+
+  /* 固定演示基准日期（不读取当前系统时间） */
+  var BASE_DATE = new Date(2026, 10, 12);
+  function chapterDate(book, idx) {
+    var d = new Date(BASE_DATE.getTime());
+    var daysBack = (book.chapters.length - 1 - idx) * 3 + (book.daysAgo || 0);
+    d.setDate(d.getDate() - daysBack);
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function chapterWords(book, idx) {
+    return 2100 + ((idx * 173 + book.seed * 97) % 1600);
+  }
+  function chapterBody(book, idx) {
+    if (book.id === 'b1' && idx === 6) { return DEFAULT_BODY; }
+    return [POOL[idx % 8], POOL[(idx + 3) % 8], POOL[(idx + 5) % 8]];
+  }
+  function chapterNo(idx) {
+    return 'CH.' + ('0' + (idx + 1)).slice(-2);
+  }
+  function findBook(id) {
+    for (var i = 0; i < BOOKS.length; i++) {
+      if (BOOKS[i].id === id) { return BOOKS[i]; }
+    }
+    return null;
+  }
+
+  /* ---------- 演示年龄带（影响书城灰显，评审用） ---------- */
+  var AGE_DEMO = 'C2';
+  var CURRENT_BOOK_ID = 'b1';
+  /* 与 R01 灰显同口径的适龄判定，供 R02 / R03 入口共用 */
+  function isAgeMuted(book) { return BAND_RANK[book.band] > BAND_RANK[AGE_DEMO]; }
+  /* 按当前演示年龄带返回第一部可读作品（未下架且适龄），找不到返回 null */
+  function firstReadableBook() {
+    for (var i = 0; i < BOOKS.length; i++) {
+      if (BOOKS[i].status !== 'removed' && !isAgeMuted(BOOKS[i])) { return BOOKS[i]; }
+    }
+    return null;
+  }
+  function applyAgeDemo(band, silent) {
+    AGE_DEMO = band;
+    var select = document.getElementById('age-demo');
+    if (select) { select.value = band; }
+    renderLibrary(true);
+    /* 保持 R02 / R03 与 R01 灰显口径一致：随年龄演示同步重渲染或兜底切换 */
+    var switched = '';
+    if (currentView === 'R02' && CURRENT_BOOK_ID) { renderBookDetail(CURRENT_BOOK_ID); }
+    if (currentView === 'R03' && READER.ready) {
+      var rb = findBook(READER.bookId);
+      if (rb && (rb.status === 'removed' || isAgeMuted(rb))) {
+        var fallback = firstReadableBook();
+        if (fallback && fallback.id !== rb.id) {
+          READER.bookId = fallback.id;
+          READER.idx = 0;
+          renderReader();
+          switched = '当前阅读的《' + rb.title + '》已不适配新演示年龄带，已切换到《' + fallback.title + '》第一章。';
+        }
+      }
+    }
+    if (!silent) { announce(switched + '演示年龄带已切换为 ' + (BAND_LABEL[band] || band) + '，书城灰显已更新。仅演示边界，不代表真实年龄政策。'); }
+  }
+
+  /* ---------- R01 多维筛选（与组合）+ 书卡渲染 ---------- */
+  var FILTERS = { age: 'all', status: 'all', words: 'all', sort: 'recent' };
+  var WORD_BUCKETS = {
+    lt10: function (w) { return w < 10; },
+    w10_30: function (w) { return w >= 10 && w < 30; },
+    w30_60: function (w) { return w >= 30 && w < 60; },
+    gt60: function (w) { return w >= 60; }
+  };
+  function filteredBooks() {
+    var list = BOOKS.filter(function (b) {
+      if (FILTERS.age !== 'all' && b.band !== FILTERS.age) { return false; }
+      if (FILTERS.status !== 'all' && b.status !== FILTERS.status) { return false; }
+      if (FILTERS.words !== 'all' && !WORD_BUCKETS[FILTERS.words](b.w)) { return false; }
+      return true;
+    });
+    if (FILTERS.sort === 'recent') {
+      list = list.slice().sort(function (a, b) { return a.h - b.h; });
+    } else if (FILTERS.sort === 'title') {
+      list = list.slice().sort(function (a, b) { return a.title.localeCompare(b.title, 'zh-Hans-CN'); });
+    } else if (FILTERS.sort === 'words') {
+      list = list.slice().sort(function (a, b) { return b.w - a.w; });
+    }
+    return list;
+  }
+  function decorateCover(cover, book) {
+    var coverTitle = document.createElement('span');
+    coverTitle.className = 'cover-title';
+    coverTitle.textContent = book.title;
+    var coverAuthor = document.createElement('span');
+    coverAuthor.className = 'cover-author';
+    coverAuthor.textContent = book.author;
+    cover.appendChild(coverTitle);
+    cover.appendChild(coverAuthor);
+  }
+  function buildCard(book) {
+    var muted = isAgeMuted(book);
+    var removed = book.status === 'removed';
+    var card = document.createElement('article');
+    card.className = 'book-card' + (muted || removed ? ' is-muted' : '');
+    card.style.setProperty('--cover-a', book.coverA);
+    card.style.setProperty('--cover-b', book.coverB);
+    var cover = document.createElement('div');
+    cover.className = 'book-cover';
+    cover.setAttribute('aria-hidden', 'true');
+    decorateCover(cover, book);
+    var title = document.createElement('p');
+    title.className = 'book-title';
+    title.textContent = '《' + book.title + '》';
+    var badges = document.createElement('p');
+    badges.className = 'book-meta';
+    var age = document.createElement('span');
+    age.className = 'tag badge-age';
+    age.textContent = BAND_LABEL[book.band];
+    var st = document.createElement('span');
+    st.className = 'tag ' + (book.status === 'removed' ? 'badge-off' : book.status === 'inreview' ? 'tag--accent' : 'badge-pub');
+    st.textContent = STATUS_LABEL[book.status];
+    badges.appendChild(age);
+    badges.appendChild(st);
+    var meta = document.createElement('p');
+    meta.className = 'book-meta';
+    var metaBy = document.createElement('span');
+    metaBy.textContent = book.author + '（示例） · ' + book.wt;
+    var metaTime = document.createElement('span');
+    metaTime.textContent = '更新于 ' + book.t;
+    meta.appendChild(metaBy);
+    meta.appendChild(metaTime);
+    card.appendChild(cover);
+    card.appendChild(title);
+    card.appendChild(badges);
+    card.appendChild(meta);
+    if (removed) {
+      var off = document.createElement('p');
+      off.className = 'muted-note';
+      off.textContent = '内容暂不可访问';
+      card.appendChild(off);
+    } else if (muted) {
+      var over = document.createElement('p');
+      over.className = 'muted-note';
+      over.textContent = '超出当前演示年龄带，暂不可读';
+      card.appendChild(over);
+    } else {
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('data-open-book', book.id);
+      card.setAttribute('aria-label', '《' + book.title + '》，' + book.author + '（示例），' + BAND_LABEL[book.band] + '，' + STATUS_LABEL[book.status] + '，' + book.wt + '，更新于 ' + book.t + '。点击查看书籍详情。');
+    }
+    return card;
+  }
+  function renderLibrary(silent) {
+    var grid = document.getElementById('book-grid');
+    var count = document.getElementById('library-count');
+    if (!grid) { return; }
+    grid.textContent = '';
+    var list = filteredBooks();
+    Array.prototype.forEach.call(list, function (book) {
+      grid.appendChild(buildCard(book));
+    });
+    if (count) {
+      count.textContent = list.length ? '共 ' + list.length + ' 部作品（示例数据，合成）。' : '未找到符合条件的作品。';
+    }
+    if (!list.length && grid.querySelector('.empty-inline') === null) {
+      var empty = document.createElement('p');
+      empty.className = 'aux empty-inline';
+      empty.textContent = '暂无适龄已发布作品。可以稍后再来，或调整筛选条件。';
+      grid.appendChild(empty);
+    }
+    if (!silent) {
+      announce('筛选完成，共 ' + list.length + ' 部作品。');
+    }
+  }
+  function setFilter(key, value) {
+    FILTERS[key] = value;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-filter]'), function (chip) {
+      chip.setAttribute('aria-pressed', chip.getAttribute('data-filter') === key && chip.getAttribute('data-value') === value ? 'true' : 'false');
+    });
+    renderLibrary(false);
+  }
+
+  /* ---------- R02 书详情渲染 ---------- */
+  function renderBookDetail(bookId) {
+    var book = findBook(bookId) || BOOKS[0];
+    CURRENT_BOOK_ID = book.id;
+    var crumb = document.getElementById('r02-crumb');
+    if (crumb) { crumb.textContent = '《' + book.title + '》'; }
+    var root = document.getElementById('r02-body');
+    if (!root) { return; }
+    root.textContent = '';
+    /* 与 R01 同口径：适龄灰显 + 下架均不可读 */
+    var muted = isAgeMuted(book);
+    var removed = book.status === 'removed';
+
+    var head = document.createElement('div');
+    head.className = 'book-head';
+    var cover = document.createElement('div');
+    cover.className = 'book-cover book-cover--lg';
+    cover.style.setProperty('--cover-a', book.coverA);
+    cover.style.setProperty('--cover-b', book.coverB);
+    cover.setAttribute('aria-hidden', 'true');
+    decorateCover(cover, book);
+    var info = document.createElement('div');
+    info.className = 'book-head-info';
+    var h2 = document.createElement('h2');
+    h2.textContent = '《' + book.title + '》';
+    var badges = document.createElement('div');
+    badges.className = 'book-badges';
+    var st = document.createElement('span');
+    st.className = 'tag ' + (book.status === 'removed' ? 'badge-off' : book.status === 'inreview' ? 'tag--accent' : 'badge-pub');
+    st.textContent = STATUS_LABEL[book.status];
+    var age = document.createElement('span');
+    age.className = 'tag badge-age';
+    age.textContent = BAND_LABEL[book.band];
+    badges.appendChild(st);
+    badges.appendChild(age);
+    Array.prototype.forEach.call(book.tags, function (t) {
+      var tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = t;
+      badges.appendChild(tag);
+    });
+    var words = document.createElement('p');
+    words.className = 'book-meta';
+    words.textContent = '字数：' + book.wt;
+    info.appendChild(h2);
+    info.appendChild(badges);
+    info.appendChild(words);
+    if (muted && !removed) {
+      var mutedNote = document.createElement('p');
+      mutedNote.className = 'muted-note';
+      /* 文案与 R01 灰显卡（「超出当前演示年龄带，暂不可读」）保持一致，并附演示边界 hint */
+      mutedNote.textContent = '超出当前演示年龄带，暂不可读。仅演示边界，不代表真实年龄政策。';
+      info.appendChild(mutedNote);
+    }
+    head.appendChild(cover);
+    head.appendChild(info);
+    root.appendChild(head);
+
+    var updated = document.createElement('p');
+    updated.className = 'updated-line';
+    updated.textContent = '最近更新：第 ' + book.chapters.length + ' 章 ' + book.chapters[book.chapters.length - 1] + ' · ' + book.t;
+    info.appendChild(updated);
+
+    var ctaRow = document.createElement('div');
+    ctaRow.className = 'btn-row';
+    var cta = document.createElement('button');
+    cta.className = 'btn btn--primary';
+    cta.type = 'button';
+    cta.setAttribute('data-read-book', book.id);
+    cta.setAttribute('data-chapter', '0');
+    cta.textContent = removed ? '开始阅读（当前不可访问）' : muted ? '开始阅读（适龄超出演示年龄带）' : '开始阅读';
+    if (removed || muted) { cta.disabled = true; }
+    ctaRow.appendChild(cta);
+    info.appendChild(ctaRow);
+
+    var authorCard = document.createElement('div');
+    authorCard.className = 'author-card';
+    authorCard.style.setProperty('--cover-a', book.coverA);
+    authorCard.style.setProperty('--cover-b', book.coverB);
+    var avatar = document.createElement('div');
+    avatar.className = 'avatar-circle';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = book.author.charAt(0);
+    var aInfo = document.createElement('div');
+    var aName = document.createElement('p');
+    aName.className = 'author-name';
+    aName.textContent = book.author + '（示例）';
+    var aSig = document.createElement('p');
+    aSig.className = 'author-sig';
+    aSig.textContent = '签名：' + book.sig;
+    aInfo.appendChild(aName);
+    aInfo.appendChild(aSig);
+    authorCard.appendChild(avatar);
+    authorCard.appendChild(aInfo);
+    info.appendChild(authorCard);
+
+    var introTitle = document.createElement('h2');
+    introTitle.textContent = '作品简介';
+    root.appendChild(introTitle);
+    var intro = document.createElement('p');
+    intro.textContent = book.intro;
+    root.appendChild(intro);
+
+    var tocTitle = document.createElement('h2');
+    tocTitle.textContent = '章节目录';
+    root.appendChild(tocTitle);
+    var total = book.chapters.length;
+    var volCount = total > 8 ? 2 : 1;
+    var per = Math.ceil(total / volCount);
+    for (var v = 0; v < volCount; v++) {
+      var volTitle = document.createElement('p');
+      volTitle.className = 'vol-title';
+      var from = v * per;
+      var to = Math.min(total, from + per);
+      volTitle.textContent = (v === 0 ? '第一卷' : '第二卷') + ' · 共 ' + (to - from) + ' 章';
+      root.appendChild(volTitle);
+      var list = document.createElement('div');
+      list.className = 'chapter-list';
+      for (var i = from; i < to; i++) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'chapter-item';
+        item.setAttribute('data-read-book', book.id);
+        item.setAttribute('data-chapter', String(i));
+        if (removed || muted) { item.disabled = true; }
+        var name = document.createElement('span');
+        name.textContent = '第 ' + (i + 1) + ' 章　' + book.chapters[i];
+        var date = document.createElement('span');
+        date.className = 'ch-date';
+        date.textContent = chapterDate(book, i);
+        item.appendChild(name);
+        item.appendChild(date);
+        list.appendChild(item);
+      }
+      root.appendChild(list);
+    }
+  }
+  function openBookDetail(bookId) {
+    renderBookDetail(bookId);
+    showView('R02');
+    var book = findBook(bookId);
+    if (book) { announce('已打开《' + book.title + '》书籍详情。面包屑可返回书城。'); }
+  }
+
+  /* ---------- R03 阅读器渲染 / 键盘切章 / 一次性提示 ---------- */
+  var READER = { bookId: null, idx: 0, ready: false };
+  var kbTipShown = false;
+  var kbTipTimer = null;
+  function renderReader() {
+    var book = findBook(READER.bookId) || BOOKS[0];
+    var idx = Math.min(Math.max(READER.idx, 0), book.chapters.length - 1);
+    READER.bookId = book.id;
+    READER.idx = idx;
+    var no = document.getElementById('reader-chapter-no');
+    var title = document.getElementById('chapter-title');
+    var meta = document.getElementById('reader-meta');
+    var body = document.getElementById('reader-body');
+    if (no) { no.textContent = chapterNo(idx); }
+    if (title) { title.textContent = '第 ' + (idx + 1) + ' 章　' + book.chapters[idx]; }
+    if (meta) { meta.textContent = '本章字数：' + chapterWords(book, idx) + ' 字 · 更新时间：' + chapterDate(book, idx) + '（示例）'; }
+    if (body) {
+      body.textContent = '';
+      var paras = chapterBody(book, idx);
+      Array.prototype.forEach.call(paras, function (text) {
+        var p = document.createElement('p');
+        p.textContent = text;
+        body.appendChild(p);
+      });
+    }
+    var toc = document.getElementById('reader-toc-list');
+    if (toc) {
+      toc.textContent = '';
+      Array.prototype.forEach.call(book.chapters, function (name, i) {
+        var li = document.createElement('li');
+        if (i === idx) { li.className = 'toc-here'; }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'toc-item';
+        btn.setAttribute('data-toc-chapter', String(i));
+        btn.textContent = chapterNo(i) + '　' + name + (i === idx ? '（当前）' : '');
+        li.appendChild(btn);
+        toc.appendChild(li);
+      });
+    }
+    READER.ready = true;
+  }
+  function ensureReader() {
+    if (!READER.ready) {
+      /* 默认书若已下架或超出演示年龄带，则换为第一部可读作品（兜底） */
+      var book = findBook(READER.bookId);
+      if (!book || book.status === 'removed' || isAgeMuted(book)) { book = firstReadableBook() || BOOKS[0]; }
+      READER.bookId = book.id;
+      READER.idx = 6;
+      renderReader();
+    }
+  }
+  function openReader(bookId, idx) {
+    var book = findBook(bookId);
+    if (!book) { return; }
+    /* 兜底：任何入口进入阅读器都遵守与 R01 相同的口径 */
+    if (book.status === 'removed') { announce('《' + book.title + '》已下架，内容暂不可访问。'); return; }
+    if (isAgeMuted(book)) { announce('《' + book.title + '》超出当前演示年龄带，暂不可读。仅演示边界，不代表真实年龄政策。'); return; }
+    READER.bookId = bookId;
+    READER.idx = Math.min(Math.max(Number(idx) || 0, 0), book.chapters.length - 1);
+    renderReader();
+    showView('R03');
+    announce('已打开《' + book.title + '》' + chapterNo(READER.idx) + '　' + book.chapters[READER.idx] + '。可用键盘左右键切章。');
+    showKbTip();
+  }
+  function stepReader(delta) {
+    if (!READER.ready) { ensureReader(); }
+    var book = findBook(READER.bookId) || BOOKS[0];
+    var next = READER.idx + delta;
+    if (next < 0) { announce('已是第一章。'); return; }
+    if (next >= book.chapters.length) { announce('已是最后一章。'); return; }
+    READER.idx = next;
+    renderReader();
+    announce('已切到 ' + chapterNo(next) + '　' + book.chapters[next] + '。');
+  }
+  function showKbTip() {
+    if (kbTipShown) { return; }
+    kbTipShown = true;
+    var tip = document.getElementById('kb-tip');
+    if (!tip) { return; }
+    tip.hidden = false;
+    if (kbTipTimer) { window.clearTimeout(kbTipTimer); }
+    kbTipTimer = window.setTimeout(function () { tip.hidden = true; }, 5000);
+  }
+  function hideKbTip() {
+    var tip = document.getElementById('kb-tip');
+    if (tip) { tip.hidden = true; }
+    if (kbTipTimer) { window.clearTimeout(kbTipTimer); kbTipTimer = null; }
+  }
+
+  /* ---------- ⑥ 弹窗焦点进入 / 封闭 / 关闭恢复 + 动态通告 ---------- */
+  var layer = document.getElementById('dialog-layer');
+  var lastFocus = null;
+  var activeDialog = null;
+  var FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+  function visibleFocusables(dialog) {
+    return Array.prototype.filter.call(dialog.querySelectorAll(FOCUSABLE), function (el) {
+      return el.getClientRects().length > 0 && !el.disabled && el.hidden !== true;
+    });
+  }
+  function openDialog(id) {
+    var dialog = document.getElementById(id);
+    if (!dialog) { return; }
+    lastFocus = document.activeElement;
+    activeDialog = dialog;
+    layer.hidden = false;
+    Array.prototype.forEach.call(layer.querySelectorAll('.dialog'), function (item) { item.hidden = item !== dialog; });
+    var first = dialog.querySelector('[data-autofocus]') || visibleFocusables(dialog)[0];
+    if (first) { first.focus({ preventScroll: true }); }
+    var title = document.getElementById(dialog.getAttribute('aria-labelledby'));
+    announce('已打开对话：' + (title ? title.textContent : '确认') + '。Escape 可退出。');
+  }
+  function closeDialog() {
+    if (!activeDialog) { return; }
+    activeDialog.hidden = true;
+    layer.hidden = true;
+    activeDialog = null;
+    if (lastFocus && typeof lastFocus.focus === 'function') { lastFocus.focus({ preventScroll: true }); }
+    lastFocus = null;
+  }
+  layer.addEventListener('click', function (event) {
+    if (event.target === layer) { closeDialog(); }
+  });
+  document.addEventListener('keydown', function (event) {
+    if (activeDialog) {
+      if (event.key === 'Escape') { event.preventDefault(); closeDialog(); return; }
+      if (event.key !== 'Tab') { return; }
+      var items = visibleFocusables(activeDialog);
+      if (!items.length) { return; }
+      var first = items[0];
+      var last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+      return;
+    }
+    /* 唤出式工具栏：Esc 收起并归还焦点（仅 R03 且 is-open 时生效，宽屏常驻态不受影响；弹层分支已优先 return） */
+    if (event.key === 'Escape' && currentView === 'R03' && toolbar && toolbar.classList.contains('is-open')) {
+      toggleReaderToolbar(false);
+      return;
+    }
+    /* 一次性键盘切章提示：Esc 或 5 秒后消失，不阻塞 */
+    if (event.key === 'Escape') { hideKbTip(); return; }
+    /* 键盘 ←/→ 切章：仅在阅读器且焦点不在表单控件时生效 */
+    if (currentView !== 'R03') { return; }
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') { return; }
+    if (event.target && typeof event.target.closest === 'function' && event.target.closest('input, textarea, select')) { return; }
+    event.preventDefault();
+    stepReader(event.key === 'ArrowLeft' ? -1 : 1);
+  });
+
+  /* ---------- 确认层文案表：高危确认写明对象 / 影响范围 / 原因 / 复核要求 ---------- */
+  var CONFIRM_CASES = {
+    revision: {
+      title: '本章已修订',
+      facts: [
+        ['对象', '《晚潮记》当前章节 v2（示例数据（合成））'],
+        ['影响范围', '本章阅读位置与章节进度'],
+        ['原因', '本章内容已更新'],
+        ['复核要求', '确认后从章首重新定位，不沿用旧进度百分比']
+      ],
+      note: '本章已修订　本章内容已更新，确认后将从章首重新定位。',
+      confirmLabel: '从章首重新定位',
+      after: { id: 'v2-after-note', text: '已从章首重新定位（演示文案，不产生业务数据）。' },
+      afterText: '已从章首重新定位，未沿用旧进度百分比。'
+    },
+    submit: {
+      title: '提交审核确认（独立确认层）',
+      facts: [],
+      note: '发布后修改须新建版本并重新审核，旧版本不会被覆盖。202 仅表示受理。',
+      confirmLabel: '确认提交',
+      after: { id: 'submit-result' },
+      afterText: '已提交审核。已受理，等待机器审核；可查看发布进度。'
+    },
+    cancelWorkflow: {
+      title: '撤销发布流程',
+      facts: [
+        ['对象', '发布流程 WF-2041 · 章节《第七章　堤上的第三盏灯》v2（示例）'],
+        ['影响范围', '该流程的时间线与待审版本 v2；v1 公开版本不受影响'],
+        ['原因', '作者主动撤销（示例）'],
+        ['复核要求', '撤销后到达的裁决记为过期，不恢复流程']
+      ],
+      note: '已撤销，迟到的裁决不会再发布。本 demo 只演示文案，不产生业务数据。',
+      confirmLabel: '确认撤销',
+      afterText: '已撤销发布流程（演示文案），迟到的裁决不会再发布。'
+    },
+    decision: {
+      title: '提交裁决确认',
+      facts: [],
+      note: '首审提交后显示「已记录裁决，等待独立复核」，不显示通过结论；双人分歧显示「需要新的 L2 裁决」。',
+      confirmLabel: '确认提交裁决',
+      after: { id: 'v7-after-note', text: '已记录裁决，等待独立复核。（演示文案，不产生业务数据）' },
+      afterText: '已记录裁决，等待独立复核。'
+    },
+    activate: {
+      title: '激活配置提案（高危确认）',
+      facts: [
+        ['对象', 'REVIEW_ROUTING revision 8（示例）'],
+        ['影响范围', '全部作品的审核路由'],
+        ['原因', '提高低风险抽检比例'],
+        ['复核要求', '需独立 ADMIN 审批并附合规证明']
+      ],
+      note: '审批通过后仍显示「待生效」；只有读取 ACTIVE 版本后才显示「已生效」。',
+      confirmLabel: '确认激活',
+      after: { id: 'v8-after-note', text: '待生效（审批通过，等待生效时间）。（演示文案，不产生业务数据）' },
+      afterText: '激活申请已记录，状态仍为待生效。'
+    },
+    rollback: {
+      title: '回滚配置提案（高危确认）',
+      facts: [
+        ['对象', 'REVIEW_ROUTING revision 8（示例）'],
+        ['影响范围', '全部作品的审核路由；不改写 revision 7 的历史记录'],
+        ['原因', '需要回退当前提案（示例）'],
+        ['复核要求', '需创建新的回滚提案并重新独立审批']
+      ],
+      note: '回滚不直接把旧值覆盖回来，不重写历史。',
+      confirmLabel: '创建回滚提案',
+      after: { id: 'v8-after-note', text: '已创建新的回滚提案，需重新独立审批。（演示文案，不产生业务数据）' },
+      afterText: '已创建新的回滚提案，需重新独立审批。'
+    }
+  };
+  var confirmKind = '';
+  function fillConfirm(kind, factsOverride) {
+    var item = CONFIRM_CASES[kind];
+    if (!item) { return; }
+    confirmKind = kind;
+    document.getElementById('confirm-title').textContent = item.title;
+    var list = document.getElementById('confirm-facts');
+    list.textContent = '';
+    var facts = factsOverride || item.facts;
+    facts.forEach(function (pair) {
+      var wrap = document.createElement('div');
+      var term = document.createElement('dt');
+      var detail = document.createElement('dd');
+      term.textContent = pair[0];
+      detail.textContent = pair[1];
+      wrap.appendChild(term);
+      wrap.appendChild(detail);
+      list.appendChild(wrap);
+    });
+    document.getElementById('confirm-note').textContent = item.note;
+    document.getElementById('confirm-ok').textContent = item.confirmLabel;
+    openDialog('confirm-dialog');
+  }
+  document.getElementById('confirm-ok').addEventListener('click', function () {
+    var item = CONFIRM_CASES[confirmKind];
+    closeDialog();
+    if (item && item.after) {
+      var target = document.getElementById(item.after.id);
+      if (target) {
+        if (item.after.text) { target.textContent = item.after.text; }
+        target.hidden = false;
+      }
+    }
+    announce(item ? item.afterText : '已确认（演示）。');
+  });
+
+  /* ---------- 编辑器状态与动态确认文案 ---------- */
+  function updateDraftCount() {
+    var field = document.getElementById('draft-text');
+    var count = field ? field.value.length : 0;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-draft-count]'), function (out) {
+      out.textContent = String(count);
+    });
+    return count;
+  }
+  function openSubmitConfirm() {
+    var count = updateDraftCount();
+    fillConfirm('submit', [
+      ['目标版本', '新版本（v3）'],
+      ['内容字数', count + ' 字（编辑器状态，非运营指标）'],
+      ['年龄与监护资格', 'C3 已核验，无需监护同意（示例）'],
+      ['版权状态', '有效（示例）'],
+      ['说明', '发布后修改须新建版本并重新审核，旧版本不会被覆盖。']
+    ]);
+  }
+  function openDecisionConfirm() {
+    var result = document.getElementById('decision-result').value;
+    var code = document.getElementById('decision-code').value;
+    var reason = document.getElementById('decision-reason').value;
+    fillConfirm('decision', [
+      ['对象', '案件 C-2041 · 章节《第七章　堤上的第三盏灯》v2（示例数据（合成））'],
+      ['影响范围', '该章节对读者的可见性与内容等级标注'],
+      ['原因', '裁决结果 ' + result + '；理由码 ' + code + '；理由：' + (reason || '（未填写）')],
+      ['复核要求', '首审裁决需独立复核；本 demo 不产生业务数据']
+    ]);
+  }
+
+  /* ---------- 统一事件委托：只做 DOM 显隐与文案切换 ---------- */
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || typeof target.closest !== 'function') { return; }
+
+    var wsButton = target.closest('[data-ws]');
+    if (wsButton) { setWorkspace(wsButton.getAttribute('data-ws'), true); return; }
+
+    var goButton = target.closest('[data-go]');
+    if (goButton) { showView(goButton.getAttribute('data-go')); return; }
+
+    var readBookButton = target.closest('[data-read-book]');
+    if (readBookButton) {
+      openReader(readBookButton.getAttribute('data-read-book'), Number(readBookButton.getAttribute('data-chapter')) || 0);
+      return;
+    }
+
+    var tocChapter = target.closest('[data-toc-chapter]');
+    if (tocChapter) {
+      READER.idx = Number(tocChapter.getAttribute('data-toc-chapter')) || 0;
+      renderReader();
+      var tocBook = findBook(READER.bookId) || BOOKS[0];
+      announce('已定位 ' + chapterNo(READER.idx) + '　' + tocBook.chapters[READER.idx] + '。');
+      return;
+    }
+
+    var openBook = target.closest('[data-open-book]');
+    if (openBook) { openBookDetail(openBook.getAttribute('data-open-book')); return; }
+
+    var stateButton = target.closest('[data-demo-state]');
+    if (stateButton) {
+      var view = stateButton.closest('.view');
+      if (view) { setState(view.getAttribute('data-view'), stateButton.getAttribute('data-demo-state')); }
+      return;
+    }
+
+    var retryButton = target.closest('[data-retry]');
+    if (retryButton) {
+      var retryId = retryButton.getAttribute('data-retry');
+      setState(retryId, 'loading');
+      window.setTimeout(function () { setState(retryId, 'success'); }, 300);
+      return;
+    }
+
+    var toggleButton = target.closest('[data-pref-toggle]');
+    if (toggleButton) {
+      if (toggleButton.getAttribute('data-pref-toggle') === 'theme') {
+        setTheme(document.documentElement.getAttribute('data-theme') !== 'night');
+      } else {
+        setContrast(document.documentElement.getAttribute('data-contrast') !== 'high');
+      }
+      return;
+    }
+
+    var readThemeButton = target.closest('[data-read-theme-btn]');
+    if (readThemeButton) {
+      applyReadingTheme(readThemeButton.getAttribute('data-read-theme-btn'));
+      return;
+    }
+
+    var openTypesetButton = target.closest('[data-open-typeset]');
+    if (openTypesetButton) { toggleReaderToolbar(true); return; }
+
+    var closeTypesetButton = target.closest('[data-close-typeset]');
+    if (closeTypesetButton) { toggleReaderToolbar(false); return; }
+
+    var tocToolbarButton = target.closest('#toolbar-toc');
+    if (tocToolbarButton) {
+      var tocToggle = document.getElementById('toc-toggle');
+      if (tocToggle) { tocToggle.checked = true; }
+      return;
+    }
+
+    var confirmButton = target.closest('[data-confirm]');
+    if (confirmButton) {
+      var kind = confirmButton.getAttribute('data-confirm');
+      if (kind === 'submit') { openSubmitConfirm(); }
+      else if (kind === 'decision') { openDecisionConfirm(); }
+      else if (kind === 'report') { openDialog('report-dialog'); }
+      else { fillConfirm(kind); }
+      return;
+    }
+
+    var closeButton = target.closest('[data-dialog-close]');
+    if (closeButton) { closeDialog(); return; }
+
+    var demoNoteButton = target.closest('[data-demo-note]');
+    if (demoNoteButton) {
+      announce(demoNoteButton.getAttribute('data-demo-note'));
+      return;
+    }
+
+    var saveButton = target.closest('[data-save-state]');
+    if (saveButton) {
+      var SAVE_TEXT = {
+        unsaved: '尚未保存',
+        saving: '保存中…',
+        saved: '已保存　23:12 · revision 4',
+        failed: '保存失败：请重试，本地编辑已保留'
+      };
+      var saveKey = saveButton.getAttribute('data-save-state');
+      document.getElementById('save-status').textContent = SAVE_TEXT[saveKey];
+      Array.prototype.forEach.call(document.querySelectorAll('[data-save-state]'), function (button) {
+        button.setAttribute('aria-pressed', button === saveButton ? 'true' : 'false');
+      });
+      announce('保存状态条：' + SAVE_TEXT[saveKey] + '。与发布状态分区显示。');
+      return;
+    }
+  });
+
+  /* 书卡整卡可点：Enter / Space 触发 */
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Enter' && event.key !== ' ') { return; }
+    var target = event.target;
+    if (!target || typeof target.closest !== 'function') { return; }
+    var card = target.closest('[data-open-book]');
+    if (card && target === card) {
+      event.preventDefault();
+      openBookDetail(card.getAttribute('data-open-book'));
+    }
+  });
+
+  /* 阅读参数：input 只更新界面，change 才通告一次，避免读屏刷屏 */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-pref]'), function (range) {
+    range.addEventListener('input', function () {
+      var key = range.getAttribute('data-pref');
+      var value = clampNumber(key, range.value);
+      var display = key === 'size' ? value + 'px'
+        : key === 'leading' ? Number(value).toFixed(1)
+        : value + 'em';
+      var rootStyle = document.documentElement.style;
+      if (key === 'size') { rootStyle.setProperty('--reader-size', value + 'px'); }
+      else if (key === 'leading') { rootStyle.setProperty('--reader-leading', String(value)); }
+      else { rootStyle.setProperty('--reader-measure', value + 'em'); }
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pref="' + key + '"]'), function (other) {
+        other.value = String(value);
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pref-out="' + key + '"]'), function (out) {
+        out.textContent = display;
+      });
+      writeStore(STORE[key], String(value));
+    });
+    range.addEventListener('change', function () {
+      announce('阅读参数已调节：' + range.getAttribute('aria-label') + '。仅体验层，不影响年龄与权限政策。');
+    });
+  });
+
+  /* 筛选 chip：切换后重渲染并播报结果数量 */
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || typeof target.closest !== 'function') { return; }
+    var chip = target.closest('[data-filter]');
+    if (chip) { setFilter(chip.getAttribute('data-filter'), chip.getAttribute('data-value')); }
+  });
+
+  var WF_NOTES = {
+    SUBMITTED: '已受理，等待机器审核',
+    AUTO_REVIEW: '机器审核进行中（已完成）',
+    HUMAN_REVIEW: '机器审核完成，等待人工审核（当前）',
+    SUSPENDED: '机审未完成，流程已挂起；恢复后进入人工队列',
+    APPROVED: '审核通过，已切换公开版本',
+    REJECTED: '本章已退回，需修订后重新提交',
+    CANCELLED: '已撤销，迟到的裁决不会再发布'
+  };
+  document.getElementById('wf-state').addEventListener('change', function () {
+    document.getElementById('wf-current-label').textContent = this.value;
+    document.getElementById('wf-current-note').textContent = WF_NOTES[this.value];
+    announce('发布流程状态演示：' + this.value + '。仅文案切换，不产生业务数据。');
+  });
+
+  var GRADED_RESULTS = ['PASS', 'LABEL', 'LIMIT'];
+  document.getElementById('decision-result').addEventListener('change', function () {
+    var graded = GRADED_RESULTS.indexOf(this.value) !== -1;
+    var grade = document.getElementById('decision-grade');
+    grade.disabled = !graded;
+    grade.required = graded;
+    document.getElementById('grade-hint').textContent = graded
+      ? '该结果必须填写内容等级（PASS / LABEL / LIMIT）。'
+      : '该结果禁止携带内容等级，等级字段已停用（文本说明，不以隐藏控件作为唯一控制）。';
+    announce(graded ? '裁决结果需要填写内容等级。' : '裁决结果不携带内容等级。');
+  });
+
+  document.getElementById('age-demo').addEventListener('change', function () {
+    applyAgeDemo(this.value);
+  });
+
+  document.getElementById('config-read-active').addEventListener('click', function () {
+    document.getElementById('config-effect-label').textContent = '已生效';
+    document.getElementById('config-effect-note').textContent = '已读取 ACTIVE 版本，状态为已生效（演示文案）。审批通过后仍需等待生效时间才显示本状态。';
+    announce('已读取 ACTIVE 版本：已生效。仅文案切换，不产生业务数据。');
+  });
+
+  document.getElementById('report-submit').addEventListener('click', function () {
+    closeDialog();
+    var note = document.getElementById('v2-after-note');
+    note.textContent = '举报已受理（示例文案，不虚构处理结果、不产生业务数据）。';
+    note.hidden = false;
+    announce('举报表单已提交，仅显示受理文案，不虚构处理结果。');
+  });
+
+  document.getElementById('draft-text').addEventListener('input', updateDraftCount);
+
+  /* ---------- ⑦ prefers-reduced-motion 检测 ---------- */
+  var motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function updateMotionStatus() {
+    var node = document.getElementById('motion-status');
+    if (!node) { return; }
+    node.textContent = motionQuery.matches
+      ? '已检测到系统「减少动态效果」：面板切换时长 0ms。'
+      : '未检测到系统「减少动态效果」：面板切换时长 120ms。';
+  }
+  if (typeof motionQuery.addEventListener === 'function') { motionQuery.addEventListener('change', updateMotionStatus); }
+  else if (typeof motionQuery.addListener === 'function') { motionQuery.addListener(updateMotionStatus); }
+
+  function init() {
+    setTheme(readStore(STORE.theme, 'light') === 'night', true);
+    setContrast(readStore(STORE.contrast, 'normal') === 'high', true);
+    applyPrefs();
+    applyReadingTheme(readStore(STORE.readTheme, 'rice'), true);
+    applyAgeDemo('C2', true);
+    Array.prototype.forEach.call(document.querySelectorAll('.view'), function (view) {
+      Array.prototype.forEach.call(view.querySelectorAll('[data-state-pane]'), function (pane) {
+        pane.hidden = pane.getAttribute('data-state-pane') !== 'success';
+      });
+      Array.prototype.forEach.call(view.querySelectorAll('[data-demo-state]'), function (button) {
+        button.setAttribute('aria-pressed', button.getAttribute('data-demo-state') === 'success' ? 'true' : 'false');
+      });
+    });
+    setWorkspace('reader', false);
+    renderLibrary(true);
+    renderBookDetail('b1');
+    ensureReader();
+    showView('R01', false, true);
+    updateDraftCount();
+    updateMotionStatus();
+  }
+  init();
+})();
+</script>
+</body>
+</html>

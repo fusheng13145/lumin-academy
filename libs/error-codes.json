@@ -1,0 +1,20 @@
+{
+  "说明": "05 §5 错误码全集 14 条（OK + 13 错误码）；与 contracts/p0.openapi.yaml 的 ErrorResponse.code 枚举、foundation/ErrorCodes.java 三方一致。禁止在源码中散落字符串字面量。",
+  "来源": "docs/05-接口设计文档.md §5",
+  "codes": [
+    {"code": "OK",    "http": 200, "message": "成功/已受理，语义由操作决定"},
+    {"code": "P1001", "http": 400, "message": "请求参数不符合要求"},
+    {"code": "P1002", "http": 428, "message": "请先获取最新版本再操作"},
+    {"code": "A0001", "http": 401, "message": "请重新登录"},
+    {"code": "A2001", "http": 403, "message": "当前账号无权执行此操作"},
+    {"code": "A2002", "http": 403, "message": "当前年龄或监护状态不允许此操作"},
+    {"code": "A2003", "http": 429, "message": "操作过于频繁，请稍后重试"},
+    {"code": "B2001", "http": 409, "message": "当前状态不支持此操作"},
+    {"code": "B2002", "http": 412, "message": "内容已更新，请合并后重试"},
+    {"code": "B2003", "http": 409, "message": "同一请求标识不能用于不同内容"},
+    {"code": "B2004", "http": 404, "message": "内容不存在或不可访问"},
+    {"code": "B2005", "http": 409, "message": "此内容不能恢复传播"},
+    {"code": "D2001", "http": 503, "message": "服务暂不可用，请稍后查看处理状态"},
+    {"code": "D2002", "http": 503, "message": "内容状态待核对，暂不可访问"}
+  ]
+}

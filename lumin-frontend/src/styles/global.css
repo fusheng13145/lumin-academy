@@ -1,0 +1,314 @@
+/* =========================================================================
+ * 启明书院 · 全局样式与基础组件（「纸页与朱印」组合层）
+ * ========================================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+:root[data-ui-theme='night'] ::selection {
+  background: #4a2a27;
+  color: var(--night-ink);
+}
+
+/* 跳转正文链接（无障碍）：视觉隐藏，聚焦时显现 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0 var(--sp-4);
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+}
+
+/* 焦点可见性（统一 3px 实线 + 2px 偏移，不移除任何键盘焦点） */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+:root[data-ui-theme='night'] :focus-visible {
+  outline-color: #ff8a80;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* —— 按钮：细线 + 小圆角，朱红只做标记色 —— */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  padding: 0 18px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--paper);
+  color: var(--ink);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.btn:hover {
+  background: var(--paper-soft);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-aux);
+}
+.btn:disabled:hover {
+  background: var(--paper);
+  border-color: var(--hairline-strong);
+  color: var(--text-aux);
+}
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn--primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #fff;
+}
+.btn--ghost {
+  background: transparent;
+  border-color: var(--hairline-strong);
+}
+.btn--soft {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--text-action);
+}
+.btn--sm {
+  font-size: 12px;
+  padding: 0 14px;
+  min-height: 40px;
+}
+.btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  opacity: 0.72;
+}
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: var(--sp-2);
+}
+
+/* —— 卡片：细线平面，去满屏投影 —— */
+.card {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  box-shadow: none;
+  padding: var(--sp-5);
+}
+
+/* —— 徽章：状态用「点 + 词」，适龄用细框小签 —— */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--text-aux);
+  background: transparent;
+}
+.badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.badge--age {
+  border: 1px solid var(--hairline-strong);
+  border-radius: 2px;
+  padding: 0 5px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-aux);
+}
+.badge--age::before {
+  display: none;
+}
+.badge--published { color: var(--success); }
+.badge--review { color: var(--warning); }
+.badge--removed { color: var(--text-danger); }
+.badge--neutral { color: var(--text-aux); }
+
+/* —— 标题与辅助文案 —— */
+h1,
+h2,
+h3 {
+  font-family: var(--font-title);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.page-head {
+  margin: var(--sp-5) 0 var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: var(--sp-3);
+}
+.page-head h1 {
+  font-size: 26px;
+  margin: 0;
+}
+.page-head__sub {
+  margin: 6px 0 0;
+  color: var(--text-aux);
+  font-size: 13px;
+}
+.section-title {
+  font-size: 18px;
+  margin: var(--sp-6) 0 var(--sp-3);
+  border-bottom: 1px solid var(--hairline);
+  padding-bottom: 6px;
+}
+.data-note,
+.aux {
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--text-aux);
+  max-width: 82ch;
+  margin: var(--sp-3) 0;
+}
+code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--paper-soft);
+  color: var(--ink);
+}
+
+/* —— 阅读纸面 —— */
+.reader-paper {
+  background: var(--read-bg);
+  color: var(--read-ink);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: var(--sp-6);
+  font-family: var(--font-read);
+  line-height: 1.9;
+}
+.reader-paper h2,
+.reader-paper h3 {
+  color: var(--read-accent);
+}
+
+/* —— 屏幕阅读器专用 —— */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* —— 应用骨架 —— */
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--sp-5);
+  padding-bottom: calc(var(--bottomtab-h) + var(--sp-6));
+}
+.bottom-tab {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .app-main {
+    padding: var(--sp-4);
+    padding-bottom: calc(var(--bottomtab-h) + var(--sp-5));
+  }
+  .topnav__nav {
+    display: none;
+  }
+  .bottom-tab {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--bottomtab-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--paper);
+    border-top: 1px solid var(--hairline);
+    z-index: 50;
+  }
+}
+
+/* 尊重用户的减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

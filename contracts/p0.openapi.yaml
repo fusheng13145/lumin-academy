@@ -1,0 +1,1300 @@
+openapi: 3.0.3
+info:
+  title: 启明书院 P0 核心契约
+  version: 0.1.0
+  description: P0-BL-1候选；仅定义契约，尚未实现。身份由认证上下文确定，所有写入幂等，所有未知字段拒绝。
+security:
+  - userAuth: []
+paths:
+  /api/v1/profiles:
+    post:
+      operationId: createProfile
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProfileCreate'}}}}
+      responses: &writeResponses
+        '200': {$ref: '#/components/responses/Receipt'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '403': {$ref: '#/components/responses/Error'}
+        '404': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+        '412': {$ref: '#/components/responses/Error'}
+        '413': {$ref: '#/components/responses/Error'}
+        '428': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Error'}
+        '500': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+  /api/v1/me:
+    get:
+      operationId: getMe
+      responses:
+        '200': {description: 本人档案, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/MeResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/age-checks:
+    post:
+      operationId: verifyAge
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProofRequest'}}}}
+      responses: *writeResponses
+  /api/v1/guardian-consents:
+    get:
+      operationId: listGuardianConsents
+      description: 仅同意双方（监护人与childId本人）可见；先按主体过滤再分页，不向管理员或其他监护人泄露记录。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人参与的监护同意, content: {application/json: {schema: {$ref: '#/components/schemas/ConsentPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createConsent
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ConsentRequest'}}}}
+      responses: *writeResponses
+  /api/v1/guardian-consents/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getGuardianConsent
+      description: 仅同意双方可见；ID来自授权列表或创建回执，不得通过猜测ID绕过授权；不存在或越权统一404。
+      responses:
+        '200': {description: 同意原始请求与核验记录, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ConsentResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/guardian-consents/{id}/revocations:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: revokeConsent
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses: *writeResponses
+  /api/v1/role-grants:
+    get:
+      operationId: listRoleGrants
+      description: 仅本人提案、本人被授予记录或授权ADMIN审批作用域内记录；先授权过滤再分页，读取资格不等于审批资格。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 可见角色授予提案, content: {application/json: {schema: {$ref: '#/components/schemas/RoleGrantPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: requestRoleGrant
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RoleGrantRequest'}}}}
+      responses: *writeResponses
+  /api/v1/role-grants/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getRoleGrant
+      description: 与列表相同的主体/作用域检查；ID来自授权列表或回执，不存在或越权统一404。
+      responses:
+        '200': {description: 角色提案原始载荷与完整审批记录, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/RoleGrantResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/role-grants/{id}/reviews:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: reviewRoleGrant
+      description: 仅授权作用域内的独立ADMIN；不得自批或批准超出自身可授予范围的角色，读取详情不授予审批权。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Review'}
+      responses: *writeResponses
+  /api/v1/me/rights-requests:
+    get:
+      operationId: listRightsRequests
+      description: 仅请求创建者本人；按主体过滤后分页，不提供他人请求或导出地址。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人权利请求, content: {application/json: {schema: {$ref: '#/components/schemas/RightsPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createRightsRequest
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RightsRequest'}}}}
+      responses: *writeResponses
+  /api/v1/me/rights-requests/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getRightsRequest
+      description: 仅创建者本人；ID来自本人列表或回执，不得猜ID；越权与不存在统一404。
+      responses:
+        '200': {description: 本人原始请求、处理记录与状态, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/RightsResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/works:
+    get:
+      operationId: listMyWorks
+      description: 仅本人AUTHOR；归属过滤后分页，包含尚未公开的DRAFT作品，不复用公开WorkView。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人私有作品目录, content: {application/json: {schema: {$ref: '#/components/schemas/AuthorWorkPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/works/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getMyWork
+      description: 仅本人AUTHOR；ID来自本人列表或创建回执，归属不符或不存在统一404；不可借此读取他人未公开版本。
+      responses:
+        '200': {description: 私有作品状态与当前公开版本, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AuthorWorkResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/works/{id}/chapters:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: listMyChapters
+      description: 仅该作品本人AUTHOR；包含DRAFT章节，按sequenceNo/id稳定排序，归属校验后分页。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人私有章节目录, content: {application/json: {schema: {$ref: '#/components/schemas/AuthorChapterPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/drafts:
+    get:
+      operationId: listMyDrafts
+      description: 仅本人AUTHOR；按归属过滤后分页，详情与编辑使用drafts路径及其ETag。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人草稿, content: {application/json: {schema: {$ref: '#/components/schemas/DraftPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/publication-workflows:
+    get:
+      operationId: listMyPublicationWorkflows
+      description: 仅本人AUTHOR；按作品归属过滤后分页，详情使用publication-workflows路径及其ETag。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人发布流程, content: {application/json: {schema: {$ref: '#/components/schemas/WorkflowPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/works:
+    get:
+      operationId: listWorks
+      security: [{}, {userAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 已通过年龄和可见性过滤的目录, content: {application/json: {schema: {$ref: '#/components/schemas/WorkPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createWork
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/works/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getWork
+      security: [{}, {userAuth: []}]
+      responses:
+        '200': {description: 公开作品元数据, content: {application/json: {schema: {$ref: '#/components/schemas/WorkResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/works/{id}/chapters:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: listChapters
+      security: [{}, {userAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 可见章节目录, content: {application/json: {schema: {$ref: '#/components/schemas/ChapterPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createChapter
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/works/{id}/lifecycle-actions:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: changeWorkLifecycle
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/LifecycleRequest'}}}}
+      responses: *writeResponses
+  /api/v1/drafts:
+    post:
+      operationId: createDraft
+      description: 仅目标本人AUTHOR。可选appealId仅用于已OVERTURNED且effect=RESUBMISSION_ALLOWED的本人关联申诉，必须同时传baseVersionId=resubmissionVersionId；校验申诉归属、同作品/章节和原被驳回版本。事务保证每条申诉最多成功创建一个关联草稿，同目标已有EDITABLE草稿返回409且不覆盖；幂等重放返回原回执。不修改原REJECTED版本/流程，不自动提交或发布。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {$ref: '#/components/requestBodies/Draft'}
+      responses: *writeResponses
+  /api/v1/drafts/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getDraft
+      responses:
+        '200': {description: 本人草稿, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/DraftResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    put:
+      operationId: saveDraft
+      description: 仅本人AUTHOR且草稿EDITABLE；If-Match保护保存。targetType/workId/chapterId/baseVersionId及创建时的appealId关联不可更换或移除，不得通过PUT补绑申诉或换目标；仅编辑内容，不提交不发布。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Draft'}
+      responses: *writeResponses
+  /api/v1/drafts/{id}/discards:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: discardDraft
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses: *writeResponses
+  /api/v1/drafts/{id}/submissions:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: submitDraft
+      description: 仅本人AUTHOR自主确认提交，完整重验年龄、有效监护同意、版权、治理限制和并发条件。申诉关联草稿生成新的versionId和publication workflow，流程来源标记source=APPEAL，重跑机审且必须人审、继承原案全部审核员回避集合；其新发布审核案件source=SUBMISSION，使用decideCase而非复用已终结APPEAL复核案件。原REJECTED版本/流程及已DECIDED原案不变，202不代表发布。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses:
+        '202': {description: 已受理但未发布, content: {application/json: {schema: {$ref: '#/components/schemas/SubmissionResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/publication-workflows/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getWorkflow
+      responses:
+        '200': {description: 发布流程, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/WorkflowResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/publication-workflows/{id}/cancellations:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: cancelWorkflow
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses: *writeResponses
+  /api/v1/asset-uploads:
+    post:
+      operationId: createAssetUpload
+      description: 仅申请私有单键PUT。COVER须workId归属当前AUTHOR；EVIDENCE须已登录且为caseId案件参与人，先校验归属并预绑定案件。仅JPEG/PNG且不超过5MiB，禁止BODY。签名300秒，绑定唯一隔离对象键、Content-Type、大小与SHA-256；无列桶/读桶/其他键写入权限。只返回运行时签名地址，不提供供应商公网固定URL。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AssetUploadRequest'}}}}
+      responses:
+        '200': {description: 已签发私有上传授权，尚无正式资源ID, headers: {ETag: {$ref: '#/components/headers/ETag'}, Cache-Control: {$ref: '#/components/headers/NoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AssetUploadGrantResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/asset-uploads/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getAssetUpload
+      description: 仅上传者本人且仍具对应作品/案件权限；ID来自创建回执，不可猜ID，越权与不存在统一404。只有COMPLETE且安全检查通过才返回正式assetId；其他状态assetId必须为null。
+      responses:
+        '200': {description: 私有上传与安全检查状态, headers: {ETag: {$ref: '#/components/headers/ETag'}, Cache-Control: {$ref: '#/components/headers/NoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AssetUploadResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/asset-uploads/{id}/completions:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: completeAssetUpload
+      description: 上传者本人提交空对象；重验作品/案件归属并冻结隔离对象版本。以实际字节校验大小、原始SHA-256、MIME魔数、解码像素上限2500万，去除EXIF并检查恶意内容；净化字节重新计算正式sha256，不与上传会话原始摘要混用。异步检查为CHECKING，失败REJECTED，依赖不可用保持CHECKING并阻断，不得签发assetId。通过后原子置COMPLETE并生成不可变正式资源，EVIDENCE最终绑定上传时caseId，不得改绑；COVER仅本作品可引用。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/assets/{id}/content:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getAssetContent
+      description: 仅COMPLETE且安全检查通过的正式资源；COVER限本作品作者或合法阅卷人，EVIDENCE限对该项证据有可见权限的案件作者或当前有效领取人，参与/上传/作者身份不自动授予保密证据读取权。每次核验作品/案件绑定、队列、阶段、回避、租约和证据可见范围；允许通过服务端冻结的APPEAL新reviewCase.originalCaseId合法关联读取原案素材，但不得改绑资源、扩大原案queue权限或接受客户端任意caseId/对象键/URL/历史版本。无原证据权限则拒绝，不返回删减后冒充完整证据。越权与不存在统一404，禁止重定向到源站或返回签名下载URL。
+      responses:
+        '200':
+          description: 受控图片二进制，不使用JSON成功信封
+          headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}, X-Content-Type-Options: {schema: {type: string, enum: [nosniff]}}}
+          content:
+            image/jpeg: {schema: {type: string, format: binary}}
+            image/png: {schema: {type: string, format: binary}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/review-cases:
+    get:
+      operationId: listCases
+      description: 按有效角色、queue scope、阶段和回避集合过滤后分页。包含独立APPEAL复核案件，仅非原案全部审核员且非申请人的独立L2可见，法律案件仅独立LEGAL；L1/OPERATOR/ADMIN无申诉复核队列权限。只返回脱敏案件元数据，不返回冻结全文或保密原证据。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本队列案件, content: {application/json: {schema: {$ref: '#/components/schemas/CasePageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/review-cases/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getCase
+      description: 与listCases相同的角色/队列/阶段/回避校验，ID来自授权列表或AppealView.reviewCaseId，但持有ID不授予权限；支持新的APPEAL复核案件，不重开原DECIDED案。返回脱敏元数据及ETag，保密原案材料和原裁决仅通过有权且有效领取后的getReviewContent读取；申请人getAppeal权限不授予getCase权限。越权与不存在统一404。
+      responses:
+        '200': {description: 脱敏案件详情, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/CaseResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/review-cases/{id}/claims:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: claimCase
+      description: 合格审核员以案件If-Match原子领取QUEUED或WAITING_SECOND，租约15分钟；校验当前角色/queue scope/阶段和回避集合，DECIDED不可领取。APPEAL仅独立L2（法律仅LEGAL），排除申请人、原案全部审核员及本申诉已参与复核者；首次领取同步申诉OPEN→IN_REVIEW。HIGH第二席必须新主体，分歧阶段3由未参与的新L2仲裁（法律仅新LEGAL）；租约超时不丢阶段或既有意见，原DECIDED案从不重开。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/review-cases/{id}/content:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getReviewContent
+      description: 仅当前有效领取人，逐次核验角色、queue scope、阶段、回避、租约及材料/原证据可见权限。支持新APPEAL reviewCase，通过冻结originalCaseId关系读取原案完整材料及originalDecisions；主体无权见任一必需原证据则整次拒绝，不通过扩大原案queue权限或删减快照解决。material/body/cover来自冻结版本并与materialSha256及子资源摘要一致；base*仅来自案件冻结baseVersionId，无基准则全null，不接收任意历史版本参数。摘要不匹配阻断并告警；记录阅卷时间、主体及水印，禁止缓存/导出、原始身份泄露；越权与不存在统一404。
+      responses:
+        '200': {description: 领取人完整冻结材料，禁止缓存/导出, headers: {Cache-Control: {$ref: '#/components/headers/NoStore'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewContentResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/review-cases/{id}/decisions:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: decideCase
+      description: 仅非APPEAL案件当前有效领取人，核验角色/队列/阶段/回避及租约；HIGH须独立双审。source=APPEAL的复核案件一律409，必须通过关联申诉的reviewAppeal写入UPHOLD/OVERTURN，不得以PASS等动作绕过复核。申诉重提形成的新SUBMISSION发布案件仍必须人审并回避原案全部审核员；理由和证据必填，首审不等于最终发布。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DecisionRequest'}}}}
+      responses: *writeResponses
+  /api/v1/reports:
+    post:
+      operationId: createReport
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReportRequest'}}}}
+      responses: *writeResponses
+  /api/v1/restrictions:
+    get:
+      operationId: listRestrictions
+      description: 仅提案人、目标作品作者或授权作用域内L2/LEGAL/OPERATOR；先授权过滤再分页，审批权另行校验。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 可见限制提案, content: {application/json: {schema: {$ref: '#/components/schemas/RestrictionPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: requestRestriction
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RestrictionRequest'}}}}
+      responses: *writeResponses
+  /api/v1/restrictions/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getRestriction
+      description: 与列表相同的主体/作品/作用域检查；ID来自授权列表或回执，越权与不存在统一404。
+      responses:
+        '200': {description: 限制原始请求与完整审批记录, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/RestrictionResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/restrictions/{id}/reviews:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: reviewRestriction
+      description: 仅对应案件作用域的独立REVIEWER_L2；CONTRACT_TERMINATED仅独立LEGAL。OPERATOR仅提案，ADMIN不裁决内容。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Review'}
+      responses: *writeResponses
+  /api/v1/appeals:
+    get:
+      operationId: listAppeals
+      description: 申请人及有效核验监护人仅见本人相关申诉；审批队列仅向授权队列内非原审独立REVIEWER_L2开放，法律案件仅独立LEGAL。不得向L1/OPERATOR/ADMIN开放队列；先过滤后分页。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 授权申诉列表或独立复核队列, content: {application/json: {schema: {$ref: '#/components/schemas/AppealPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createAppeal
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppealRequest'}}}}
+      responses: *writeResponses
+  /api/v1/appeals/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getAppeal
+      description: 仅申请人、其有效核验监护人或对应队列非原审独立L2（法律案件LEGAL）；ID来自授权列表或回执，越权与不存在统一404。
+      responses:
+        '200': {description: 申诉状态, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/AppealResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/appeals/{id}/reviews:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: reviewAppeal
+      description: 仅对应授权队列非原审的独立REVIEWER_L2；法律案件仅独立LEGAL。申请人/监护人读取资格不授予审批权。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppealReviewRequest'}}}}
+      responses: *writeResponses
+  /internal/v1/machine-reports:
+    post:
+      operationId: receiveMachineReport
+      security: [{agentAuth: []}]
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/MachineReport'}}}}
+      responses: *writeResponses
+  /api/v1/chapters/{id}/content:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: readChapter
+      security: [{}, {userAuth: []}]
+      responses:
+        '200': {description: 最新可见通过版本, content: {application/json: {schema: {$ref: '#/components/schemas/ContentResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/reading-progress/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getProgress
+      responses:
+        '200': {description: 本人章节进度, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ProgressResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    put:
+      operationId: saveProgress
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProgressRequest'}}}}
+      responses: *writeResponses
+  /api/v1/me/notifications:
+    get:
+      operationId: listNotifications
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 本人通知, content: {application/json: {schema: {$ref: '#/components/schemas/NotificationPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/me/notifications/{id}/read-receipts:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: markNotificationRead
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      security: [{}, {userAuth: []}]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 启用分类, content: {application/json: {schema: {$ref: '#/components/schemas/CategoryPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/config-revisions:
+    get:
+      operationId: listConfigRevisions
+      description: 仅授权规则域内OPERATOR/ADMIN/REVIEWER，先作用域过滤后分页；不以猜测ID获取待审批提案。
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 授权规则域配置, content: {application/json: {schema: {$ref: '#/components/schemas/ConfigPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+    post:
+      operationId: createConfigRevision
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ConfigRequest'}}}}
+      responses: *writeResponses
+  /api/v1/config-revisions/{id}:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    get:
+      operationId: getConfigRevision
+      description: 仅授权规则域内OPERATOR/ADMIN/REVIEWER；与列表一致的作用域过滤，ID来自授权列表或回执，不存在或越权统一404。
+      responses:
+        '200': {description: 原始配置提案及完整审批记录, headers: {ETag: {$ref: '#/components/headers/ETag'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ConfigResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+  /api/v1/config-revisions/{id}/reviews:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: reviewConfigRevision
+      description: 仅授权规则域内独立ADMIN；必要合规证明齐备才批准，审批固定原始载荷及revision；读权限不授予审批权。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Review'}
+      responses: *writeResponses
+  /api/v1/config-revisions/{id}/activations:
+    parameters: [{$ref: '#/components/parameters/Id'}]
+    post:
+      operationId: activateConfigRevision
+      description: SYSTEM到时调度或授权ADMIN触发已批准计划；CONTENT_CATALOG仅10000bps全量，同事务应用分类快照及配置激活记录；校验ID唯一、树无环、父引用完整及历史引用。使用中分类不可删除，只能启停，不丢历史。
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Empty'}
+      responses: *writeResponses
+  /api/v1/audit-records:
+    get:
+      operationId: listAuditRecords
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {description: 脱敏只读审计, content: {application/json: {schema: {$ref: '#/components/schemas/AuditPageResponse'}}}}
+        default: {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    userAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 验证用户issuer/audience与服务端角色，不接受自报年龄}
+    agentAuth: {type: http, scheme: bearer, bearerFormat: JWT, description: 独立服务issuer/audience及machine-report.write scope，用户令牌无效}
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}
+    IfMatch: {name: If-Match, in: header, required: true, description: '带引号的版本；首次进度写入使用"0"', schema: {type: string, pattern: '^"(0|[1-9][0-9]*)"$'}}
+    Cursor: {name: cursor, in: query, schema: {type: string, minLength: 1, maxLength: 512}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+  headers:
+    ETag: {description: '带引号的资源修订号', schema: {type: string, pattern: '^"[1-9][0-9]*"$'}}
+    RetryAfter: {description: 429响应必含等待秒数, schema: {type: integer, minimum: 1}}
+    NoStore: {description: 私有素材禁止缓存，成功及错误响应均须设置, schema: {type: string, enum: [no-store]}}
+  requestBodies:
+    Empty: {required: true, content: {application/json: {schema: {type: object, additionalProperties: false}}}}
+    Reason: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReasonRequest'}}}}
+    Review: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ReviewRequest'}}}}
+    Draft: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/DraftInput'}}}}
+  responses:
+    Receipt:
+      description: 本次同步操作完成，不代表关联异步流程完成
+      headers: {ETag: {$ref: '#/components/headers/ETag'}}
+      content: {application/json: {schema: {$ref: '#/components/schemas/ReceiptResponse'}}}
+    Error:
+      description: 统一错误；429附Retry-After；其他状态不要求此头
+      headers: {Retry-After: {$ref: '#/components/headers/RetryAfter'}}
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}
+  schemas:
+    Id: {type: string, format: uuid}
+    Revision: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991}
+    AgeBand: {type: string, enum: [C0, C1, C2, C3, C4]}
+    Grade: {type: string, enum: [G, PG_12, PG_16, A]}
+    Role: {type: string, enum: [READER, AUTHOR, GUARDIAN, REVIEWER_L1, REVIEWER_L2, OPERATOR, ADMIN, AUDITOR, LEGAL]}
+    EvidenceRefs: {type: array, minItems: 1, maxItems: 10, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 200, pattern: '^[A-Za-z0-9:_-]+$'}}
+    WorkflowState: {type: string, enum: [SUBMITTED, AUTO_REVIEW, HUMAN_REVIEW, APPROVED, REJECTED, SUSPENDED, CANCELLED]}
+    SuccessBase:
+      type: object
+      additionalProperties: false
+      description: 在基类声明全部信封属性以兼容allOf；每个具体Response必须进一步把data收紧到严格资源模型，不单独用此基类作为响应。
+      required: [code, message, data, traceId]
+      properties:
+        code: {type: string, enum: [OK]}
+        message: {type: string, minLength: 1, maxLength: 200}
+        data: {type: object}
+        traceId: {type: string, minLength: 1, maxLength: 64}
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [code, message, data, traceId]
+      properties:
+        code: {type: string, enum: [P1001, P1002, A0001, A2001, A2002, A2003, B2001, B2002, B2003, B2004, B2005, D2001, D2002]}
+        message: {type: string, minLength: 1, maxLength: 200}
+        data: {type: object, nullable: true, enum: [null]}
+        traceId: {type: string, minLength: 1, maxLength: 64}
+    Receipt:
+      type: object
+      additionalProperties: false
+      required: [id, resourceType, state, revision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        resourceType: {type: string, enum: [PROFILE, AGE_CHECK, CONSENT, ROLE_GRANT, RIGHTS_REQUEST, WORK, CHAPTER, DRAFT, WORKFLOW, CASE, REPORT, RESTRICTION, APPEAL, MACHINE_REPORT, PROGRESS, NOTIFICATION, CONFIG, ASSET_UPLOAD]}
+        state: {type: string, enum: [ACTIVE, VERIFIED, REJECTED, REVOKED, PENDING, APPROVED, OPEN, DRAFT, COMPLETED, EDITABLE, DISCARDED, CANCELLED, CLAIMED, WAITING_SECOND, DECIDED, IN_REVIEW, UPHELD, OVERTURNED, RECORDED, READ, UNREAD, SUSPENDED, HUMAN_REVIEW, SUBMITTED, PROCESSING, HELD, EXPIRED, SUPERSEDED, AWAITING_UPLOAD, CHECKING, COMPLETE]}
+        revision: {$ref: '#/components/schemas/Revision'}
+    ReceiptResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/Receipt'}}}]}
+    ProfileCreate:
+      type: object
+      additionalProperties: false
+      required: [nickname, birthDate]
+      properties:
+        nickname: {type: string, minLength: 1, maxLength: 40}
+        birthDate: {type: string, format: date}
+        registrationConsentProofRef: {type: string, minLength: 1, maxLength: 200}
+    ProofRequest:
+      type: object
+      additionalProperties: false
+      required: [proofRef]
+      properties: {proofRef: {type: string, minLength: 1, maxLength: 200}}
+    ConsentRequest:
+      type: object
+      additionalProperties: false
+      required: [childId, proofRef, scope]
+      properties:
+        childId: {$ref: '#/components/schemas/Id'}
+        proofRef: {type: string, minLength: 1, maxLength: 200}
+        scope: {type: string, enum: [REGISTRATION, PUBLICATION, PUSH]}
+    ReasonRequest:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties: {reason: {type: string, minLength: 1, maxLength: 500}}
+    ReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason, evidenceRefs]
+      properties:
+        action: {type: string, enum: [APPROVE, REJECT]}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+    ReviewRecord:
+      type: object
+      additionalProperties: false
+      description: 服务端追加的完整审批/处理记录；actorId取认证主体（含受信核验服务），reviewedRevision为被审查版本，记录不可覆写。空列表表示尚未审查，禁止截断历史。
+      required: [id, actorId, action, reason, evidenceRefs, reviewedRevision, createdAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        actorId: {$ref: '#/components/schemas/Id'}
+        action: {type: string, enum: [APPROVE, REJECT, VERIFY, REVOKE, UPHOLD, OVERTURN, PROCESS, COMPLETE, HOLD]}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+        reviewedRevision: {$ref: '#/components/schemas/Revision'}
+        createdAt: {type: string, format: date-time}
+    ConsentView:
+      type: object
+      additionalProperties: false
+      required: [id, createdBy, createdAt, request, revision, state, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/ConsentRequest'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [PENDING, ACTIVE, REJECTED, REVOKED, EXPIRED]}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    ConsentResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ConsentView'}}}]}
+    ConsentPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ConsentView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    ConsentPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ConsentPage'}}}]}
+    RoleGrantView:
+      type: object
+      additionalProperties: false
+      required: [id, createdBy, createdAt, request, revision, state, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/RoleGrantRequest'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [PENDING, IN_REVIEW, APPROVED, ACTIVE, REJECTED, REVOKED, EXPIRED]}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    RoleGrantResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RoleGrantView'}}}]}
+    RoleGrantPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/RoleGrantView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    RoleGrantPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RoleGrantPage'}}}]}
+    RoleGrantRequest:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - properties: {scopeType: {enum: [GLOBAL]}}
+          not: {required: [scopeId]}
+        - properties: {scopeType: {enum: [WORK, QUEUE, CATEGORY]}}
+          required: [scopeId]
+      required: [targetUserId, role, scopeType, reason]
+      properties:
+        targetUserId: {$ref: '#/components/schemas/Id'}
+        role: {$ref: '#/components/schemas/Role'}
+        scopeType: {type: string, enum: [GLOBAL, WORK, QUEUE, CATEGORY]}
+        scopeId: {$ref: '#/components/schemas/Id'}
+        expiresAt: {type: string, format: date-time}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    RightsRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, reason]
+      properties:
+        kind: {type: string, enum: [ACCESS, EXPORT, CORRECT, ERASE]}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    Me:
+      type: object
+      additionalProperties: false
+      required: [id, nickname, effectiveAgeBand, roles, accountStatus, revision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        nickname: {type: string, minLength: 1, maxLength: 40}
+        effectiveAgeBand: {$ref: '#/components/schemas/AgeBand'}
+        roles: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/Role'}}
+        accountStatus: {type: string, enum: [ACTIVE, SUSPENDED, CLOSED]}
+        revision: {$ref: '#/components/schemas/Revision'}
+    MeResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/Me'}}}]}
+    RightsView:
+      type: object
+      additionalProperties: false
+      required: [id, kind, state, dueAt, createdBy, createdAt, request, revision, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        kind: {type: string, enum: [ACCESS, EXPORT, CORRECT, ERASE], description: 必须与原始request.kind一致}
+        state: {type: string, enum: [OPEN, PROCESSING, COMPLETED, HELD]}
+        dueAt: {type: string, format: date-time}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/RightsRequest'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    RightsResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RightsView'}}}]}
+    RightsPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/RightsView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    RightsPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RightsPage'}}}]}
+    LifecycleRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason]
+      properties:
+        action: {type: string, enum: [COMPLETE, REOPEN]}
+        reason: {type: string, minLength: 1, maxLength: 500}
+    Tags: {type: array, maxItems: 5, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 20}}
+    WorkDraft:
+      type: object
+      additionalProperties: false
+      required: [targetType, workId, title, synopsis, categoryId, tags]
+      properties:
+        targetType: {type: string, enum: [WORK]}
+        workId: {$ref: '#/components/schemas/Id'}
+        baseVersionId: {$ref: '#/components/schemas/Id'}
+        title: {type: string, minLength: 1, maxLength: 100}
+        synopsis: {type: string, minLength: 1, maxLength: 2000}
+        categoryId: {$ref: '#/components/schemas/Id'}
+        tags: {$ref: '#/components/schemas/Tags'}
+        coverAssetId: {$ref: '#/components/schemas/Id'}
+    ChapterDraft:
+      type: object
+      additionalProperties: false
+      required: [targetType, workId, chapterId, title, body]
+      properties:
+        targetType: {type: string, enum: [CHAPTER]}
+        workId: {$ref: '#/components/schemas/Id'}
+        chapterId: {$ref: '#/components/schemas/Id'}
+        baseVersionId: {$ref: '#/components/schemas/Id'}
+        title: {type: string, minLength: 1, maxLength: 100}
+        body: {type: string, minLength: 1, maxLength: 100000}
+    DraftInput: {oneOf: [{$ref: '#/components/schemas/WorkDraft'}, {$ref: '#/components/schemas/ChapterDraft'}], discriminator: {propertyName: targetType, mapping: {WORK: '#/components/schemas/WorkDraft', CHAPTER: '#/components/schemas/ChapterDraft'}}}
+    DraftView:
+      type: object
+      additionalProperties: false
+      required: [id, revision, state, content]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [EDITABLE, SUBMITTED, DISCARDED]}
+        content: {$ref: '#/components/schemas/DraftInput'}
+    DraftResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/DraftView'}}}]}
+    SubmissionReceipt:
+      type: object
+      additionalProperties: false
+      required: [workflowId, versionId, state]
+      properties:
+        workflowId: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        state: {type: string, enum: [SUBMITTED]}
+    SubmissionResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/SubmissionReceipt'}}}]}
+    Workflow:
+      type: object
+      additionalProperties: false
+      required: [id, versionId, state, revision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        state: {$ref: '#/components/schemas/WorkflowState'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        publishedVersionId: {type: string, format: uuid, nullable: true}
+        suspendedReason: {type: string, enum: [PROVIDER_TIMEOUT, INVALID_REPORT, BUDGET_EXHAUSTED, STORAGE_UNAVAILABLE], nullable: true}
+    WorkflowResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/Workflow'}}}]}
+    AuthorWorkView:
+      type: object
+      additionalProperties: false
+      description: 私有作品身份；新建时state=DRAFT且title/草稿/公开版本可空。draftId与draftState同时为空或同时有值；公开版本指针仅表示当前公开版本，不代表可见性授权。
+      required: [id, state, title, draftId, draftState, publishedVersionId, revision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        state: {type: string, enum: [DRAFT, ACTIVE, COMPLETED]}
+        title: {type: string, nullable: true, minLength: 1, maxLength: 100}
+        draftId: {type: string, format: uuid, nullable: true}
+        draftState: {type: string, nullable: true, enum: [EDITABLE, SUBMITTED, DISCARDED, null]}
+        publishedVersionId: {type: string, format: uuid, nullable: true}
+        revision: {$ref: '#/components/schemas/Revision'}
+    AuthorWorkResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AuthorWorkView'}}}]}
+    AuthorWorkPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AuthorWorkView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    AuthorWorkPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AuthorWorkPage'}}}]}
+    AuthorChapterView:
+      type: object
+      additionalProperties: false
+      description: 含未公开DRAFT的私有章节；draftId与draftState同时为空或同时有值，title可在未建立草稿时为空。
+      required: [id, workId, sequenceNo, state, title, draftId, draftState, publishedVersionId, revision]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        workId: {$ref: '#/components/schemas/Id'}
+        sequenceNo: {type: integer, minimum: 1}
+        state: {type: string, enum: [DRAFT, ACTIVE]}
+        title: {type: string, nullable: true, minLength: 1, maxLength: 100}
+        draftId: {type: string, format: uuid, nullable: true}
+        draftState: {type: string, nullable: true, enum: [EDITABLE, SUBMITTED, DISCARDED, null]}
+        publishedVersionId: {type: string, format: uuid, nullable: true}
+        revision: {$ref: '#/components/schemas/Revision'}
+    AuthorChapterPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AuthorChapterView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    AuthorChapterPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AuthorChapterPage'}}}]}
+    DraftPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/DraftView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    DraftPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/DraftPage'}}}]}
+    WorkflowPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Workflow'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    WorkflowPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/WorkflowPage'}}}]}
+    WorkView:
+      type: object
+      additionalProperties: false
+      required: [id, versionId, title, synopsis, authorName, categoryId, tags, grade, businessState, publishedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        title: {type: string, maxLength: 100}
+        synopsis: {type: string, maxLength: 2000}
+        authorName: {type: string, maxLength: 40}
+        categoryId: {$ref: '#/components/schemas/Id'}
+        tags: {$ref: '#/components/schemas/Tags'}
+        grade: {$ref: '#/components/schemas/Grade'}
+        businessState: {type: string, enum: [ACTIVE, COMPLETED]}
+        publishedAt: {type: string, format: date-time}
+    WorkResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/WorkView'}}}]}
+    WorkPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/WorkView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    WorkPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/WorkPage'}}}]}
+    ChapterView:
+      type: object
+      additionalProperties: false
+      required: [id, workId, versionId, sequenceNo, title]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        workId: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        sequenceNo: {type: integer, minimum: 1}
+        title: {type: string, maxLength: 100}
+    ChapterPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ChapterView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    ChapterPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ChapterPage'}}}]}
+    Content:
+      type: object
+      additionalProperties: false
+      required: [chapterId, versionId, title, body, grade]
+      properties:
+        chapterId: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        title: {type: string, maxLength: 100}
+        body: {type: string, maxLength: 100000}
+        grade: {$ref: '#/components/schemas/Grade'}
+    ContentResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/Content'}}}]}
+    CaseView:
+      type: object
+      additionalProperties: false
+      required: [id, workId, state, risk, priority, authorAgeBand, completionDueAt, revision, decisions]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        workId: {$ref: '#/components/schemas/Id'}
+        versionId: {type: string, format: uuid, nullable: true}
+        state: {type: string, enum: [QUEUED, CLAIMED, WAITING_SECOND, DECIDED]}
+        risk: {type: string, enum: [LOW, MEDIUM, HIGH]}
+        priority: {type: string, enum: [P0, P1, P2, P3]}
+        authorAgeBand: {$ref: '#/components/schemas/AgeBand'}
+        completionDueAt: {type: string, format: date-time}
+        leaseExpiresAt: {type: string, format: date-time, nullable: true}
+        revision: {$ref: '#/components/schemas/Revision'}
+        decisions: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/DecisionView'}}
+    DecisionRequest:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - properties: {decision: {enum: [PASS, LABEL, LIMIT]}}
+          required: [grade]
+        - properties: {decision: {enum: [REVISE, HIDE, REMOVE, BAN, ESCALATE]}}
+          not: {required: [grade]}
+      required: [decision, reasonCode, reason, evidenceRefs]
+      properties:
+        decision: {type: string, enum: [PASS, LABEL, LIMIT, REVISE, HIDE, REMOVE, BAN, ESCALATE]}
+        grade: {$ref: '#/components/schemas/Grade'}
+        reasonCode: {type: string, enum: [COMPLIANT, AGE_LABEL, AGE_LIMIT, CONTENT_REVISION, COMMUNITY_VIOLATION, ILLEGAL_CONTENT, COPYRIGHT, PRIVACY, MINOR_SAFETY, ACCOUNT_ABUSE, UNCERTAIN]}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+    DecisionView:
+      type: object
+      additionalProperties: false
+      description: 保留首审完整裁决供独立二审比对；grade条件与DecisionRequest一致，不省略理由码或证据引用。
+      oneOf:
+        - properties: {decision: {enum: [PASS, LABEL, LIMIT]}}
+          required: [grade]
+        - properties: {decision: {enum: [REVISE, HIDE, REMOVE, BAN, ESCALATE]}}
+          not: {required: [grade]}
+      required: [id, actorId, decision, reason, decidedAt, reasonCode, evidenceRefs]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        actorId: {$ref: '#/components/schemas/Id'}
+        decision: {type: string, enum: [PASS, LABEL, LIMIT, REVISE, HIDE, REMOVE, BAN, ESCALATE]}
+        grade: {$ref: '#/components/schemas/Grade'}
+        reasonCode: {type: string, enum: [COMPLIANT, AGE_LABEL, AGE_LIMIT, CONTENT_REVISION, COMMUNITY_VIOLATION, ILLEGAL_CONTENT, COPYRIGHT, PRIVACY, MINOR_SAFETY, ACCOUNT_ABUSE, UNCERTAIN]}
+        reason: {type: string, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+        decidedAt: {type: string, format: date-time}
+    CaseResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/CaseView'}}}]}
+    CasePage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/CaseView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    CasePageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/CasePage'}}}]}
+    ReviewContent:
+      type: object
+      additionalProperties: false
+      required: [caseId, title, text, watermark, viewedAt]
+      properties:
+        caseId: {$ref: '#/components/schemas/Id'}
+        title: {type: string, maxLength: 100}
+        text: {type: string, maxLength: 103000}
+        watermark: {type: string, minLength: 1, maxLength: 100}
+        viewedAt: {type: string, format: date-time}
+    ReviewContentResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ReviewContent'}}}]}
+    ReportRequest:
+      type: object
+      additionalProperties: false
+      required: [workId, reasonCode, description]
+      properties:
+        workId: {$ref: '#/components/schemas/Id'}
+        chapterId: {$ref: '#/components/schemas/Id'}
+        reasonCode: {type: string, enum: [ILLEGAL_CONTENT, MINOR_SAFETY, COPYRIGHT, PRIVACY, HARASSMENT, SPAM]}
+        description: {type: string, minLength: 1, maxLength: 1000}
+    RestrictionRequest:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - properties: {kind: {enum: [TEMPORARY]}}
+          required: [expiresAt]
+        - properties: {kind: {enum: [FINAL_VIOLATION, CONTRACT_TERMINATED]}}
+          not: {required: [expiresAt]}
+      required: [workId, caseId, kind, reason]
+      properties:
+        workId: {$ref: '#/components/schemas/Id'}
+        chapterId: {$ref: '#/components/schemas/Id'}
+        caseId: {$ref: '#/components/schemas/Id'}
+        kind: {type: string, enum: [TEMPORARY, FINAL_VIOLATION, CONTRACT_TERMINATED]}
+        expiresAt: {type: string, format: date-time}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+    RestrictionView:
+      type: object
+      additionalProperties: false
+      required: [id, createdBy, createdAt, request, revision, state, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/RestrictionRequest'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [PENDING, IN_REVIEW, APPROVED, ACTIVE, REJECTED, EXPIRED, REVOKED]}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    RestrictionResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RestrictionView'}}}]}
+    RestrictionPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/RestrictionView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    RestrictionPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/RestrictionPage'}}}]}
+    AppealRequest:
+      type: object
+      additionalProperties: false
+      required: [caseId, reason, evidenceRefs]
+      properties:
+        caseId: {$ref: '#/components/schemas/Id'}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+    AppealReviewRequest:
+      type: object
+      additionalProperties: false
+      required: [action, reason, evidenceRefs]
+      properties:
+        action: {type: string, enum: [UPHOLD, OVERTURN]}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+    AppealView:
+      type: object
+      additionalProperties: false
+      required: [id, caseId, state, revision, completionDueAt, createdBy, createdAt, request, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        caseId: {$ref: '#/components/schemas/Id'}
+        state: {type: string, enum: [OPEN, IN_REVIEW, UPHELD, OVERTURNED]}
+        revision: {$ref: '#/components/schemas/Revision'}
+        completionDueAt: {type: string, format: date-time}
+        decisionReason: {type: string, maxLength: 1000, nullable: true}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/AppealRequest'}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    AppealResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AppealView'}}}]}
+    AppealPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AppealView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    AppealPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AppealPage'}}}]}
+    MachineReport:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - properties: {suggestedDecision: {enum: [PASS, LABEL, LIMIT]}}
+          required: [grade]
+        - properties: {suggestedDecision: {enum: [REVISE, HIDE, REMOVE, BAN, ESCALATE]}}
+          not: {required: [grade]}
+      required: [caseId, workflowId, versionId, policyVersion, materialSha256, modelVersion, risk, riskFlags, suggestedDecision, confidence, evidenceRefs, inputTokens, outputTokens, durationMs]
+      properties:
+        caseId: {$ref: '#/components/schemas/Id'}
+        workflowId: {$ref: '#/components/schemas/Id'}
+        versionId: {$ref: '#/components/schemas/Id'}
+        policyVersion: {$ref: '#/components/schemas/Revision'}
+        materialSha256: {type: string, pattern: '^[a-f0-9]{64}$', description: 绑定本次不可变完整审核材料快照；不是仅正文哈希}
+        modelVersion: {type: string, minLength: 1, maxLength: 80}
+        risk: {type: string, enum: [LOW, MEDIUM, HIGH]}
+        riskFlags: {type: array, uniqueItems: true, maxItems: 5, items: {type: string, enum: [MINOR, ILLEGAL, MONEY_DISPUTE, PRIVACY, COPYRIGHT]}}
+        suggestedDecision: {type: string, enum: [PASS, LABEL, LIMIT, REVISE, HIDE, REMOVE, BAN, ESCALATE]}
+        grade: {$ref: '#/components/schemas/Grade'}
+        confidence: {type: number, minimum: 0, maximum: 1}
+        evidenceRefs: {$ref: '#/components/schemas/EvidenceRefs'}
+        inputTokens: {type: integer, minimum: 0, maximum: 40000}
+        outputTokens: {type: integer, minimum: 0, maximum: 2000}
+        durationMs: {type: integer, minimum: 0, maximum: 120000}
+    AssetUploadRequest:
+      type: object
+      additionalProperties: false
+      description: workId/caseId由服务端校验归属；COVER仅本人AUTHOR，EVIDENCE仅已登录案件参与人。sha256针对上传原始字节；BODY不属于客户端上传用途。
+      required: [purpose, contentType, sizeBytes, sha256]
+      oneOf:
+        - properties: {purpose: {enum: [COVER]}}
+          required: [workId]
+          not: {required: [caseId]}
+        - properties: {purpose: {enum: [EVIDENCE]}}
+          required: [caseId]
+          not: {required: [workId]}
+      properties:
+        purpose: {type: string, enum: [COVER, EVIDENCE]}
+        workId: {$ref: '#/components/schemas/Id'}
+        caseId: {$ref: '#/components/schemas/Id'}
+        contentType: {type: string, enum: [image/jpeg, image/png]}
+        sizeBytes: {type: integer, minimum: 1, maximum: 5242880}
+        sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+    AssetUploadGrant:
+      type: object
+      additionalProperties: false
+      description: 仅对一个服务端生成的隔离对象键签发PUT；expiresAt=createdAt+300秒。requiredHeaders必须原样发送，Content-Type与request.contentType固定一致；大小/hash也绑定授权并在完成时以实际字节复验。签名不能列桶、读桶或写其他键，禁止将uploadUrl当作内容读取地址。幂等重放不延长签名有效期。
+      required: [id, createdBy, createdAt, request, revision, state, method, uploadUrl, expiresAt, requiredHeaders]
+      oneOf:
+        - properties:
+            request: {type: object, properties: {contentType: {enum: [image/jpeg]}}}
+            requiredHeaders: {type: object, properties: {Content-Type: {enum: [image/jpeg]}}}
+        - properties:
+            request: {type: object, properties: {contentType: {enum: [image/png]}}}
+            requiredHeaders: {type: object, properties: {Content-Type: {enum: [image/png]}}}
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/AssetUploadRequest'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [AWAITING_UPLOAD]}
+        method: {type: string, enum: [PUT]}
+        uploadUrl: {type: string, format: uri, pattern: '^https://', maxLength: 4096}
+        expiresAt: {type: string, format: date-time}
+        requiredHeaders:
+          type: object
+          additionalProperties: false
+          required: [Content-Type]
+          properties:
+            Content-Type: {type: string, enum: [image/jpeg, image/png]}
+    AssetUploadGrantResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AssetUploadGrant'}}}]}
+    AssetUploadView:
+      type: object
+      additionalProperties: false
+      description: 上传会话ID不是正式资源ID；只有安全检查通过并最终绑定后才能置COMPLETE并返回非空assetId。CHECKING挂起期间不放行；签名过期不可延长，需新建上传会话。正式对象不可被旧签名覆盖。
+      required: [id, createdBy, createdAt, request, state, revision, expiresAt, assetId, failureReason]
+      oneOf:
+        - properties:
+            state: {enum: [COMPLETE]}
+            assetId: {type: string, format: uuid}
+            failureReason: {type: string, nullable: true, enum: [null]}
+        - properties:
+            state: {enum: [AWAITING_UPLOAD, CHECKING, REJECTED, EXPIRED]}
+            assetId: {type: string, nullable: true, enum: [null]}
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        request: {$ref: '#/components/schemas/AssetUploadRequest'}
+        state: {type: string, enum: [AWAITING_UPLOAD, CHECKING, COMPLETE, REJECTED, EXPIRED]}
+        revision: {$ref: '#/components/schemas/Revision'}
+        expiresAt: {type: string, format: date-time}
+        assetId: {type: string, format: uuid, nullable: true}
+        failureReason: {type: string, nullable: true, enum: [SIZE_MISMATCH, HASH_MISMATCH, TYPE_MISMATCH, UNSAFE_CONTENT, UPLOAD_EXPIRED, STORAGE_UNAVAILABLE, null]}
+    AssetUploadResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AssetUploadView'}}}]}
+    ProgressRequest:
+      type: object
+      additionalProperties: false
+      required: [versionId, positionBasisPoints, readSeconds, clientUpdatedAt]
+      properties:
+        versionId: {$ref: '#/components/schemas/Id'}
+        positionBasisPoints: {type: integer, minimum: 0, maximum: 10000}
+        readSeconds: {type: integer, minimum: 0, maximum: 86400}
+        clientUpdatedAt: {type: string, format: date-time}
+    ProgressView:
+      type: object
+      additionalProperties: false
+      required: [chapterId, revision, progress]
+      properties:
+        chapterId: {$ref: '#/components/schemas/Id'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        progress: {$ref: '#/components/schemas/ProgressRequest'}
+    ProgressResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ProgressView'}}}]}
+    Notification:
+      type: object
+      additionalProperties: false
+      required: [id, category, title, body, resourceId, createdAt, readAt]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        category: {type: string, enum: [REVIEW_RESULT, SAFETY, GUARDIAN, RIGHTS]}
+        title: {type: string, maxLength: 100}
+        body: {type: string, maxLength: 1000}
+        resourceId: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        readAt: {type: string, format: date-time, nullable: true}
+    NotificationPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Notification'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    NotificationPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/NotificationPage'}}}]}
+    Category:
+      type: object
+      additionalProperties: false
+      required: [id, name, parentId]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string, maxLength: 40}
+        parentId: {type: string, format: uuid, nullable: true}
+    CategoryPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Category'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    CategoryPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/CategoryPage'}}}]}
+    ReviewPolicy:
+      type: object
+      additionalProperties: false
+      required: [type, autoConfidence, highSampleBasisPoints, mediumSampleBasisPoints, lowSampleBasisPoints]
+      properties:
+        type: {type: string, enum: [REVIEW_ROUTING]}
+        autoConfidence: {type: number, minimum: 0.98, maximum: 1}
+        highSampleBasisPoints: {type: integer, enum: [10000]}
+        mediumSampleBasisPoints: {type: integer, minimum: 2000, maximum: 10000}
+        lowSampleBasisPoints: {type: integer, minimum: 500, maximum: 10000}
+    AccessPolicy:
+      type: object
+      additionalProperties: false
+      required: [type, adultContentEnabled, authorizationLeaseSeconds]
+      properties:
+        type: {type: string, enum: [ACCESS_POLICY]}
+        adultContentEnabled: {type: boolean, enum: [false]}
+        authorizationLeaseSeconds: {type: integer, minimum: 1, maximum: 15}
+    NotificationPolicy:
+      type: object
+      additionalProperties: false
+      required: [type, quietStart, quietEnd, dailyUpdateLimit]
+      properties:
+        type: {type: string, enum: [NOTIFICATION_POLICY]}
+        quietStart: {type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'}
+        quietEnd: {type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'}
+        dailyUpdateLimit: {type: integer, enum: [1]}
+    CatalogCategory:
+      type: object
+      additionalProperties: false
+      required: [id, name, parentId, enabled, sortOrder]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        name: {type: string, minLength: 1, maxLength: 40}
+        parentId: {type: string, format: uuid, nullable: true}
+        enabled: {type: boolean}
+        sortOrder: {type: integer, minimum: 0, maximum: 1000000}
+    ContentCatalog:
+      type: object
+      additionalProperties: false
+      description: 完整有界分类快照（含停用分类），不是增量补丁；最多1000项。服务端检查ID唯一、树无环、父引用完整，使用中（含草稿/历史版本引用）分类不可删除，只能启停且保留历史；与配置激活同事务应用。
+      required: [type, categories]
+      properties:
+        type: {type: string, enum: [CONTENT_CATALOG]}
+        categories: {type: array, minItems: 1, maxItems: 1000, uniqueItems: true, items: {$ref: '#/components/schemas/CatalogCategory'}}
+    PolicyPayload: {oneOf: [{$ref: '#/components/schemas/ReviewPolicy'}, {$ref: '#/components/schemas/AccessPolicy'}, {$ref: '#/components/schemas/NotificationPolicy'}, {$ref: '#/components/schemas/ContentCatalog'}]}
+    ConfigRequest:
+      type: object
+      additionalProperties: false
+      oneOf:
+        - properties:
+            payload: {type: object, required: [type], properties: {type: {enum: [CONTENT_CATALOG, ACCESS_POLICY]}}}
+            rolloutBasisPoints: {enum: [10000]}
+        - properties:
+            payload: {type: object, required: [type], properties: {type: {enum: [REVIEW_ROUTING, NOTIFICATION_POLICY]}}}
+      required: [payload, reason, effectiveAt, rolloutBasisPoints, baseRevision]
+      properties:
+        baseRevision: {type: integer, minimum: 0, maximum: 9007199254740991, description: 创建时所见同key全部ACTIVE版本中的最大revision，无ACTIVE时为0；激活时仍须匹配，拒绝旧提案覆盖}
+        payload: {$ref: '#/components/schemas/PolicyPayload'}
+        reason: {type: string, minLength: 1, maxLength: 500}
+        effectiveAt: {type: string, format: date-time}
+        rolloutBasisPoints: {type: integer, minimum: 1, maximum: 10000}
+        rollbackOf: {$ref: '#/components/schemas/Id'}
+    ConfigView:
+      type: object
+      additionalProperties: false
+      required: [id, revision, state, change, createdBy, createdAt, reviews]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        revision: {$ref: '#/components/schemas/Revision'}
+        state: {type: string, enum: [DRAFT, IN_REVIEW, APPROVED, ACTIVE, SUPERSEDED, REJECTED, CANCELLED]}
+        change: {$ref: '#/components/schemas/ConfigRequest'}
+        createdBy: {$ref: '#/components/schemas/Id'}
+        createdAt: {type: string, format: date-time}
+        reviews: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ReviewRecord'}}
+    ConfigResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ConfigView'}}}]}
+    ConfigPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/ConfigView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    ConfigPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/ConfigPage'}}}]}
+    AuditView:
+      type: object
+      additionalProperties: false
+      required: [id, action, resourceType, resourceId, actorId, reason, occurredAt, traceId]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        action: {type: string, minLength: 1, maxLength: 80}
+        resourceType: {type: string, minLength: 1, maxLength: 40}
+        resourceId: {$ref: '#/components/schemas/Id'}
+        actorId: {$ref: '#/components/schemas/Id'}
+        reason: {type: string, maxLength: 1000}
+        occurredAt: {type: string, format: date-time}
+        traceId: {type: string, maxLength: 64}
+    AuditPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/AuditView'}}
+        nextCursor: {type: string, nullable: true, maxLength: 512}
+    AuditPageResponse: {allOf: [{$ref: '#/components/schemas/SuccessBase'}, {type: object, properties: {data: {$ref: '#/components/schemas/AuditPage'}}}]}
+    MoneyMinor: {type: integer, format: int64, minimum: 0, maximum: 9007199254740991, description: B0骨架分币整数，无交易API}
+    BillingOrderReserved:
+      type: object
+      additionalProperties: false
+      required: [id, buyerId, productType, productId, amountMinor, currency, state]
+      properties:
+        id: {$ref: '#/components/schemas/Id'}
+        buyerId: {$ref: '#/components/schemas/Id'}
+        productType: {type: string, enum: [CHAPTER, BOOK, MEMBERSHIP, GIFT]}
+        productId: {$ref: '#/components/schemas/Id'}
+        amountMinor: {$ref: '#/components/schemas/MoneyMinor'}
+        currency: {type: string, enum: [CNY]}
+        state: {type: string, enum: [CREATED, PAID, CANCELLED, REFUNDED]}

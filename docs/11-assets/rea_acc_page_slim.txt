@@ -1,0 +1,603 @@
+[image] 
+[link] 首页
+  [StaticText] 首页
+[link] 书库
+  [StaticText] 书库
+[link] 书架
+  [StaticText] 书架
+[link] 原创榜
+  [StaticText] 原创榜
+[link] 作家专区
+  [StaticText] 作家专区
+[link] 版权专区
+  [StaticText] 版权专区
+[textbox] 请输入书名或作者名  <editable,invalid,multiline,readonly,required>
+[StaticText] 
+[StaticText] 登录
+[StaticText] 注册
+[link] 首页
+  [StaticText] 首页
+[link] /娇养玫瑰
+  [StaticText] /
+  [StaticText] 娇养玫瑰
+[image] 娇养玫瑰
+[heading] 娇养玫瑰  <level>
+  [StaticText] 娇养玫瑰
+[StaticText] 已完结
+[StaticText] 星光璀璨
+[StaticText] 现代言情
+[StaticText] 娱乐圈
+[StaticText] 腹黑
+[StaticText] 甜宠
+[StaticText] 41.1
+[StaticText] 万字
+[link] 最近更新：第168章 棠梨最爱傅则谌「全文完」
+  [StaticText] 最近更新：
+  [StaticText] 第168章 棠梨最爱傅则谌「全文完」
+[StaticText] 2022-10-31 15:01
+[button] 开始阅读  <invalid>
+  [link] 开始阅读
+    [StaticText] 开始阅读
+[link] 下载番茄小说APP
+  [button] 下载番茄小说APP  <invalid>
+    [StaticText] 下载番茄小说APP
+[StaticText] 
+[image] 娇养玫瑰作者美绿哔哔
+[link] 美绿哔哔
+  [StaticText] 美绿哔哔
+[StaticText] 刮风、下雨，奔跑就好。 wb&dy：一只高冷的绿
+[heading] 作品简介  <level>
+  [StaticText] 作品简介
+[paragraph] 
+  [StaticText] ［已签约出版] 棠梨十六岁时一袭昆曲水袖舞的名动帝都，被誉为昆曲小洛神 人人皆道，除了傅家那位被称为玉面佛子阎罗王的傅九爷 无人能配得上小洛神 只可惜，傅家那位天性薄情冷血，甜软乖娇如棠梨若跟了他定会吃苦 一夕变故，棠梨被送出帝都 昆曲小洛神的名头也再无人提起。 直到有一日， 坊间传闻傅九爷在家中养
+[heading] 目录 168章  <level>
+  [StaticText] 目录
+  [StaticText] 168
+  [StaticText] 章
+[StaticText] 第一卷
+[StaticText] 共
+[StaticText] 168
+[StaticText] 章
+[link] 第1章“把旗袍脱掉。”
+  [StaticText] 第1章“把旗袍脱掉。”
+[link] 第2章 如今……都这么大了？
+  [StaticText] 第2章 如今……都这么大了？
+[link] 第3章 邀请的意味
+  [StaticText] 第3章 邀请的意味
+[link] 第4章 似笑非笑，“长大了。”
+  [StaticText] 第4章 似笑非笑，“长大了。”
+[link] 第5章 玉面佛子阎罗王
+  [StaticText] 第5章 玉面佛子阎罗王
+[link] 第6章 漫不经心道，“第几次了？”
+  [StaticText] 第6章 漫不经心道，“第几次了？”
+[link] 第7章 把扣子一颗颗系上
+  [StaticText] 第7章 把扣子一颗颗系上
+[link] 第8章 扣住棠梨的腰
+  [StaticText] 第8章 扣住棠梨的腰
+[link] 第9章 九爷洁身自好，不近女色
+  [StaticText] 第9章 九爷洁身自好，不近女色
+[link] 第10章 领口有些松散
+  [StaticText] 第10章 领口有些松散
+[link] 第11章“你很怕我？”
+  [StaticText] 第11章“你很怕我？”
+[StaticText] 
+[link] 第12章 指骨点过她脖颈处
+  [StaticText] 第12章 指骨点过她脖颈处
+[StaticText] 
+[link] 第13章 把你自己赔给我？
+  [StaticText] 第13章 把你自己赔给我？
+[StaticText] 
+[link] 第14章 看着棠梨淡道：“你怎么在这？”
+  [StaticText] 第14章 看着棠梨淡道：“你怎么在这？”
+[StaticText] 
+[link] 第15章 撩起眼皮很淡的看她一眼
+  [StaticText] 第15章 撩起眼皮很淡的看她一眼
+[StaticText] 
+[link] 第16章 伸手扣着棠梨的腰
+  [StaticText] 第16章 伸手扣着棠梨的腰
+[StaticText] 
+[link] 第17章 小丫头，不经逗
+  [StaticText] 第17章 小丫头，不经逗
+[StaticText] 
+[link] 第18章 冷白分明的手握住棠梨
+  [StaticText] 第18章 冷白分明的手握住棠梨
+[StaticText] 
+[link] 第19章“棠梨，怎么不看我？”
+  [StaticText] 第19章“棠梨，怎么不看我？”
+[StaticText] 
+[link] 第20章 虎口位置的牙印处
+  [StaticText] 第20章 虎口位置的牙印处
+[StaticText] 
+[link] 第21章 傅则谌挑眉瞧着她
+  [StaticText] 第21章 傅则谌挑眉瞧着她
+[StaticText] 
+[link] 第22章 白藕似的纤细手臂
+  [StaticText] 第22章 白藕似的纤细手臂
+[StaticText] 
+[link] 第23章“小叔叔他很好，没有欺负我。”
+  [StaticText] 第23章“小叔叔他很好，没有欺负我。”
+[StaticText] 
+[link] 第24章 面无表情的吐出一个字，“滚。”
+  [StaticText] 第24章 面无表情的吐出一个字，“滚。”
+[StaticText] 
+[link] 第25章“我欺负你了？”
+  [StaticText] 第25章“我欺负你了？”
+[StaticText] 
+[link] 第26章“后备箱，打开看看？”
+  [StaticText] 第26章“后备箱，打开看看？”
+[StaticText] 
+[link] 第27章 哄不好一个小姑娘
+  [StaticText] 第27章 哄不好一个小姑娘
+[StaticText] 
+[link] 第28章“小朋友而已，我下不去手。”
+  [StaticText] 第28章“小朋友而已，我下不去手。”
+[StaticText] 
+[link] 第29章 百年好合，子孙满堂
+  [StaticText] 第29章 百年好合，子孙满堂
+[StaticText] 
+[link] 第30章 之前一口一个小叔叔的
+  [StaticText] 第30章 之前一口一个小叔叔的
+[StaticText] 
+[link] 第31章“我跟你没有任何血缘和社会意义上的任何关系。”
+  [StaticText] 第31章“我跟你没有任何血缘和社会意义上的任何关系。”
+[StaticText] 
+[link] 第32章 傅则谌一脚踹开包厢门
+  [StaticText] 第32章 傅则谌一脚踹开包厢门
+[StaticText] 
+[link] 第33章“谁是你小叔叔？”
+  [StaticText] 第33章“谁是你小叔叔？”
+[StaticText] 
+[link] 第34章 掰起她下巴
+  [StaticText] 第34章 掰起她下巴
+[StaticText] 
+[link] 第35章 一双黑色的皮鞋停在跟前
+  [StaticText] 第35章 一双黑色的皮鞋停在跟前
+[StaticText] 
+[link] 第36章“你是打算让我给你当男小三？”
+  [StaticText] 第36章“你是打算让我给你当男小三？”
+[StaticText] 
+[link] 第37章“我可不是什么好人。”
+  [StaticText] 第37章“我可不是什么好人。”
+[StaticText] 
+[link] 第38章 九爷怎么可能干出横刀夺爱的事情来
+  [StaticText] 第38章 九爷怎么可能干出横刀夺爱的事情来
+[StaticText] 
+[link] 第39章“姐姐，好久不见。”
+  [StaticText] 第39章“姐姐，好久不见。”
+[StaticText] 
+[link] 第40章“想不想回家？”
+  [StaticText] 第40章“想不想回家？”
+[StaticText] 
+[link] 第41章 还没被女人碰过
+  [StaticText] 第41章 还没被女人碰过
+[StaticText] 
+[link] 第42章 不是你他怎么会死
+  [StaticText] 第42章 不是你他怎么会死
+[StaticText] 
+[link] 第43章 穿着黑色睡衣从楼上下来
+  [StaticText] 第43章 穿着黑色睡衣从楼上下来
+[StaticText] 
+[link] 第44章 农夫与蛇
+  [StaticText] 第44章 农夫与蛇
+[StaticText] 
+[link] 第45章 玉面佛
+  [StaticText] 第45章 玉面佛
+[StaticText] 
+[link] 第46章 他会不会也有点喜欢自己
+  [StaticText] 第46章 他会不会也有点喜欢自己
+[StaticText] 
+[link] 第47章 你要不把我小叔收了吧
+  [StaticText] 第47章 你要不把我小叔收了吧
+[StaticText] 
+[link] 第48章 （修）返校告别
+  [StaticText] 第48章 （修）返校告别
+[StaticText] 
+[link] 第49章 甩人挺有一套
+  [StaticText] 第49章 甩人挺有一套
+[StaticText] 
+[link] 第50章 （修）玉面佛吊坠贴着皮肤
+  [StaticText] 第50章 （修）玉面佛吊坠贴着皮肤
+[StaticText] 
+[link] 第51章 （修）小洛神够心狠的
+  [StaticText] 第51章 （修）小洛神够心狠的
+[StaticText] 
+[link] 第52章 修长指尖点了点心脏位置
+  [StaticText] 第52章 修长指尖点了点心脏位置
+[StaticText] 
+[link] 第53章“棠梨，我比傅清扬更适合你。”
+  [StaticText] 第53章“棠梨，我比傅清扬更适合你。”
+[StaticText] 
+[link] 第54章“亲了吗？”
+  [StaticText] 第54章“亲了吗？”
+[StaticText] 
+[link] 第55章 傅则谌冷白凌厉的侧脸一晃而过
+  [StaticText] 第55章 傅则谌冷白凌厉的侧脸一晃而过
+[StaticText] 
+[link] 第56章“九爷在车上等您。”
+  [StaticText] 第56章“九爷在车上等您。”
+[StaticText] 
+[link] 第57章“是觉得小叔叔在强迫你？”
+  [StaticText] 第57章“是觉得小叔叔在强迫你？”
+[StaticText] 
+[link] 第58章 但禽兽——他还不如禽兽呢
+  [StaticText] 第58章 但禽兽——他还不如禽兽呢
+[StaticText] 
+[link] 第59章“叫我什么？”
+  [StaticText] 第59章“叫我什么？”
+[StaticText] 
+[link] 第60章 低头咬住她的唇瓣
+  [StaticText] 第60章 低头咬住她的唇瓣
+[StaticText] 
+[link] 第61章 被吻咬的痕迹十分明显
+  [StaticText] 第61章 被吻咬的痕迹十分明显
+[StaticText] 
+[link] 第62章 白皙精致的脸庞布满汗水
+  [StaticText] 第62章 白皙精致的脸庞布满汗水
+[StaticText] 
+[link] 第63章 后背位置的黑色纹身
+  [StaticText] 第63章 后背位置的黑色纹身
+[StaticText] 
+[link] 第64章“现在是挺疼的。”
+  [StaticText] 第64章“现在是挺疼的。”
+[StaticText] 
+[link] 第65章“我让你害怕了吗”
+  [StaticText] 第65章“我让你害怕了吗”
+[StaticText] 
+[link] 第66章“现在就想管我了？”
+  [StaticText] 第66章“现在就想管我了？”
+[StaticText] 
+[link] 第67章 蛇缠玫瑰
+  [StaticText] 第67章 蛇缠玫瑰
+[StaticText] 
+[link] 第68章 吻在她脖子上
+  [StaticText] 第68章 吻在她脖子上
+[StaticText] 
+[link] 第69章 不重不轻的咬了一下
+  [StaticText] 第69章 不重不轻的咬了一下
+[StaticText] 
+[link] 第70章“小姑娘真难追啊。”
+  [StaticText] 第70章“小姑娘真难追啊。”
+[StaticText] 
+[link] 第71章“那你说，小叔叔好看吗？”
+  [StaticText] 第71章“那你说，小叔叔好看吗？”
+[StaticText] 
+[link] 第72章“傅则谌，我们试试吧。”
+  [StaticText] 第72章“傅则谌，我们试试吧。”
+[StaticText] 
+[link] 第73章“怕我亲你？”“是这样吗？”
+  [StaticText] 第73章“怕我亲你？”“是这样吗？”
+[StaticText] 
+[link] 第74章“但你可以把我弄哭。”
+  [StaticText] 第74章“但你可以把我弄哭。”
+[StaticText] 
+[link] 第75章“宝宝？宝贝？”
+  [StaticText] 第75章“宝宝？宝贝？”
+[StaticText] 
+[link] 第76章“小婶婶好。”
+  [StaticText] 第76章“小婶婶好。”
+[StaticText] 
+[link] 第77章“傅则谌，我负责的”
+  [StaticText] 第77章“傅则谌，我负责的”
+[StaticText] 
+[link] 第78章 心脏止不住的往下沉
+  [StaticText] 第78章 心脏止不住的往下沉
+[StaticText] 
+[link] 第79章“棠梨，你是不是想玩死我？”
+  [StaticText] 第79章“棠梨，你是不是想玩死我？”
+[StaticText] 
+[link] 第80章 单薄似蝶翅般的肋骨处
+  [StaticText] 第80章 单薄似蝶翅般的肋骨处
+[StaticText] 
+[link] 第81章“傅则谌，你为什么不亲亲我？”
+  [StaticText] 第81章“傅则谌，你为什么不亲亲我？”
+[StaticText] 
+[link] 第82章“你真的不要我吗？”
+  [StaticText] 第82章“你真的不要我吗？”
+[StaticText] 
+[link] 第83章“你说怎么负责就怎么负责”
+  [StaticText] 第83章“你说怎么负责就怎么负责”
+[StaticText] 
+[link] 第84章 姻缘符
+  [StaticText] 第84章 姻缘符
+[StaticText] 
+[link] 第85章 皈依你
+  [StaticText] 第85章 皈依你
+[StaticText] 
+[link] 第86章“你是真的很想跟我白头偕老啊”
+  [StaticText] 第86章“你是真的很想跟我白头偕老啊”
+[StaticText] 
+[link] 第87章“老公”
+  [StaticText] 第87章“老公”
+[StaticText] 
+[link] 第88章“老子都快嫉妒死了”
+  [StaticText] 第88章“老子都快嫉妒死了”
+[StaticText] 
+[link] 第89章“孽缘啊”
+  [StaticText] 第89章“孽缘啊”
+[StaticText] 
+[link] 第90章“洞房花烛夜”
+  [StaticText] 第90章“洞房花烛夜”
+[StaticText] 
+[link] 第91章“晚安，傅太太。”
+  [StaticText] 第91章“晚安，傅太太。”
+[StaticText] 
+[link] 第92章“打算让我独守空房？”
+  [StaticText] 第92章“打算让我独守空房？”
+[StaticText] 
+[link] 第93章“还想当渣女”
+  [StaticText] 第93章“还想当渣女”
+[StaticText] 
+[link] 第94章 根本没有人爱她
+  [StaticText] 第94章 根本没有人爱她
+[StaticText] 
+[link] 第95章 抱着她往屋内走
+  [StaticText] 第95章 抱着她往屋内走
+[StaticText] 
+[link] 第96章 男狐狸精
+  [StaticText] 第96章 男狐狸精
+[StaticText] 
+[link] 第97章 不要脸
+  [StaticText] 第97章 不要脸
+[StaticText] 
+[link] 第98章 傅安宁
+  [StaticText] 第98章 傅安宁
+[StaticText] 
+[link] 第99章 像与棠梨一个模子里刻出来一般
+  [StaticText] 第99章 像与棠梨一个模子里刻出来一般
+[StaticText] 
+[link] 第100章 轻薄我好多次了
+  [StaticText] 第100章 轻薄我好多次了
+[StaticText] 
+[link] 第101章“对你还不够好奇吗”
+  [StaticText] 第101章“对你还不够好奇吗”
+[StaticText] 
+[link] 第102章 现场作画
+  [StaticText] 第102章 现场作画
+[StaticText] 
+[link] 第103章“你这里有颜料”
+  [StaticText] 第103章“你这里有颜料”
+[StaticText] 
+[link] 第104章“小洛神心里只装得下傅则谌”
+  [StaticText] 第104章“小洛神心里只装得下傅则谌”
+[StaticText] 
+[link] 第105章 保养的小情人
+  [StaticText] 第105章 保养的小情人
+[StaticText] 
+[link] 第106章 傅太太，想我吗
+  [StaticText] 第106章 傅太太，想我吗
+[StaticText] 
+[link] 第107章“你最喜欢的地方”
+  [StaticText] 第107章“你最喜欢的地方”
+[StaticText] 
+[link] 第108章 傅则谌回来了
+  [StaticText] 第108章 傅则谌回来了
+[StaticText] 
+[link] 第109章“傅则谌你是不是后悔了”
+  [StaticText] 第109章“傅则谌你是不是后悔了”
+[StaticText] 
+[link] 第110章“我会跟你一起殉情”
+  [StaticText] 第110章“我会跟你一起殉情”
+[StaticText] 
+[link] 第111章“就好像是，要吃了我的眼神。”
+  [StaticText] 第111章“就好像是，要吃了我的眼神。”
+[StaticText] 
+[link] 第112章 你不想亲亲你的傅太太吗？
+  [StaticText] 第112章 你不想亲亲你的傅太太吗？
+[StaticText] 
+[link] 第113章 我们生个孩子
+  [StaticText] 第113章 我们生个孩子
+[StaticText] 
+[link] 第114章 傅则谌我很想你
+  [StaticText] 第114章 傅则谌我很想你
+[StaticText] 
+[link] 第115章 老公乖「加更」
+  [StaticText] 第115章 老公乖「加更」
+[StaticText] 
+[link] 第116章 月亮正在拥抱她
+  [StaticText] 第116章 月亮正在拥抱她
+[StaticText] 
+[link] 第117章 纽约的日子
+  [StaticText] 第117章 纽约的日子
+[StaticText] 
+[link] 第118章“喵——”
+  [StaticText] 第118章“喵——”
+[StaticText] 
+[link] 第119章 一念心动，一生心痛
+  [StaticText] 第119章 一念心动，一生心痛
+[StaticText] 
+[link] 第120章 傅太太，我不够好看？
+  [StaticText] 第120章 傅太太，我不够好看？
+[StaticText] 
+[link] 第121章 反正傅先生也吃不到
+  [StaticText] 第121章 反正傅先生也吃不到
+[StaticText] 
+[link] 第122章 傻子爱你
+  [StaticText] 第122章 傻子爱你
+[StaticText] 
+[link] 第123章 张嘴
+  [StaticText] 第123章 张嘴
+[StaticText] 
+[link] 第124章 不会换气了？
+  [StaticText] 第124章 不会换气了？
+[StaticText] 
+[link] 第125章 你老公没事吧？
+  [StaticText] 第125章 你老公没事吧？
+[StaticText] 
+[link] 第126章 九爷，外面有人找
+  [StaticText] 第126章 九爷，外面有人找
+[StaticText] 
+[link] 第127章 眼里装满仇恨的人
+  [StaticText] 第127章 眼里装满仇恨的人
+[StaticText] 
+[link] 第128章 小洛神终于落我怀里了
+  [StaticText] 第128章 小洛神终于落我怀里了
+[StaticText] 
+[link] 第129章“宝宝，要不我们也生个孩子玩玩”
+  [StaticText] 第129章“宝宝，要不我们也生个孩子玩玩”
+[StaticText] 
+[link] 第130章 DNA鉴定报告
+  [StaticText] 第130章 DNA鉴定报告
+[StaticText] 
+[link] 第131章 真真正正的傅安宁
+  [StaticText] 第131章 真真正正的傅安宁
+[StaticText] 
+[link] 第132章“傅则谌，我们生个孩子吧”
+  [StaticText] 第132章“傅则谌，我们生个孩子吧”
+[StaticText] 
+[link] 第133章 我看见她跟黎砚在一起
+  [StaticText] 第133章 我看见她跟黎砚在一起
+[StaticText] 
+[link] 第134章 我姑姑，傅安宁
+  [StaticText] 第134章 我姑姑，傅安宁
+[StaticText] 
+[link] 第135章 当年
+  [StaticText] 第135章 当年
+[StaticText] 
+[link] 第136章 你喜欢她，是吗
+  [StaticText] 第136章 你喜欢她，是吗
+[StaticText] 
+[link] 第137章 小叔你还挺闷骚
+  [StaticText] 第137章 小叔你还挺闷骚
+[StaticText] 
+[link] 第138章 五六分相似的脸
+  [StaticText] 第138章 五六分相似的脸
+[StaticText] 
+[link] 第139章 共白头
+  [StaticText] 第139章 共白头
+[StaticText] 
+[link] 第140章 阴郁古堡
+  [StaticText] 第140章 阴郁古堡
+[StaticText] 
+[link] 第141章“你和她，很像”
+  [StaticText] 第141章“你和她，很像”
+[StaticText] 
+[link] 第142章 对戒
+  [StaticText] 第142章 对戒
+[StaticText] 
+[link] 第143章 剁了喂狗
+  [StaticText] 第143章 剁了喂狗
+[StaticText] 
+[link] 第144章 鉴定结果
+  [StaticText] 第144章 鉴定结果
+[StaticText] 
+[link] 第145章 以后你可以叫我哥哥
+  [StaticText] 第145章 以后你可以叫我哥哥
+[StaticText] 
+[link] 第146章 你的枕边人是怎么来到你身边的
+  [StaticText] 第146章 你的枕边人是怎么来到你身边的
+[StaticText] 
+[link] 第147章 筹谋多年
+  [StaticText] 第147章 筹谋多年
+[StaticText] 
+[link] 第148章 陆柏城
+  [StaticText] 第148章 陆柏城
+[StaticText] 
+[link] 第149章 你要当爸爸了
+  [StaticText] 第149章 你要当爸爸了
+[StaticText] 
+[link] 第150章“傅太太，我会为你，长命百岁。”
+  [StaticText] 第150章“傅太太，我会为你，长命百岁。”
+[StaticText] 
+[link] 第151章 龙凤胎
+  [StaticText] 第151章 龙凤胎
+[StaticText] 
+[link] 第152章 陆锦渊发现自己原来
+  [StaticText] 第152章 陆锦渊发现自己原来
+[StaticText] 
+[link] 第153章 做了一个梦
+  [StaticText] 第153章 做了一个梦
+[StaticText] 
+[link] 第154章 傅砚辞饮弹自尽了
+  [StaticText] 第154章 傅砚辞饮弹自尽了
+[StaticText] 
+[link] 第155章 往事再提
+  [StaticText] 第155章 往事再提
+[StaticText] 
+[link] 第156章 我们的时间还多着呢
+  [StaticText] 第156章 我们的时间还多着呢
+[StaticText] 
+[link] 第157章 好像胖了
+  [StaticText] 第157章 好像胖了
+[StaticText] 
+[link] 第158章 她真的是傅则谌的唯一
+  [StaticText] 第158章 她真的是傅则谌的唯一
+[StaticText] 
+[link] 第159章 老子已婚
+  [StaticText] 第159章 老子已婚
+[StaticText] 
+[link] 第160章 傅则谌你还亲
+  [StaticText] 第160章 傅则谌你还亲
+[StaticText] 
+[link] 第161章 秀恩爱的傅九爷
+  [StaticText] 第161章 秀恩爱的傅九爷
+[StaticText] 
+[link] 第162章 暗恋你十三年
+  [StaticText] 第162章 暗恋你十三年
+[StaticText] 
+[link] 第163章 小洛神和玉面佛「正文完」
+  [StaticText] 第163章 小洛神和玉面佛「正文完」
+[StaticText] 
+[link] 第164章 番外双黎（一）
+  [StaticText] 第164章 番外双黎（一）
+[StaticText] 
+[link] 第165章 番外双黎（二）
+  [StaticText] 第165章 番外双黎（二）
+[StaticText] 
+[link] 第166章 番外双黎（三）
+  [StaticText] 第166章 番外双黎（三）
+[StaticText] 
+[link] 第167章 番外双黎（四）
+  [StaticText] 第167章 番外双黎（四）
+[StaticText] 
+[link] 第168章 棠梨最爱傅则谌「全文完」
+  [StaticText] 第168章 棠梨最爱傅则谌「全文完」
+[StaticText] 
+[link]  番茄小说
+  [StaticText] 
+  [StaticText] 番茄小说
+[link]  帮助中心
+  [StaticText] 
+  [StaticText] 帮助中心
+[link]  作家助手
+  [StaticText] 
+  [StaticText] 作家助手
+[image] 
+[link] 《番茄小说网用户协议》
+  [StaticText] 《番茄小说网用户协议》
+[link] 《番茄小说网隐私政策》
+  [StaticText] 《番茄小说网隐私政策》
+[paragraph] 
+  [StaticText] ©
+  [StaticText] 2026
+  [StaticText] 北京时光荏苒科技有限公司
+[link] 京ICP备18018851号-8
+  [StaticText] 京ICP备18018851号-8
+[link] 京公网安备 11010802030409号
+  [StaticText] 京公网安备 11010802030409号
+[link] 京ICP证 京B2-20200085
+  [StaticText] 京ICP证 京B2-20200085
+[link] 营业执照
+  [StaticText] 营业执照
+[link] 出版物经营许可证
+  [StaticText] 出版物经营许可证
+[link] 广播电视节目制作经营许可证
+  [StaticText] 广播电视节目制作经营许可证
+[link] 中国互联网举报中心
+  [StaticText] 中国互联网举报中心
+[paragraph] 
+  [StaticText] 广告投放：
+  [link] www.oceanengine.com
+    [StaticText] www.oceanengine.com
+[paragraph] 
+  [StaticText] 不良信息举报邮箱：
+  [StaticText] fanqiejubao@bytedance.com
+[paragraph] 
+  [StaticText] 意见建议邮箱：original_articles@bytedance.com
+[paragraph] 
+  [StaticText] 违法和不良信息举报电话：957124
+[paragraph] 
+  [StaticText] 版权咨询：2947820142@qq.com
+[image] 
+[StaticText] 打开微信扫码关注微信公众号
+[image] 
+[StaticText] 打开抖音扫码关注官方帐号

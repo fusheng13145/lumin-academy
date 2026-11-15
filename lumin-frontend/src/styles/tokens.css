@@ -1,0 +1,125 @@
+/* =========================================================================
+ * 启明书院 · 设计令牌
+ * 视觉基线：ui-demo 定稿「纸页与朱印」（基础精确值不变，只动组合层）
+ * 保留既有 --sp-* / data-ui-theme 命名；新增派生变量与宋体栈。
+ * ========================================================================= */
+
+:root {
+  /* —— 基础色板（精确值，不得改动）—— */
+  --surface: #f2f3f5;
+  --paper: #ffffff;
+  --ink: #1a1a1a;
+  --secondary: #6b6f76;
+  --accent: #e8453b;
+  --accent-strong: #cf3329;
+  --accent-soft: #fce9e7;
+  --danger: #c0392b;
+  --danger-soft: #fbeae8;
+  --success: #2e8b57;
+  --success-soft: #e6f4ec;
+  --warning: #d98a00;
+  --warning-soft: #fbf1dc;
+  --border: #e6e8eb;
+  --border-strong: #d4d8dd;
+
+  /* —— 夜间模式令牌 —— */
+  --night-surface: #1a1c1e;
+  --night-paper: #242628;
+  --night-ink: #e8e8e8;
+  --night-secondary: #9aa0a6;
+  --night-border: #34373a;
+
+  /* —— 派生变量（「纸页与朱印」组合层）—— */
+  --text-aux: var(--secondary);
+  --text-action: #b23a31;         /* 白底小字用深一档朱红，≥4.5:1 */
+  --text-danger: var(--danger);
+  --hairline: #e6e8eb;
+  --hairline-strong: #d8dbe0;
+  --paper-soft: #fafafa;
+  --cover-ink: #2a2724;
+
+  /* —— 圆角 / 间距（保留既有命名）—— */
+  --radius-card: 16px;
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+  --radius-control: 999px;
+
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* —— 更轻的阴影（去满屏投影浮卡）—— */
+  --shadow-soft: 0 6px 24px rgba(26, 28, 30, 0.10);
+  --shadow-card: 0 1px 2px rgba(26, 28, 30, 0.04);
+  --shadow-pop: 0 8px 30px rgba(20, 23, 28, 0.16);
+
+  /* —— 字体：标题/书封/阅读宋体栈，界面无衬线（06 §1.1，无外链）—— */
+  --font-title: "Noto Serif SC", "Songti SC", "Source Han Serif SC", "STSong", "SimSun", serif;
+  --font-read: "Noto Serif SC", "Songti SC", "Source Han Serif SC", "STSong", "SimSun", serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Microsoft YaHei", "Hiragino Sans GB", "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* —— 动效（精确值）—— */
+  --dur: 120ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* —— 阅读主题（4 个，id 与 demo 对齐）—— */
+  --read-bg: #f5f0e6;
+  --read-ink: #2b2620;
+  --read-accent: #8a5a2b;
+
+  /* —— 布局尺寸 —— */
+  --topnav-h: 56px;
+  --bottomtab-h: 60px;
+  --content-max: 1180px;
+}
+
+/* 界面夜间模式（作用于整体 UI，独立于阅读主题） */
+:root[data-ui-theme='night'] {
+  --surface: #16181a;
+  --paper: #242628;
+  --ink: #e8e8e8;
+  --secondary: #9aa0a6;
+  --accent-soft: #3a2422;
+  --border: #34373a;
+  --border-strong: #44484c;
+  --shadow-soft: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --text-aux: #9aa0a6;
+  --text-action: #ff8a80;
+  --text-danger: #ff9e94;
+  --hairline: #34373a;
+  --hairline-strong: #43464a;
+  --paper-soft: #1f2124;
+  --cover-ink: #e8e8e8;
+}
+
+/* 阅读主题：根属性驱动（保留既有 data-read-theme 作用域口径） */
+:root[data-read-theme='rice'] {
+  --read-bg: #f5f0e6;
+  --read-ink: #2b2620;
+  --read-accent: #8a5a2b;
+}
+:root[data-read-theme='green'] {
+  --read-bg: #dcebd8;
+  --read-ink: #2e3b30;
+  --read-accent: #3f7a4f;
+}
+:root[data-read-theme='parchment'] {
+  --read-bg: #eadcb8;
+  --read-ink: #3b3326;
+  --read-accent: #8a6a2b;
+}
+:root[data-read-theme='night'] {
+  --read-bg: #1a1c1e;
+  --read-ink: #c8c8c8;
+  --read-accent: #e8a89a;
+}

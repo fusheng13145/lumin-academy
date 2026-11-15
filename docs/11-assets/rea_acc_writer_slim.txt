@@ -1,0 +1,267 @@
+[image] 
+[link] 作家福利
+  [StaticText] 作家福利
+[link] 作家课堂
+  [StaticText] 作家课堂
+[link] 帮助中心
+  [StaticText] 帮助中心
+[StaticText] 登录
+[StaticText] 注册
+[image] 
+[StaticText] 全年/半年/季度奖
+[StaticText] 持续更新高额现金激励
+[image] 
+[StaticText] 优质加更奖
+[StaticText] 优质作品进阶更新分成激励
+[image] 
+[StaticText] 新书追更奖
+[StaticText] 高追更新书分成激励
+[image] 
+[image] 
+[StaticText] 请登录
+[StaticText] 欢迎成为番茄作家
+[button] 立即登录  <invalid>
+  [StaticText] 立即登录
+[button] 作家福利  <invalid>
+  [StaticText] 作家福利
+[image] 
+[StaticText] 番茄短故事｜「IP金品共创计划」——漫剧改编IP激励活动
+[StaticText] 新番计划，让灵感发芽｜番茄小说开学季
+[StaticText] 2026番茄小说「万象新章」创作计划正式启动！
+[image] 
+[StaticText] 「文启剧燃」征文优质版权创意奖拟获奖公示
+[image] 
+[StaticText] 2026年10月平台福利活动拟获奖作品公示
+[image] 
+[StaticText] 2026年10月番茄平台账号违规处罚公告
+[image] 
+[StaticText] 「聚力成书·执笔同行」番茄小说完本创作激励活动
+[image] 
+[StaticText] 2026年佳作续签奖福利升级，最高得两万元！
+[image] 
+[StaticText] 更多
+[image] 
+[image] 
+[image] 
+[StaticText] 「聚力成书·执笔同行」番茄小说完本创作激励活动
+[StaticText] 2026-11-10
+[image] 
+[StaticText] 新番计划，让灵感发芽｜番茄小说开学季
+[StaticText] 2026-11-05
+[StaticText] 更多
+[image] 
+[image] 
+[StaticText] 02
+[StaticText] 03
+[image] 
+[image] 
+[image] 
+[image] 
+[StaticText] 入门好课
+[StaticText] 了解常见的网络文学类型
+[StaticText] 平台宝典
+[StaticText] 新手专区
+[StaticText] 品类指南
+[StaticText] 写作技巧
+[StaticText] 大神专访
+[image] 
+[StaticText] 平台规则｜广场涨量实战！让读者讨论变成作品新增流量
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 「作家中心」升级为「创作中心」！作品与社区流量数据一站看懂
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 平台规则｜推荐验证期规则全指南：你关心的问题都在这里！
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 稿酬福利｜平台稿费&福利内容大揭秘
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 平台规则｜一文搞定签约常见问题，自此签约不迷路！
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 平台规则｜不实名=白写？一篇讲透实名认证的所有疑问
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 账号注册｜新手入门！账号注册登录全指南
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 社区推广｜好书缺流量？帖子来帮忙！
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 作品完结｜作品顺利收官！请查收你的保姆级作品完结攻略
+[StaticText] 适用对象：所有品类
+[image] 
+[StaticText] 作品标签｜速进！作品标签最全讲解来啦！
+[StaticText] 适用对象：所有品类
+[StaticText] 查看全部
+[image] 
+[image] 
+[StaticText] 热门版权改编动漫、影视尽在番茄小说
+[StaticText] 来番茄小说，追精品IP原著小说
+[StaticText] 查看全部
+[image] 
+[StaticText] 我在精神病院学斩神
+[StaticText] 三九音域
+[StaticText] 著
+[StaticText] 磨铁图书
+[StaticText] 签约日期
+[StaticText] 2022
+[StaticText] 以夏天的名义
+[StaticText] 折枝桂w
+[StaticText] 著
+[StaticText] 欣欣向爱
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 直球不打暗恋
+[StaticText] 韭菜鱼丸包
+[StaticText] 著
+[StaticText] 欣欣向爱
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 软诱
+[StaticText] 久久萋
+[StaticText] 著
+[StaticText] 大鱼文化
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 就算是假千金也要勇敢摆烂
+[StaticText] 纪扶染
+[StaticText] 著
+[StaticText] 魅丽文化
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 过来亲一下
+[StaticText] 吃柚子不吐皮吖
+[StaticText] 著
+[StaticText] 欣梦享
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 以我深情祭岁月
+[StaticText] 二乔
+[StaticText] 著
+[StaticText] 欣梦享
+[StaticText] 签约日期
+[StaticText] 2023-08
+[StaticText] 她不乖！要哄
+[StaticText] 君不弃
+[StaticText] 著
+[StaticText] 酷威文化
+[StaticText] 签约日期
+[StaticText] 2023-07
+[StaticText] 炽野温柔
+[StaticText] 九绾
+[StaticText] 著
+[StaticText] 欣欣向爱
+[StaticText] 签约日期
+[StaticText] 2023-07
+[StaticText] 别暗恋我呀
+[StaticText] 明之九
+[StaticText] 著
+[StaticText] 魅丽文化
+[StaticText] 签约日期
+[StaticText] 2023-07
+[StaticText] 诱摘野玫瑰
+[StaticText] 一剪月
+[StaticText] 著
+[StaticText] 酷威文化
+[StaticText] 签约日期
+[StaticText] 2023-07
+[StaticText] 快穿：疯批宿主又在崩剧情了
+[StaticText] 爱干饭的团子
+[StaticText] 著
+[StaticText] 酷威文化
+[StaticText] 签约日期
+[StaticText] 2023-07
+[StaticText] 藏于盛夏
+[StaticText] 秋日凉
+[StaticText] 著
+[StaticText] 欣欣向爱
+[StaticText] 签约日期
+[StaticText] 2023-06
+[StaticText] 卿乃朝朝暮暮
+[StaticText] 暮色陈陈YA
+[StaticText] 著
+[StaticText] 欣欣向爱
+[StaticText] 签约日期
+[StaticText] 2023-06
+[StaticText] 兴安岭
+[StaticText] 耿建
+[StaticText] 著
+[StaticText] 北京燕山出版社
+[StaticText] 签约日期
+[StaticText] 2023-06
+[StaticText] 大河流过两家峪
+[StaticText] 关中闲汉
+[StaticText] 著
+[StaticText] 中国文联出版社
+[StaticText] 签约日期
+[StaticText] 2023-06
+[StaticText] 缚春情
+[StaticText] 任欢游
+[StaticText] 著
+[StaticText] 欣梦享
+[StaticText] 签约日期
+[StaticText] 2023-05
+[StaticText] 十日终焉
+[StaticText] 杀虫队队员
+[StaticText] 著
+[StaticText] 风炫文化
+[StaticText] 签约日期
+[StaticText] 2023-05
+[StaticText] 查看全部
+[image] 
+[image] 
+[StaticText] 从落笔写下这个故事开始，便感觉自己随时面临挑战，想要将沉重的牺牲与少年的热血结合并不是一件容易的事情。我想写的并非只是一个人，而是一群在逆境中敢于挺身而出，秉持各自信念，向未知挑战的故事。
+[image] 
+[StaticText] 创作一定要为难自己，作者有多苛求自己，作品就有多精彩，读者就有多喜爱。
+[image] 
+[StaticText] 用文字书写心中的故事，倾注全部的感情与热爱，创造一个不同于现实，但又多姿多彩的崭新的小说世界。在小说这个世界里，有你有我有他，有我们一群志同道合的人，一起奔赴。
+[image] 
+[link]  帮助中心
+  [StaticText] 
+  [StaticText] 帮助中心
+[link]  作家助手
+  [StaticText] 
+  [StaticText] 作家助手
+[link]  版本公告
+  [StaticText] 
+  [StaticText] 版本公告
+[image] 
+[link] 《番茄小说网用户协议》
+  [StaticText] 《番茄小说网用户协议》
+[link] 《番茄小说网隐私政策》
+  [StaticText] 《番茄小说网隐私政策》
+[paragraph] 
+  [StaticText] ©
+  [StaticText] 2026
+  [StaticText] 北京时光荏苒科技有限公司
+[link] 京ICP备18018851号-8
+  [StaticText] 京ICP备18018851号-8
+[link] 京公网安备 11010802030409号
+  [StaticText] 京公网安备 11010802030409号
+[link] 京ICP证 京B2-20200085
+  [StaticText] 京ICP证 京B2-20200085
+[link] 营业执照
+  [StaticText] 营业执照
+[link] 出版物经营许可证
+  [StaticText] 出版物经营许可证
+[link] 广播电视节目制作经营许可证
+  [StaticText] 广播电视节目制作经营许可证
+[link] 中国互联网举报中心
+  [StaticText] 中国互联网举报中心
+[paragraph] 
+  [StaticText] 广告投放：
+  [link] www.oceanengine.com
+    [StaticText] www.oceanengine.com
+[paragraph] 
+  [StaticText] 不良信息举报：
+  [StaticText] fanqiejubao@bytedance.com
+[paragraph] 
+  [StaticText] 意见建议入口：番茄作家助手APP-我的-帮助与反馈-反馈历史
+[paragraph] 
+  [StaticText] 版权咨询：2947820142@qq.com
+[image] 
+[StaticText] 打开微信扫码关注微信公众号
+[image] 
+[StaticText] 打开抖音扫码关注官方帐号
