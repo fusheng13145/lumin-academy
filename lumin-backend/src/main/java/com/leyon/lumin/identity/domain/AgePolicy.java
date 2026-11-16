@@ -131,4 +131,9 @@ public final class AgePolicy {
         }
         return left.restrictionRank() <= right.restrictionRank() ? left : right;
     }
+
+    /** 列表过滤便捷判定（等价于 canRead(band, grade, false, false)：A 级默认关闭）。 */
+    public static boolean canReadPublic(AgeBand band, Grade grade) {
+        return canRead(band, grade, false, false);
+    }
 }

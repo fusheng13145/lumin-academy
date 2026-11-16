@@ -2,6 +2,7 @@ package com.leyon.lumin.moderation.repository;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
 
 /** review_decision 表数据访问（04 §5：append-only；同案件独立双审主体约束由事务再校验）。 */
@@ -19,4 +20,8 @@ public interface ReviewDecisionMapper {
                 #{row.lockVersion})
             """)
     int insert(@Param("row") ReviewDecisionRow row);
+
+    /** 原案件全部裁决记录（阶段 3 回避集合 + 二审比对，03 §2.4/§6）。 */
+    @Select("SELECT * FROM review_decision WHERE case_id = #{caseId} ORDER BY created_at, id")
+    java.util.List<ReviewDecisionRow> findByCase(@Param("caseId") String caseId);
 }

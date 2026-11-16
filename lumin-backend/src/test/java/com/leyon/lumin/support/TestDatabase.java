@@ -5,6 +5,7 @@ import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -25,8 +26,7 @@ public final class TestDatabase {
             "jdbc:mysql://127.0.0.1:3306/" + TEST_DB
                     + "?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
                     + "&allowPublicKeyRetrieval=true";
-    private static final String SCHEMA_LOCATION =
-            "db/migration/V1__p0b_core_schema.sql";
+    private static final String MIGRATION_DIR = "classpath:db/migration/*.sql";
 
     private TestDatabase() {
     }
@@ -60,8 +60,20 @@ public final class TestDatabase {
             statement.execute("CREATE DATABASE " + TEST_DB
                     + " CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci");
             statement.execute("USE " + TEST_DB);
-            ScriptUtils.executeSqlScript(connection, new EncodedResource(
-                    new ClassPathResource(SCHEMA_LOCATION), StandardCharsets.UTF_8));
+            // 按文件名顺序执行全部迁移脚本（V1 → V1.1 → …）
+            org.springframework.core.io.Resource[] scripts;
+            try {
+                scripts = new org.springframework.core.io.support.PathMatchingResourcePatternResolver()
+                        .getResources(MIGRATION_DIR);
+            } catch (IOException e) {
+                throw new IllegalStateException("迁移脚本目录解析失败：" + MIGRATION_DIR, e);
+            }
+            java.util.Arrays.sort(scripts, java.util.Comparator.comparing(
+                    org.springframework.core.io.Resource::getFilename));
+            for (org.springframework.core.io.Resource script : scripts) {
+                ScriptUtils.executeSqlScript(connection,
+                        new EncodedResource(script, StandardCharsets.UTF_8));
+            }
         } catch (SQLException | org.springframework.jdbc.datasource.init.ScriptException e) {
             throw new IllegalStateException("测试数据库初始化失败：" + e.getMessage(), e);
         }

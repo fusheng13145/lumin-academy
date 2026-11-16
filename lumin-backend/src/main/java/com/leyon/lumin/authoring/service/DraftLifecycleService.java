@@ -69,6 +69,27 @@ public class DraftLifecycleService {
 
 
 
+    /** 已发布版本完整引用（读者视图组装；publication→authoring 端口数据）。 */
+    public record PublishedVersionRef(String versionId, String workId, String chapterId,
+                                      String targetType, String title, String synopsis,
+                                      String categoryId, java.util.List<String> tags,
+                                      String grade, String state, String objectKey,
+                                      Long policyVersion) {
+    }
+
+    /** 已通过版本完整引用；状态非 APPROVED 返回 null（读者链仅读公开指针所指版本）。 */
+    public PublishedVersionRef findPublishedVersion(String versionId) {
+        ContentVersionRow row = versionId == null ? null
+                : contentVersionMapper.findById(versionId);
+        if (row == null || !"APPROVED".equals(row.state())) {
+            return null;
+        }
+        return new PublishedVersionRef(row.id(), row.workId(), row.chapterId(),
+                row.targetType(), row.title(), row.synopsis(), row.categoryId(),
+                parseTags(row.tags()), row.grade(), row.state(), row.objectKey(),
+                row.policyVersion());
+    }
+
     /** 版本状态机字段迁移（APPROVED/REJECTED + grade），由调用方经状态机裁决后调用。 */
     public void transitionVersionState(String versionId, String state, String grade,
                                        String operator, LocalDateTime now) {

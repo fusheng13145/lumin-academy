@@ -56,4 +56,8 @@ public interface PublicationWorkflowMapper {
     int updateStateAndCase(@Param("id") String id, @Param("state") String state,
                            @Param("caseId") String caseId, @Param("operator") String operator,
                            @Param("now") java.time.LocalDateTime now);
+
+    /** 按版本查流程（INV-01：一份不可变版本只绑定一个发布流程）。 */
+    @Select("SELECT * FROM publication_workflow WHERE version_id = #{versionId}")
+    PublicationWorkflowRow findByVersionId(@Param("versionId") String versionId);
 }

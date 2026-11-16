@@ -43,4 +43,14 @@ public interface PublicationPointerMapper {
                     @Param("operator") String operator,
                     @Param("now") java.time.LocalDateTime now,
                     @Param("expectedLockVersion") long expectedLockVersion);
+
+    /** 已发布作品列表（读者列表骨架；游标分页随 P1 批次，04 §7）。 */
+    @Select("""
+            SELECT p.* FROM publication_pointer p
+            JOIN work w ON w.id = p.target_id AND p.target_type = 'WORK'
+            WHERE w.business_state IN ('ACTIVE','COMPLETED') AND w.deleted_at IS NULL
+            ORDER BY p.published_at DESC, p.id
+            LIMIT #{limit}
+            """)
+    java.util.List<PublicationPointerRow> listPublishedWorks(@Param("limit") int limit);
 }

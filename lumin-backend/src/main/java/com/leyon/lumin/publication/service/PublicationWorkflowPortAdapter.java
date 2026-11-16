@@ -10,6 +10,7 @@ import com.leyon.lumin.foundation.event.OutboxAppender;
 import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.foundation.values.PublicationEvent;
 import com.leyon.lumin.foundation.values.TargetType;
+import com.leyon.lumin.catalog.service.WorkService;
 import com.leyon.lumin.foundation.values.WorkflowState;
 import com.leyon.lumin.publication.domain.PublicationStateMachine;
 import com.leyon.lumin.publication.domain.TransitionContext;
@@ -40,6 +41,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
 
     private final PublicationWorkflowMapper workflowMapper;
     private final PublicationPointerMapper pointerMapper;
+    private final WorkService workService;
     private final DraftLifecycleService draftLifecycleService;
     private final ContentMaterialPort contentMaterialPort;
     private final OutboxAppender outboxAppender;
@@ -48,6 +50,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
 
     public PublicationWorkflowPortAdapter(PublicationWorkflowMapper workflowMapper,
                                           PublicationPointerMapper pointerMapper,
+                                          WorkService workService,
                                           DraftLifecycleService draftLifecycleService,
                                   ContentMaterialPort contentMaterialPort,
                                           OutboxAppender outboxAppender,
@@ -55,6 +58,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
                                           ObjectMapper objectMapper) {
         this.workflowMapper = workflowMapper;
         this.pointerMapper = pointerMapper;
+        this.workService = workService;
         this.draftLifecycleService = draftLifecycleService;
         this.contentMaterialPort = contentMaterialPort;
         this.outboxAppender = outboxAppender;
@@ -89,8 +93,13 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         draftLifecycleService.transitionVersionState(versionId,
                 transition.versionState().name(), grade, "system", now);
 
-        if (event == PublicationEvent.AUTO_PASS) {
+        // 03 §2.3：机审 AUTO_PASS / 人审 HUMAN_FINAL_PASS 终态 APPROVED → 建公开指针
+        if (transition.toState() == WorkflowState.APPROVED) {
             publishPointer(workflow, versionId, now);
+            // 03 §2.1：首版发布成功 → 作品业务态 DRAFT→ACTIVE（SYSTEM）
+            if ("WORK".equals(workflow.targetType())) {
+                workService.markFirstVersionPublished(version.workId(), "system", now);
+            }
         }
         auditRecorder.record(new AuditRecorder.AuditEntry("system", "SYSTEM",
                 "workflow.auto_decision", "publication_workflow", workflowId,
@@ -120,6 +129,12 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
     /** 事件解析：REVISE → AUTO_REVISE；章节父作品未发布 → ROUTE_HUMAN_REVIEW；否则 AUTO_PASS。 */
     private PublicationEvent resolveEvent(PublicationWorkflowRow workflow, String versionId,
                                           String decision) {
+        WorkflowState current = WorkflowState.valueOf(workflow.state());
+        // 03 §2.3：人审队列的最终裁决走 HUMAN_FINAL_*（03 §2.3 状态字典）
+        if (current == WorkflowState.HUMAN_REVIEW) {
+            return "REVISE".equals(decision)
+                    ? PublicationEvent.HUMAN_FINAL_REJECT : PublicationEvent.HUMAN_FINAL_PASS;
+        }
         if ("REVISE".equals(decision)) {
             return PublicationEvent.AUTO_REVISE;
         }

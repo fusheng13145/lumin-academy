@@ -32,6 +32,11 @@ public final class MySqlFixtures {
     /** 骨架认证替身的固定主体（与 DemoAuthenticationFilter.STUB_SUBJECT 一致），测试据此建档。 */
     public static final String STUB_SUBJECT =
             UUID.fromString("9f8f8f8f-0000-4000-8000-0000000000a1").toString();
+    /** 审核员替身主体（与 DemoAuthenticationFilter 替身集合一致）。 */
+    public static final String REVIEWER_L1A =
+            UUID.fromString("8f8f8f8f-0000-4000-8000-0000000000b2").toString();
+    public static final String REVIEWER_L2A =
+            UUID.fromString("7f7f7f7f-0000-4000-8000-0000000000c3").toString();
 
     private MySqlFixtures() {
     }

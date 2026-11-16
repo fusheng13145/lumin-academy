@@ -120,10 +120,6 @@ public class MachineReportService {
                 report.risk(), report.riskFlags(), report.confidence(),
                 report.suggestedDecision()));
 
-        // 案件风险/优先级按报告更新（SLA：HIGH→P0 / MEDIUM→P1 / LOW→P2）
-        caseMapper.updateRiskAndPriority(reviewCase.id(), report.risk().name(),
-                priorityOf(report.risk()), "system", now);
-
         String workflowState;
         if (routing.outcome() == RoutingOutcome.AUTO_ACCEPT
                 || routing.outcome() == RoutingOutcome.AUTO_REVISE) {
@@ -133,6 +129,7 @@ public class MachineReportService {
             } else {
                 ReviewDecision decision = routing.outcome() == RoutingOutcome.AUTO_ACCEPT
                         ? ReviewDecision.PASS : ReviewDecision.REVISE;
+                // 先裁决记录 + 状态迁移（乐观锁用快照 lock），再更新风险/SLA（迁移后 lock+1）
                 recordSystemDecision(reviewCase, report, decision, now);
                 decideCase(reviewCase, now);
                 workflowState = publicationWorkflowPort.executeAutoDecision(
@@ -146,6 +143,10 @@ public class MachineReportService {
             // HUMAN / HOLD：报告已存，案件保持 QUEUED 等待人审（HOLD 挂起原因枚举待裁决）
             workflowState = routeToHuman(reviewCase, now);
         }
+        // 案件风险/优先级按报告更新（SLA：HIGH→P0 / MEDIUM→P1 / LOW→P2；
+        // 在状态迁移后执行——本更新递增 lock_version，先做会使裁决迁移乐观锁失效）
+        caseMapper.updateRiskAndPriority(reviewCase.id(), report.risk().name(),
+                priorityOf(report.risk()), "system", now);
         return new ReceiveResult(row.id(), workflowState, null);
     }
 
@@ -179,8 +180,12 @@ public class MachineReportService {
         if (!transition.accepted()) {
             throw new LuminBusinessException(ErrorCode.B2001);
         }
-        caseMapper.updateState(reviewCase.id(), transition.targetState().name(),
-                "system", now);
+        int rows = caseMapper.transitionState(reviewCase.id(), transition.targetState().name(),
+                reviewCase.reviewStage(), reviewCase.state(), "system", now,
+                reviewCase.lockVersion());
+        if (rows == 0) {
+            throw new LuminBusinessException(ErrorCode.B2002);
+        }
     }
 
     /** 风险 → SLA 优先级映射（03 §2.4 / 08 §5 骨架口径）。 */

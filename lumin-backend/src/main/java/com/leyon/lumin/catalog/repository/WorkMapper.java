@@ -39,4 +39,18 @@ public interface WorkMapper {
 
     @Select("SELECT next_chapter_no FROM work WHERE id = #{id}")
     Integer selectNextChapterNo(@Param("id") String id);
+
+    /** 业务态迁移持久化（PublicationStateMachine.business 裁决后调用；03 §2.1）。 */
+    @Update("""
+            UPDATE work SET business_state = #{state}, prior_state = #{priorState},
+                completed_at = #{completedAt}, updated_at = #{now}, updated_by = #{operator},
+                lock_version = lock_version + 1
+            WHERE id = #{id} AND business_state = #{expectedState}
+            """)
+    int updateBusinessState(@Param("id") String id, @Param("state") String state,
+                            @Param("priorState") String priorState,
+                            @Param("completedAt") java.time.LocalDateTime completedAt,
+                            @Param("operator") String operator,
+                            @Param("now") java.time.LocalDateTime now,
+                            @Param("expectedState") String expectedState);
 }

@@ -103,4 +103,25 @@ public class WorkService {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
     }
+
+    /** 首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */
+    @Transactional
+    public void markFirstVersionPublished(String workId, String operator, LocalDateTime now) {
+        WorkRow work = workMapper.findById(workId);
+        if (work == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.valueOf(work.businessState()),
+                com.leyon.lumin.foundation.values.PublicationEvent.FIRST_VERSION_PUBLISHED,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.WORK,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        workMapper.updateBusinessState(workId, transition.toState().name(),
+                work.businessState(), null, operator, now, work.businessState());
+    }
 }
