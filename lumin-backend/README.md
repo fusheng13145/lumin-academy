@@ -18,8 +18,8 @@ mvn test                        # 主验收命令：编译 + 全量 JUnit 回归
 mvn verify -Pcoverage           # 可选：JaCoCo 0.8.15 覆盖率报告（target/site/jacoco/）
 ```
 
-首次构建需联网或由 IDE 下载 `spring-boot-starter-parent:4.0.9` 及其依赖（本机 `~/.m2` 只缓存到 4.0.6 / 4.1.x，
-离线 `mvn -o test` 会在父 POM 解析阶段失败）；缓存就绪后 `mvn -o test` 可完全离线执行。
+首次构建需联网或由 IDE 下载 `spring-boot-starter-parent:4.0.9` 及其依赖；**本机已于 2026-11-15 联网完成首次下载并全量回归，
+`mvn test` 现可完全离线复跑**（`mvn -o test`）。
 
 回到项目根目录执行只读静态校验：
 
@@ -54,9 +54,15 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 | --- | --- |
 | `src/main/java/com/leyon/lumin/LuminBackendApplication.java` | Spring Boot 启动类（根包；后续 Controller / Service / Repository / Config 放于此根包下，如 `com.leyon.lumin.api`） |
 | `src/main/java/com/leyon/lumin/foundation` | 错误码枚举、业务时间、服务主体常量 |
-| `src/main/java/com/leyon/lumin/foundation/values` | 14 个共享枚举白名单（无业务判定、零出边到业务域） |
+| `src/main/java/com/leyon/lumin/foundation/values` | 共享枚举白名单（无业务判定、零出边到业务域） |
+| `src/main/java/com/leyon/lumin/foundation/event` | `EventEnvelope` 事件信封建模与校验、乱序拒绝（02 §5.2 / 03 §4.3） |
+| `src/main/java/com/leyon/lumin/foundation/idempotency` | `IdempotencyRules` 幂等作用域 / 请求摘要 / 24h 过期（03 §4.1、04 §5.1） |
+| `src/main/java/com/leyon/lumin/catalog/domain` | `TargetRef` 目标引用校验（04 §2/§4） |
 | `src/main/java/com/leyon/lumin/identity/domain` | `AgePolicy` / `RolePolicy` 年龄与角色内核 |
-| `src/main/java/com/leyon/lumin/publication/domain` | `VisibilityPolicy` 八步纯函数 + `PublicationStateMachine` 表驱动状态机 |
+| `src/main/java/com/leyon/lumin/authoring/domain` | `DraftContentValidator` 载荷边界、`MaterialSnapshot` 材料快照与 materialSha256、`SubmissionGate` 提交前提闸门（03 §2.2/§4.1） |
+| `src/main/java/com/leyon/lumin/moderation/domain` | `MachineReport` 契约校验、`ReviewDecisionRule`、`ReviewRoutingPolicy` 路由分级、`QualitySampler` HMAC 稳定采样、`ReviewCaseStateMachine` 案件状态机（03 §2.4/§5、05 §4.3） |
+| `src/main/java/com/leyon/lumin/engagement/domain` | `ReadingProgressValidator` 阅读进度边界（04 §5.1/T29） |
+| `src/main/java/com/leyon/lumin/publication/domain` | `VisibilityPolicy` 八步纯函数 + `PublicationStateMachine` 表驱动状态机 + `WorkflowSuspension` 挂起原因校验 |
 | `src/main/java/com/leyon/lumin/billing_reserved` | 04 §6.2 六张表的**只读**骨架模型，无 DDL / 无入口 / 无授权 |
 | `src/test/java/com/leyon/lumin/**` | 纯函数、状态机、架构无环、契约骨架测试 |
 
@@ -85,7 +91,8 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 | 项 | 实测结果 |
 | --- | --- |
 | 领域内核回归（2026-11-13，迁移至 `lumin-backend` 后） | **3322 用例 / 0 失败 / 0 跳过**；`javac --release 21` 编译 38 个主源码 + 10 个测试源码全通过，JUnit Platform 1.12.2 + Jupiter 5.12.2 直接驱动 |
-| `mvn test` / `mvn verify -Pcoverage` | **本机未能执行**：`spring-boot-starter-parent:4.0.9` 未在 `~/.m2` 缓存且离线无法访问中央仓库；缓存或联网后按上表命令复跑 |
+| `mvn test` / `mvn verify -Pcoverage` | ~~本机未能执行~~ **已解决（2026-11-15）**：联网缓存 `spring-boot-starter-parent:4.0.9` 后全量执行通过，现可离线复跑 |
+| P0-B 增量一回归（2026-11-16） | **3367 用例 / 0 失败 / 0 错误 / 0 跳过**（`mvn test` 全量）；`contextLoads` 修复——`application.yaml` 显式排除 `DataSourceAutoConfiguration` / `MybatisAutoConfiguration`（持久化单元落地时移除）；新增 `foundation/event`、`catalog/domain`、`authoring/domain`、`moderation/domain` 六包 15 个主类 + 9 个测试类，全部为纯函数/值对象，无 Controller / Repository / DDL |
 | `mvn -o verify -Pcoverage`（迁移前旧模块记录） | JaCoCo 0.8.15：行 **97.43%**（531/545）、分支 **92.12%**（339/368），对齐 07 §1.2 行≥90% / 分支≥85% |
 | T44 真实边 | `identity -> foundation`、`publication -> foundation`、`publication -> identity`（唯一跨业务域边命中 02 §3.1 允许列表，非空跑）；脚本与 `DependencyAcyclicTest` 双证据 |
 
@@ -106,6 +113,11 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 6. **目录基线差异**（✅ 已修复 2026-11-15）：`docs/02 §4`、`docs/09 §5`、`docs/10 A/B`、`启明书院_项目基线.md §3`
    已按 2026-11-13 整理后的 `lumin-backend`（后端）与 `lumin-frontend`（前端）布局修订正文路径；
    `services/agent/`、`mobile/`、`infra/` 标注「规划，尚未创建」。
+7. **数据库驱动与 docs/02 锁定不一致（⚠️ 待 Owner 裁决，阻断持久化单元）**：docs/02 §2 锁定
+   **PostgreSQL 17 系列**，而 `lumin-backend/pom.xml` 含 `mysql-connector-j`（runtime）——
+   脚手架遗留依赖、当前未被任何代码使用。持久化单元（MyBatis Repository + 迁移脚本 +
+   Testcontainers 集成测试）落地前须二选一：按文档改用 PostgreSQL 驱动，或由 Owner 修订
+   docs/02 基线改锁 MySQL；不得在未裁决时擅自替换。
 
 ### 未执行 / 不能验证项
 
