@@ -95,6 +95,7 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 | P0-B 增量一回归（2026-11-16） | **3367 用例 / 0 失败 / 0 错误 / 0 跳过**（`mvn test` 全量）；`contextLoads` 修复——`application.yaml` 显式排除 `DataSourceAutoConfiguration` / `MybatisAutoConfiguration`（持久化单元落地时移除）；新增 `foundation/event`、`catalog/domain`、`authoring/domain`、`moderation/domain` 六包 15 个主类 + 9 个测试类，全部为纯函数/值对象，无 Controller / Repository / DDL |
 | P0-B 增量二回归（2026-11-16） | **3387 用例 / 0 失败 / 0 错误 / 0 跳过**（`mvn test` 全量，完全离线）；新增 `IdempotencyRules`（幂等作用域/SHA-256 摘要/24h 过期，T09 前置）、`OutboxBackoff`（退避 1/5/30/60s + 超 24h 人工处置）、`SubmissionGate`（提交前提闸门，03 §2.2）、`WorkflowSuspension`（挂起原因一致性）、`ReadingProgressValidator`（进度边界，T29）及 `CopyrightStatus` / `SuspensionReason` 枚举；依赖无环校验 PASS（60 源文件，0 非法边 / 0 环） |
 | P0-B 增量三回归（2026-11-16） | **3414 用例 / 0 失败 / 0 错误 / 0 跳过**（`mvn test` 全量，离线）；新增 `StableBuckets`（万分比稳定分桶抽取，`QualitySampler` 委托重构、行为不变）、`CursorCodec`（游标 HMAC 签名/15min 过期/过滤摘要绑定/limit 边界，04 §7 / 05 §2）、三套状态机 `RestrictionStateMachine`（终局/解约禁 REVOKED）/`AppealStateMachine`/`ConfigRevisionStateMachine` 全组合穷举、`GrayRolloutPolicy`（灰度双槽激活校验 0 禁/10000 全量/灰度需基线 + HMAC 分桶选择 fail-closed 走全量）及 7 个值域枚举；依赖无环 PASS（73 源文件，0 非法边 / 0 环） |
+| P0-B 增量四回归（2026-11-17） | **3428 用例 / 0 失败 / 0 错误 / 0 跳过**——其中 **14 个为真实 MySQL 集成测试**（本机 MySQL84 服务 8.4.6，`lumin_test` 专用库，每测试独立重建 schema；凭据经 `LUMIN_TEST_DB_*` 环境变量注入不落盘，未配置时按 Assumption 诚实跳过）。交付：① Owner 裁决 MySQL 落地为文档修订（docs/02 §2/§2.2、04 §1 映射表、07 §1.2、08 §7.1，修订留痕）；② `V1__p0b_core_schema.sql` 16 表（docs/04 → MySQL 8.4 方言：DATETIME(6) 存 UTC / JSON / CHAR(36) UUID / 生成列模拟部分唯一索引与双槽 / CHECK 白名单与 grade 配对兜底 / 外键 RESTRICT）；③ MyBatis Mapper×6（draft/content_version/workflow/pointer/outbox/idempotency，`arg-name-based-constructor-auto-mapping` 支持 record）；④ 集成测试覆盖：outbox 聚合修订唯一、同目标单开流程（open_slot）、SUSPENDED⇔原因 CHECK、指针目标唯一、grade 配对 CHECK、draft 形态 CHECK、单 EDITABLE 草稿、config 双槽唯一、幂等复合主键、乐观锁指针交换。依赖无环 PASS。**登记**：`target_key/rev_key` 生成列宽 96（81 字符键实测修正）；MySQL CHECK 违规（3819/HY000）在 Spring 翻译为 `UncategorizedSQLException`，与 1062 唯一冲突（`DuplicateKeyException`）区分断言 |
 | `mvn -o verify -Pcoverage`（迁移前旧模块记录） | JaCoCo 0.8.15：行 **97.43%**（531/545）、分支 **92.12%**（339/368），对齐 07 §1.2 行≥90% / 分支≥85% |
 | T44 真实边 | `identity -> foundation`、`publication -> foundation`、`publication -> identity`（唯一跨业务域边命中 02 §3.1 允许列表，非空跑）；脚本与 `DependencyAcyclicTest` 双证据 |
 
@@ -115,11 +116,12 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 6. **目录基线差异**（✅ 已修复 2026-11-15）：`docs/02 §4`、`docs/09 §5`、`docs/10 A/B`、`启明书院_项目基线.md §3`
    已按 2026-11-13 整理后的 `lumin-backend`（后端）与 `lumin-frontend`（前端）布局修订正文路径；
    `services/agent/`、`mobile/`、`infra/` 标注「规划，尚未创建」。
-7. **数据库驱动与 docs/02 锁定不一致（⚠️ 待 Owner 裁决，阻断持久化单元）**：docs/02 §2 锁定
-   **PostgreSQL 17 系列**，而 `lumin-backend/pom.xml` 含 `mysql-connector-j`（runtime）——
-   脚手架遗留依赖、当前未被任何代码使用。持久化单元（MyBatis Repository + 迁移脚本 +
-   Testcontainers 集成测试）落地前须二选一：按文档改用 PostgreSQL 驱动，或由 Owner 修订
-   docs/02 基线改锁 MySQL；不得在未裁决时擅自替换。
+7. **数据库驱动与 docs/02 锁定不一致**（✅ 已裁决 2026-11-16，Owner：**数据库使用 MySQL**）：
+   docs/02 §2 / docs/04 §1 / docs/07 §1.2 已修订为 **MySQL 8.4 LTS**（修订记录留痕）；
+   本机 MySQL84 服务实测 8.4.6（127.0.0.1:3306），`mysql-connector-j` 由 Boot BOM 管理继续使用。
+   docs/04 的 PostgreSQL 方言按 §1 映射表落为 MySQL（DATETIME(6) 存 UTC / JSON / CHAR(36) UUID /
+   生成列模拟部分唯一索引），持久化集成测试直连本机真实 MySQL（不使用 Docker，凭据经
+   `LUMIN_TEST_DB_*` 环境变量注入、不落盘）。
 
 ### 未执行 / 不能验证项
 

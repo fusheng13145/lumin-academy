@@ -1,11 +1,18 @@
 spring:
   application:
     name: lumin-backend
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-      - org.mybatis.spring.autoconfigure.MybatisAutoConfiguration
-# U-B1（P0-B 增量一，2026-11-15）：当前模块尚无 Repository / 数据源配置（持久化集成测试
-# 按 07 §1.2 须用 Testcontainers 真实 PostgreSQL，本机 Docker daemon 未就绪）。
-# 显式排除 JDBC / MyBatis 自动配置，保证 contextLoads 冒烟测试可通过；
-# 持久化单元落地时移除本 exclude 并补 spring.datasource 配置。
+  datasource:
+    # 08 §3：凭据一律经环境变量注入（DATABASE_DSN/DATABASE_USERNAME/DATABASE_PASSWORD），
+    # 禁止写入代码或镜像；默认值仅为本地开发占位
+    url: ${DATABASE_DSN:jdbc:mysql://127.0.0.1:3306/lumin?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true}
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      # 主应用上下文加载不因数据库暂不可达而失败；真实可用性由集成测试与部署准入验证
+      initialization-fail-timeout: -1
+  mybatis:
+    configuration:
+      map-underscore-to-camel-case: true
+      arg-name-based-constructor-auto-mapping: true
+# P0-B 增量四（2026-11-16）：持久化单元落地，移除增量一时的 DataSource/MyBatis
+# 自动配置排除；生产部署须另行提供 Secret Manager 注入的 DSN（08 §3）。

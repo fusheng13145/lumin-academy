@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    # 持久化集成测试直连本机真实 MySQL（07 §1.2：不用 H2 替代事务/锁/去重验证）。
+    # 凭据经环境变量注入（LUMIN_TEST_DB_USERNAME/LUMIN_TEST_DB_PASSWORD），不落盘；
+    # 未配置时集成测试按 Assumption 诚实跳过。
+    url: jdbc:mysql://127.0.0.1:3306/lumin_test?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true
+    username: ${LUMIN_TEST_DB_USERNAME:root}
+    password: ${LUMIN_TEST_DB_PASSWORD:}
+  mybatis:
+    configuration:
+      map-underscore-to-camel-case: true
+      arg-name-based-constructor-auto-mapping: true
