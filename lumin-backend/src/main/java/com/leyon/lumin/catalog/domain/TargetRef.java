@@ -39,4 +39,9 @@ public record TargetRef(TargetType targetType, UUID workId, UUID chapterId) {
         return chapterWorkId != null && Objects.equals(workId, chapterWorkId)
                 ? ErrorCode.OK : ErrorCode.P1001;
     }
+
+    /** 目标实体 ID（04 §4：WORK → work_id；CHAPTER → chapter_id）。 */
+    public UUID targetId() {
+        return targetType == TargetType.CHAPTER ? chapterId : workId;
+    }
 }

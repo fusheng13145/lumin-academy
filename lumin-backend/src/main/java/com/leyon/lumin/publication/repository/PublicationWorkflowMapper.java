@@ -33,4 +33,13 @@ public interface PublicationWorkflowMapper {
     int updateState(@Param("id") String id, @Param("state") String state,
                     @Param("reason") String reason, @Param("operator") String operator,
                     @Param("now") java.time.LocalDateTime now);
+
+    /** 同目标未结束流程计数（03 §2.2：同目标不得有另一个未结束流程；open_slot 同口径）。 */
+    @Select("""
+            SELECT COUNT(*) FROM publication_workflow
+            WHERE target_type = #{targetType} AND target_id = #{targetId}
+              AND state IN ('SUBMITTED','AUTO_REVIEW','HUMAN_REVIEW','SUSPENDED')
+            """)
+    int countOpenByTarget(@Param("targetType") String targetType,
+                          @Param("targetId") String targetId);
 }
