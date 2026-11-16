@@ -39,4 +39,27 @@ public interface OutboxEventMapper {
     int markDelivered(@Param("id") String id,
                       @Param("deliveredAt") java.time.LocalDateTime deliveredAt,
                       @Param("operator") String operator);
+
+    /** 待投递事件（未投递且到达下次尝试时间），按创建顺序批量扫描（03 §4.3）。 */
+    @Select("""
+            SELECT * FROM outbox_event
+            WHERE delivered_at IS NULL
+              AND (next_attempt_at IS NULL OR next_attempt_at <= #{now})
+            ORDER BY created_at, id
+            LIMIT #{limit}
+            """)
+    java.util.List<OutboxEventRow> selectPending(@Param("now") java.time.LocalDateTime now,
+                                                 @Param("limit") int limit);
+
+    /** 失败退避：attempts+1 并记下次尝试时间（1/5/30/60s，03 §4.3）；事件不删除。 */
+    @Update("""
+            UPDATE outbox_event SET attempts = #{attempts},
+                next_attempt_at = #{nextAttemptAt}, updated_at = #{now},
+                updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id} AND delivered_at IS NULL
+            """)
+    int recordFailure(@Param("id") String id, @Param("attempts") int attempts,
+                      @Param("nextAttemptAt") java.time.LocalDateTime nextAttemptAt,
+                      @Param("now") java.time.LocalDateTime now,
+                      @Param("operator") String operator);
 }

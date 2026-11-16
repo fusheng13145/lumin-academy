@@ -59,6 +59,22 @@ public class DraftLifecycleService {
         return toSnapshot(row);
     }
 
+    /** 跨模块可见的版本材料摘要（不泄漏 repository 行类型）；缺失返回 null。 */
+    public record MaterialRef(String versionId, String workId, String chapterId,
+                              String targetType, String materialSha256, Long policyVersion) {
+    }
+
+    /** 版本材料核验数据（消费事件核验 materialSha256/policyVersion 绑定，05 §4.3）。 */
+    public MaterialRef findVersionMaterial(String versionId) {
+        ContentVersionRow row = versionId == null ? null
+                : contentVersionMapper.findById(versionId);
+        if (row == null) {
+            return null;
+        }
+        return new MaterialRef(row.id(), row.workId(), row.chapterId(), row.targetType(),
+                row.materialSha256(), row.policyVersion());
+    }
+
     /**
      * 提交事务段：FOR UPDATE 锁行重校验 → 插入不可变版本（含材料快照与摘要，
      * 03 §4.1 第 8 段）→ draft=SUBMITTED（乐观锁兜底并发）。

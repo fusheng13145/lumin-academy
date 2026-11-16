@@ -42,4 +42,14 @@ public interface PublicationWorkflowMapper {
             """)
     int countOpenByTarget(@Param("targetType") String targetType,
                           @Param("targetId") String targetId);
+
+    /** 建案后回填案件关联并推进状态（状态机裁决由服务层先行，03 §2.3 AUTO_TASK_CLAIMED）。 */
+    @Update("""
+            UPDATE publication_workflow SET state = #{state}, case_id = #{caseId},
+                updated_at = #{now}, updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id}
+            """)
+    int updateStateAndCase(@Param("id") String id, @Param("state") String state,
+                           @Param("caseId") String caseId, @Param("operator") String operator,
+                           @Param("now") java.time.LocalDateTime now);
 }

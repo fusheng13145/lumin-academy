@@ -6,6 +6,8 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/lumin_test?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true
     username: ${LUMIN_TEST_DB_USERNAME:root}
     password: ${LUMIN_TEST_DB_PASSWORD:}
+  outbox:
+    enabled: false
   mybatis:
     configuration:
       map-underscore-to-camel-case: true

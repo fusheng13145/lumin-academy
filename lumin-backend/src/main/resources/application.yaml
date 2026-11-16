@@ -10,6 +10,9 @@ spring:
     hikari:
       # 主应用上下文加载不因数据库暂不可达而失败；真实可用性由集成测试与部署准入验证
       initialization-fail-timeout: -1
+  outbox:
+    enabled: true
+    interval-ms: 1000
   mybatis:
     configuration:
       map-underscore-to-camel-case: true
