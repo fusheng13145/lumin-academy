@@ -1,4 +1,4 @@
-package com.leyon.lumin.foundation.repository;
+package com.leyon.lumin.foundation.event;
 
 import java.time.LocalDateTime;
 

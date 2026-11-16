@@ -24,6 +24,10 @@ public interface PublicationWorkflowMapper {
     @Select("SELECT * FROM publication_workflow WHERE id = #{id}")
     PublicationWorkflowRow findById(@Param("id") String id);
 
+    /** 发布事务锁行（03 §4.2：锁目标与 workflow 行）。 */
+    @Select("SELECT * FROM publication_workflow WHERE id = #{id} FOR UPDATE")
+    PublicationWorkflowRow findByIdForUpdate(@Param("id") String id);
+
     /** 状态 + 挂起原因一并更新（SUSPENDED⇔原因一致性由 CHECK 兜底）。 */
     @Update("""
             UPDATE publication_workflow SET state = #{state}, suspended_reason = #{reason},

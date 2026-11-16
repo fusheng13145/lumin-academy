@@ -6,9 +6,12 @@ import com.leyon.lumin.authoring.repository.ContentVersionRow;
 import com.leyon.lumin.authoring.repository.DraftMapper;
 import com.leyon.lumin.authoring.repository.DraftRow;
 
+import com.leyon.lumin.catalog.service.WorkService;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
+import com.leyon.lumin.foundation.port.ContentMaterialPort;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.values.TargetType;
+import com.leyon.lumin.identity.service.ProfileService;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -40,13 +43,18 @@ public class DraftLifecycleService {
 
     private final DraftMapper draftMapper;
     private final ContentVersionMapper contentVersionMapper;
+    private final WorkService workService;
+    private final ProfileService profileService;
     private final ObjectMapper objectMapper;
 
     public DraftLifecycleService(DraftMapper draftMapper,
                                  ContentVersionMapper contentVersionMapper,
+                                 WorkService workService, ProfileService profileService,
                                  ObjectMapper objectMapper) {
         this.draftMapper = draftMapper;
         this.contentVersionMapper = contentVersionMapper;
+        this.workService = workService;
+        this.profileService = profileService;
         this.objectMapper = objectMapper;
     }
 
@@ -59,20 +67,27 @@ public class DraftLifecycleService {
         return toSnapshot(row);
     }
 
-    /** 跨模块可见的版本材料摘要（不泄漏 repository 行类型）；缺失返回 null。 */
-    public record MaterialRef(String versionId, String workId, String chapterId,
-                              String targetType, String materialSha256, Long policyVersion) {
+
+
+    /** 版本状态机字段迁移（APPROVED/REJECTED + grade），由调用方经状态机裁决后调用。 */
+    public void transitionVersionState(String versionId, String state, String grade,
+                                       String operator, LocalDateTime now) {
+        contentVersionMapper.transitionState(versionId, state, grade, operator, now);
     }
 
-    /** 版本材料核验数据（消费事件核验 materialSha256/policyVersion 绑定，05 §4.3）。 */
-    public MaterialRef findVersionMaterial(String versionId) {
+    /** 版本材料核验数据（消费事件核验 materialSha256/policyVersion 绑定，05 §4.3）；
+     *  authorAgeBand 取权威源数据链 version→work→author→profile（不由报告携带）。 */
+    public ContentMaterialPort.MaterialRef findVersionMaterial(String versionId) {
         ContentVersionRow row = versionId == null ? null
                 : contentVersionMapper.findById(versionId);
         if (row == null) {
             return null;
         }
-        return new MaterialRef(row.id(), row.workId(), row.chapterId(), row.targetType(),
-                row.materialSha256(), row.policyVersion());
+        WorkService.WorkSummary work = workService.getWorkSummary(row.workId());
+        String authorAgeBand = work == null ? null
+                : profileService.requireProfile(work.authorId()).effectiveAgeBand();
+        return new ContentMaterialPort.MaterialRef(row.id(), row.workId(), row.chapterId(), row.targetType(),
+                row.materialSha256(), row.policyVersion(), authorAgeBand);
     }
 
     /**

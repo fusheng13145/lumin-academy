@@ -1,7 +1,6 @@
 package com.leyon.lumin.foundation.event;
 
 import com.leyon.lumin.foundation.repository.OutboxEventMapper;
-import com.leyon.lumin.foundation.repository.OutboxEventRow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

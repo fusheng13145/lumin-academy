@@ -1,14 +1,12 @@
 package com.leyon.lumin.publication.event;
 
-import com.leyon.lumin.authoring.service.DraftLifecycleService;
-import com.leyon.lumin.authoring.service.DraftLifecycleService.MaterialRef;
+import com.leyon.lumin.foundation.port.ContentMaterialPort;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
 import com.leyon.lumin.foundation.event.DomainEventSubscriber;
 import com.leyon.lumin.foundation.port.ReviewCasePort;
-import com.leyon.lumin.foundation.repository.InboxReceiptMapper;
-import com.leyon.lumin.foundation.repository.InboxReceiptRow;
+import com.leyon.lumin.foundation.event.InboxRecorder;
 import com.leyon.lumin.foundation.values.PublicationEvent;
 import com.leyon.lumin.foundation.values.TargetType;
 import com.leyon.lumin.foundation.values.WorkflowState;
@@ -45,22 +43,22 @@ public class PublicationSubmissionConsumer implements DomainEventSubscriber {
     private static final String CONSUMER_NAME = "publication-workflow-init";
 
     private final PublicationWorkflowMapper workflowMapper;
-    private final DraftLifecycleService draftLifecycleService;
+    private final ContentMaterialPort contentMaterialPort;
     private final ReviewCasePort reviewCasePort;
-    private final InboxReceiptMapper inboxReceiptMapper;
+    private final InboxRecorder inboxRecorder;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
 
     public PublicationSubmissionConsumer(PublicationWorkflowMapper workflowMapper,
-                                         DraftLifecycleService draftLifecycleService,
+                                         ContentMaterialPort contentMaterialPort,
                                          ReviewCasePort reviewCasePort,
-                                         InboxReceiptMapper inboxReceiptMapper,
+                                         InboxRecorder inboxRecorder,
                                          AuditRecorder auditRecorder,
                                          ObjectMapper objectMapper) {
         this.workflowMapper = workflowMapper;
-        this.draftLifecycleService = draftLifecycleService;
+        this.contentMaterialPort = contentMaterialPort;
         this.reviewCasePort = reviewCasePort;
-        this.inboxReceiptMapper = inboxReceiptMapper;
+        this.inboxRecorder = inboxRecorder;
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
     }
@@ -81,8 +79,7 @@ public class PublicationSubmissionConsumer implements DomainEventSubscriber {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         // 03 §4.3：消费者事务内写收据；重复投递经唯一约束去重，不重复执行领域动作
         try {
-            inboxReceiptMapper.insert(new InboxReceiptRow(CONSUMER_NAME,
-                    eventId.toString(), now));
+            inboxRecorder.record(CONSUMER_NAME, eventId.toString(), now);
         } catch (DuplicateKeyException e) {
             return;
         }
@@ -94,7 +91,7 @@ public class PublicationSubmissionConsumer implements DomainEventSubscriber {
 
         // N1 核验（05 §4.3：服务核验 versionId/workflowId/policyVersion/materialSha256 全部一致）
         PublicationWorkflowRow workflow = workflowMapper.findById(workflowId);
-        MaterialRef version = draftLifecycleService.findVersionMaterial(versionId);
+        ContentMaterialPort.MaterialRef version = contentMaterialPort.findVersionMaterial(versionId);
         boolean consistent = workflow != null
                 && WorkflowState.SUBMITTED.name().equals(workflow.state())
                 && version != null

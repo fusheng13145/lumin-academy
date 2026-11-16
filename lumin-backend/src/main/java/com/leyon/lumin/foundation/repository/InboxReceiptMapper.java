@@ -1,5 +1,6 @@
 package com.leyon.lumin.foundation.repository;
 
+import com.leyon.lumin.foundation.event.InboxReceiptRow;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

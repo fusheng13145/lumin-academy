@@ -8,8 +8,8 @@ import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
 
-import com.leyon.lumin.foundation.repository.OutboxEventMapper;
-import com.leyon.lumin.foundation.repository.OutboxEventRow;
+import com.leyon.lumin.foundation.event.OutboxAppender;
+import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.foundation.storage.ContentObjectStore;
 import com.leyon.lumin.foundation.values.AgeBand;
 import com.leyon.lumin.foundation.values.CopyrightStatus;
@@ -53,7 +53,7 @@ public class DraftSubmissionService {
     private final WorkService workService;
     private final ProfileService profileService;
     private final PublicationWorkflowMapper workflowMapper;
-    private final OutboxEventMapper outboxMapper;
+    private final OutboxAppender outboxAppender;
     private final AuditRecorder auditRecorder;
     private final ContentObjectStore objectStore;
     private final tools.jackson.databind.ObjectMapper objectMapper;
@@ -62,7 +62,7 @@ public class DraftSubmissionService {
     public DraftSubmissionService(DraftLifecycleService draftLifecycleService,
                                   WorkService workService, ProfileService profileService,
                                   PublicationWorkflowMapper workflowMapper,
-                                  OutboxEventMapper outboxMapper, AuditRecorder auditRecorder,
+                                  OutboxAppender outboxAppender, AuditRecorder auditRecorder,
                                   ContentObjectStore objectStore,
                                   tools.jackson.databind.ObjectMapper objectMapper,
                                   PlatformTransactionManager transactionManager) {
@@ -70,7 +70,7 @@ public class DraftSubmissionService {
         this.workService = workService;
         this.profileService = profileService;
         this.workflowMapper = workflowMapper;
-        this.outboxMapper = outboxMapper;
+        this.outboxAppender = outboxAppender;
         this.auditRecorder = auditRecorder;
         this.objectStore = objectStore;
         this.objectMapper = objectMapper;
@@ -122,7 +122,7 @@ public class DraftSubmissionService {
             workflowMapper.insert(new PublicationWorkflowRow(workflowId, versionId,
                     target.targetType().name(), target.targetId().toString(), "SUBMITTED",
                     SKELETON_POLICY_VERSION, null, null, now, now, subject, subject, 1L));
-            outboxMapper.insert(new OutboxEventRow(UUID.randomUUID().toString(),
+            outboxAppender.append(new OutboxEventRow(UUID.randomUUID().toString(),
                     UUID.randomUUID().toString(), "content_version", versionId, 1L,
                     "CONTENT_SUBMITTED_V1", 1, contentSubmittedPayload(versionId, target,
                     workflowId, profile.effectiveAgeBand(), persisted.materialSha256()),

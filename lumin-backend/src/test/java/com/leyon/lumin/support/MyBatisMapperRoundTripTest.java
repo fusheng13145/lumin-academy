@@ -7,7 +7,7 @@ import com.leyon.lumin.authoring.repository.DraftRow;
 import com.leyon.lumin.foundation.repository.IdempotencyRecordMapper;
 import com.leyon.lumin.foundation.repository.IdempotencyRow;
 import com.leyon.lumin.foundation.repository.OutboxEventMapper;
-import com.leyon.lumin.foundation.repository.OutboxEventRow;
+import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.publication.repository.PublicationPointerMapper;
 import com.leyon.lumin.publication.repository.PublicationPointerRow;
 import com.leyon.lumin.publication.repository.PublicationWorkflowMapper;

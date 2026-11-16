@@ -53,6 +53,13 @@ public class WorkService {
                 row.businessState(), row.lockVersion());
     }
 
+    /** 无归属校验的摘要读取（authoring 组装版本核验数据用；缺失返回 null）。 */
+    public WorkSummary getWorkSummary(String workId) {
+        WorkRow row = workId == null ? null : workMapper.findById(workId);
+        return row == null ? null : new WorkSummary(row.id(), row.authorId(),
+                row.copyrightStatus(), row.businessState(), row.lockVersion());
+    }
+
     /**
      * 新增章节（05 §3.2 createChapter）：If-Match 匹配作品 lock_version，原子取号；
      * 完结/下架/终止作品禁止新章（B2001），并发取号由乐观锁 + U(work_id,sequence_no) 兜底。

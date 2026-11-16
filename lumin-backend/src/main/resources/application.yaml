@@ -19,3 +19,14 @@ spring:
       arg-name-based-constructor-auto-mapping: true
 # P0-B 增量四（2026-11-16）：持久化单元落地，移除增量一时的 DataSource/MyBatis
 # 自动配置排除；生产部署须另行提供 Secret Manager 注入的 DSN（08 §3）。
+
+lumin:
+  outbox:
+    enabled: true
+    interval-ms: 1000
+  review:
+    # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
+    calibration-valid: false
+    sample-seed: ${LUMIN_REVIEW_SAMPLE_SEED:lumin-review-seed-dev}
+  storage:
+    dir: ${LUMIN_STORAGE_DIR:${user.home}/.lumin-storage}
