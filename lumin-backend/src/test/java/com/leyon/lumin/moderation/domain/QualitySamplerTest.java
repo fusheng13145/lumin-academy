@@ -1,5 +1,6 @@
 package com.leyon.lumin.moderation.domain;
 
+import com.leyon.lumin.foundation.StableBuckets;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
@@ -43,7 +44,7 @@ class QualitySamplerTest {
         Set<Integer> buckets = new HashSet<>();
         for (long i = 0; i < 500; i++) {
             int bucket = QualitySampler.bucket(SEED, caseId(i));
-            assertTrue(bucket >= 0 && bucket < QualitySampler.TOTAL_BUCKETS,
+            assertTrue(bucket >= 0 && bucket < StableBuckets.TOTAL_BUCKETS,
                     "bucket 越界: " + bucket);
             buckets.add(bucket);
         }
