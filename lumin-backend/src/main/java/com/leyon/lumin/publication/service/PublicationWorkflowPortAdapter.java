@@ -5,6 +5,7 @@ import com.leyon.lumin.foundation.port.ContentMaterialPort;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.port.NotificationPort;
 import com.leyon.lumin.foundation.port.PublicationWorkflowPort;
 import com.leyon.lumin.foundation.event.OutboxAppender;
 import com.leyon.lumin.foundation.event.OutboxEventRow;
@@ -46,6 +47,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
     private final ContentMaterialPort contentMaterialPort;
     private final OutboxAppender outboxAppender;
     private final AuditRecorder auditRecorder;
+    private final NotificationPort notificationPort;
     private final ObjectMapper objectMapper;
 
     public PublicationWorkflowPortAdapter(PublicationWorkflowMapper workflowMapper,
@@ -55,6 +57,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
                                   ContentMaterialPort contentMaterialPort,
                                           OutboxAppender outboxAppender,
                                           AuditRecorder auditRecorder,
+                                          NotificationPort notificationPort,
                                           ObjectMapper objectMapper) {
         this.workflowMapper = workflowMapper;
         this.pointerMapper = pointerMapper;
@@ -63,6 +66,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         this.contentMaterialPort = contentMaterialPort;
         this.outboxAppender = outboxAppender;
         this.auditRecorder = auditRecorder;
+        this.notificationPort = notificationPort;
         this.objectMapper = objectMapper;
     }
 
@@ -101,6 +105,8 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
                 workService.markFirstVersionPublished(version.workId(), "system", now);
             }
         }
+        // N6 通知：模板确定文案，不让模型自述成功（03 §5.1 N6 / 02 §5.2 NotificationCreated）
+        notifyAuthor(workflow, versionId, transition.toState().name(), now);
         auditRecorder.record(new AuditRecorder.AuditEntry("system", "SYSTEM",
                 "workflow.auto_decision", "publication_workflow", workflowId,
                 "机审自动裁决：" + event.name(), traceId(), now.toInstant(ZoneOffset.UTC)));
@@ -177,6 +183,22 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
                 "CONTENT_PUBLISHED_V1", 1, contentPublishedPayload(targetType, targetId,
                 workId, versionId, previousVersionId, isNewChapter, now),
                 now, null, 0, null, now, now, "system", "system", 1L));
+    }
+
+    /** N6 通知（终局事实触达作者）：收件人经作品权威记录读取（INV-07）。 */
+    private void notifyAuthor(PublicationWorkflowRow workflow, String versionId,
+                              String workflowState, LocalDateTime now) {
+        WorkService.WorkSummary work =
+                workService.getWorkSummary(workflow.targetId());
+        if (work == null) {
+            return;
+        }
+        boolean approved = "APPROVED".equals(workflowState);
+        notificationPort.create(new NotificationPort.NotificationRequest(
+                work.authorId(), "REVIEW_RESULT", versionId,
+                approved ? "内容审核通过" : "内容审核未通过",
+                approved ? "您提交的内容已通过审核并发布" : "您提交的内容未通过审核，请查看驳回原因",
+                workflow.targetType(), workflow.targetId()));
     }
 
     private String contentPublishedPayload(String targetType, String targetId, String workId,

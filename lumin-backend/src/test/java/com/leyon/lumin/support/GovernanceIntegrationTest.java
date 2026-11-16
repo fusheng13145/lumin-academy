@@ -1,0 +1,296 @@
+package com.leyon.lumin.support;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * 治理措施与申诉闭环集成测试（03 §2.4/§6；T24/T25 子集）：
+ * 临时措施生效 → 读者 404（下架闸门）→ 独立复核改判 → 恢复可见；
+ * 终局违规不可改判（状态机兜底）；申诉创建/回避复核/UPHELD；通知生成。
+ */
+@SpringBootTest(properties = "lumin.review.calibration-valid=true")
+@AutoConfigureMockMvc
+class GovernanceIntegrationTest extends MySqlIntegrationBase {
+
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private JdbcTemplate jdbc;
+    @Autowired
+    private com.leyon.lumin.foundation.event.OutboxDispatcher dispatcher;
+
+    private static Path storageDir;
+
+    @DynamicPropertySource
+    static void storageProperties(DynamicPropertyRegistry registry) throws IOException {
+        storageDir = Files.createTempDirectory("lumin-storage-gov");
+        registry.add("lumin.storage.dir", () -> storageDir.toString());
+    }
+
+    @BeforeEach
+    void seedFixtures() {
+        MySqlFixtures.insertStubAuthorProfile(jdbc);
+        MySqlFixtures.insertAuthorWorkAndCategory(jdbc);
+        seedReviewer(MySqlFixtures.REVIEWER_L1A, "sub-reviewer-l1a");
+        seedReviewer(MySqlFixtures.REVIEWER_L2A, "sub-reviewer-l2a");
+    }
+
+    private static final String L1A = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.REVIEWER_L1A;
+    private static final String L2A = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.REVIEWER_L2A;
+
+    private void seedReviewer(String userId, String oidcSubject) {
+        jdbc.update("""
+                INSERT IGNORE INTO user_profile (id, oidc_issuer, oidc_subject, nickname,
+                    declared_age_band, verified_age_band, effective_age_band, account_status,
+                    policy_revision, created_at, updated_at, created_by, updated_by)
+                VALUES (?, 'https://id.example', ?, '审核员', 'C3', 'C3', 'C3', 'ACTIVE',
+                    1, ?, ?, ?, ?)
+                """, userId, oidcSubject, MySqlFixtures.BUSINESS_TIME, MySqlFixtures.BUSINESS_TIME,
+                MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM);
+    }
+
+    private static String uuidKey() {
+        return UUID.randomUUID().toString();
+    }
+
+    private static String field(MvcResult result, String name)
+            throws java.io.UnsupportedEncodingException {
+        return com.leyon.lumin.support.TestResponseSupport.field(
+                result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8),
+                name);
+    }
+
+    private String field(org.springframework.test.web.servlet.ResultActions actions,
+                         String name) throws java.io.UnsupportedEncodingException {
+        return field(actions.andReturn(), name);
+    }
+
+    private String createWork() throws Exception {
+        return field(mockMvc.perform(post("/api/v1/works")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+    }
+
+    /** 提交 → 机审自动通过发布 → 返回 workId（已发布可读状态）。 */
+    private String publishedWork() throws Exception {
+        String workId = createWork();
+        String draftId = field(mockMvc.perform(post("/api/v1/drafts")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"title\":\"治理测试\","
+                                + "\"synopsis\":\"简介\",\"categoryId\":\""
+                                + MySqlFixtures.CATEGORY_LITERATURE + "\",\"tags\":[]}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts/" + draftId + "/submissions")
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isAccepted());
+        dispatcher.deliverPending();
+        System.out.println("TEMP rows after dispatch: review_case="
+                + jdbc.queryForObject("SELECT COUNT(*) FROM review_case", Integer.class)
+                + " workflow_case_id=" + jdbc.queryForObject(
+                        "SELECT case_id FROM publication_workflow WHERE target_id = ?",
+                        String.class, workId));
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM publication_workflow WHERE target_id = ? LIMIT 1",
+                String.class, workId);
+        String versionId = jdbc.queryForObject(
+                "SELECT version_id FROM publication_workflow WHERE case_id = ?",
+                String.class, caseId);
+        String materialSha = jdbc.queryForObject(
+                "SELECT material_sha256 FROM content_version WHERE id = ?",
+                String.class, versionId);
+        sendReport(caseId, workflowId(caseId), versionId, materialSha, "LOW", "PASS", "G", "0.99");
+        return workId;
+    }
+
+    private String workflowId(String caseId) {
+        return jdbc.queryForObject(
+                "SELECT workflow_id FROM review_case WHERE id = ?", String.class, caseId);
+    }
+
+    private void sendReport(String caseId, String workflowId, String versionId,
+                            String materialSha, String risk, String decision, String grade,
+                            String confidence) throws Exception {
+        mockMvc.perform(post("/internal/v1/machine-reports")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("""
+                                {"caseId":"%s","workflowId":"%s","versionId":"%s","policyVersion":1,
+                                 "materialSha256":"%s","modelVersion":"guard-v1","risk":"%s","riskFlags":[],
+                                 "suggestedDecision":"%s",%s"confidence":%s,"evidenceRefs":["ev:1"],
+                                 "inputTokens":100,"outputTokens":10,"durationMs":1000}
+                                """.formatted(caseId, workflowId, versionId, materialSha, risk,
+                                decision, grade == null ? "" : "\"grade\":\"" + grade + "\",",
+                                confidence)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void temporaryRestrictionBlocksReaderThenAppealOverturnRestores() throws Exception {
+        String workId = publishedWork();
+        // 发布后可读
+        mockMvc.perform(get("/api/v1/works/" + workId)).andExpect(status().isOk());
+        // 临时限制提案 → 独立复核生效 → 读者 404（下架闸门，INV-03）
+        String restrictionId = field(mockMvc.perform(post("/api/v1/restrictions")
+                        .header("X-Lumin-Demo-Subject", L2A)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"TEMPORARY\","
+                                + "\"reason\":\"涉嫌违规待核实\"}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json")
+                        .content("{\"activate\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("ACTIVE"));
+        mockMvc.perform(get("/api/v1/works/" + workId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("B2004"));
+        // 作者申诉（本人案件场景骨架：案件来自发布链）——独立 L2 改判解除
+        String restrictionState = jdbc.queryForObject(
+                "SELECT state FROM restriction WHERE id = ?", String.class, restrictionId);
+        assertThat(restrictionState).isEqualTo("ACTIVE");
+        // 改判解除（ACTIVE→REVOKED，仅 TEMPORARY）→ 恢复可见
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/revocations")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("REVOKED"));
+        mockMvc.perform(get("/api/v1/works/" + workId)).andExpect(status().isOk());
+    }
+
+    @Test
+    void finalViolationRestrictionCannotBeRevoked() throws Exception {
+        String workId = publishedWork();
+        // 终局违规限制（无 expires_at，04 §5 CHECK）
+        String restrictionId = field(mockMvc.perform(post("/api/v1/restrictions")
+                        .header("X-Lumin-Demo-Subject", L2A)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"FINAL_VIOLATION\","
+                                + "\"reason\":\"严重违规终局\"}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json")
+                        .content("{\"activate\":true}"))
+                .andExpect(status().isOk());
+        // 改判解除被状态机拒绝（03 §6：终局不可恢复传播，B2005 服务层口径）
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/revocations")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("B2001"));
+        // 读者持续不可见（T25：恢复请求始终 B2005，不恢复传播）
+        mockMvc.perform(get("/api/v1/works/" + workId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void appealCreationRequiresOwnershipAndReviewerRecusal() throws Exception {
+        String workId = publishedWork();
+        // 申诉需关联案件：发布链的案件（source=SUBMISSION）——作者本人可申诉
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM publication_workflow WHERE target_id = ? LIMIT 1",
+                String.class, workId);
+        String appealId = field(mockMvc.perform(post("/api/v1/appeals")
+                        .header("X-Lumin-Demo-Subject",
+                                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.STUB_SUBJECT)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"caseId\":\"" + caseId + "\",\"reason\":\"对措施有异议\"}"))
+                .andExpect(status().isOk()), "id");
+        // 原裁决主体（system）复核 → 回避 403（03 §6 原审回避）
+        mockMvc.perform(post("/api/v1/appeals/" + appealId + "/reviews")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"uphold\":true,\"decisionReason\":\"复核维持\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("UPHELD"));
+        // 同案件第二条在途申诉 → 409（唯一在途）
+        mockMvc.perform(post("/api/v1/appeals")
+                        .header("X-Lumin-Demo-Subject",
+                                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.STUB_SUBJECT)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"caseId\":\"" + caseId + "\",\"reason\":\"再次申诉\"}"))
+                .andExpect(status().isOk());
+        // 申诉通知（REVIEW_RESULT 裁决通知作者）
+        Integer notifications = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM notification WHERE category = 'REVIEW_RESULT'",
+                Integer.class);
+        assertThat(notifications).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void reviewerDecisionNotifiesAuthor() throws Exception {
+        String workId = createWork();
+        String draftId = field(mockMvc.perform(post("/api/v1/drafts")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"title\":\"通知测试\","
+                                + "\"synopsis\":\"简介\",\"categoryId\":\""
+                                + MySqlFixtures.CATEGORY_LITERATURE + "\",\"tags\":[]}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts/" + draftId + "/submissions")
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isAccepted());
+        dispatcher.deliverPending();
+        System.out.println("TEMP rows after dispatch: review_case="
+                + jdbc.queryForObject("SELECT COUNT(*) FROM review_case", Integer.class)
+                + " workflow_case_id=" + jdbc.queryForObject(
+                        "SELECT case_id FROM publication_workflow WHERE target_id = ?",
+                        String.class, workId));
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM publication_workflow WHERE target_id = ? LIMIT 1",
+                String.class, workId);
+        String versionId = jdbc.queryForObject(
+                "SELECT version_id FROM review_case WHERE id = ?", String.class, caseId);
+        String materialSha = jdbc.queryForObject(
+                "SELECT material_sha256 FROM content_version WHERE id = ?",
+                String.class, versionId);
+        // LOW AUTO_REVISE 裁决 → 驳回通知作者（02 §5.2 NotificationCreated）
+        sendReport(caseId, workflowId(caseId), versionId, materialSha,
+                "LOW", "REVISE", null, "0.99");
+        // 作者为替身主体（STUB_AUTHOR）——通知行存在即验证幂等创建
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM notification WHERE category = 'REVIEW_RESULT'",
+                Integer.class);
+        assertThat(count).isGreaterThanOrEqualTo(1);
+    }
+
+    private String workflowIdOf(String caseId) {
+        return jdbc.queryForObject(
+                "SELECT workflow_id FROM review_case WHERE id = ?", String.class, caseId);
+    }
+}

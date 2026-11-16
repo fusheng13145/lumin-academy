@@ -5,6 +5,7 @@ import com.leyon.lumin.authoring.service.DraftLifecycleService.PublishedVersionR
 import com.leyon.lumin.catalog.service.WorkService;
 import com.leyon.lumin.catalog.service.WorkService.WorkSummary;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
+import com.leyon.lumin.foundation.port.ActiveRestrictionsPort;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.storage.ContentObjectStore;
 import com.leyon.lumin.foundation.values.AccountStatus;
@@ -45,18 +46,21 @@ public class ReaderService {
     private final WorkService workService;
     private final ProfileService profileService;
     private final com.leyon.lumin.foundation.storage.ContentObjectStore objectStore;
+    private final com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort;
 
     public ReaderService(PublicationPointerMapper pointerMapper,
                          PublicationWorkflowMapper workflowMapper,
                          DraftLifecycleService draftLifecycleService, WorkService workService,
                          ProfileService profileService,
-                         com.leyon.lumin.foundation.storage.ContentObjectStore objectStore) {
+                         com.leyon.lumin.foundation.storage.ContentObjectStore objectStore,
+                         com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort) {
         this.pointerMapper = pointerMapper;
         this.workflowMapper = workflowMapper;
         this.draftLifecycleService = draftLifecycleService;
         this.workService = workService;
         this.profileService = profileService;
         this.objectStore = objectStore;
+        this.activeRestrictionsPort = activeRestrictionsPort;
     }
 
     /** 读者可见的作品详情（05 §3.4 getWork：最新公开元数据，未授权统一 404）。 */
@@ -130,7 +134,8 @@ public class ReaderService {
                         .valueOf(work.businessState()),
                 work == null ? null : com.leyon.lumin.foundation.values.BusinessState
                         .valueOf(work.businessState()),
-                Set.of(), // 生效治理限制：restriction 表随 governance V2 迁移落地
+                activeRestrictionsPort.activeKinds(targetType.name(), version.workId(),
+                        version.chapterId()), // 生效治理限制（governance 端口，INV-03）
                 version.versionId(), VersionState.valueOf(version.state()),
                 version.grade() == null ? null : Grade.valueOf(version.grade()),
                 workflow == null ? null : workflow.id(),
