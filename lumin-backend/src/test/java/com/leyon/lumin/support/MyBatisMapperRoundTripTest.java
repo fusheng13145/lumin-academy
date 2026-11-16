@@ -1,17 +1,17 @@
 package com.leyon.lumin.support;
 
-import com.leyon.lumin.authoring.persistence.ContentVersionMapper;
-import com.leyon.lumin.authoring.persistence.ContentVersionRow;
-import com.leyon.lumin.authoring.persistence.DraftMapper;
-import com.leyon.lumin.authoring.persistence.DraftRow;
-import com.leyon.lumin.foundation.persistence.IdempotencyRecordMapper;
-import com.leyon.lumin.foundation.persistence.IdempotencyRow;
-import com.leyon.lumin.foundation.persistence.OutboxEventMapper;
-import com.leyon.lumin.foundation.persistence.OutboxEventRow;
-import com.leyon.lumin.publication.persistence.PublicationPointerMapper;
-import com.leyon.lumin.publication.persistence.PublicationPointerRow;
-import com.leyon.lumin.publication.persistence.PublicationWorkflowMapper;
-import com.leyon.lumin.publication.persistence.PublicationWorkflowRow;
+import com.leyon.lumin.authoring.repository.ContentVersionMapper;
+import com.leyon.lumin.authoring.repository.ContentVersionRow;
+import com.leyon.lumin.authoring.repository.DraftMapper;
+import com.leyon.lumin.authoring.repository.DraftRow;
+import com.leyon.lumin.foundation.repository.IdempotencyRecordMapper;
+import com.leyon.lumin.foundation.repository.IdempotencyRow;
+import com.leyon.lumin.foundation.repository.OutboxEventMapper;
+import com.leyon.lumin.foundation.repository.OutboxEventRow;
+import com.leyon.lumin.publication.repository.PublicationPointerMapper;
+import com.leyon.lumin.publication.repository.PublicationPointerRow;
+import com.leyon.lumin.publication.repository.PublicationWorkflowMapper;
+import com.leyon.lumin.publication.repository.PublicationWorkflowRow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +86,8 @@ class MyBatisMapperRoundTripTest extends MySqlIntegrationBase {
         DraftRow row = new DraftRow(id, MySqlFixtures.WORK_W, null, "WORK", null,
                 "启明", "简介文本", MySqlFixtures.CATEGORY_LITERATURE, "[\"奇幻\"]",
                 null, null, "EDITABLE", MySqlFixtures.BUSINESS_TIME,
-                MySqlFixtures.BUSINESS_TIME, MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM, 1L);
+                MySqlFixtures.BUSINESS_TIME, MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM, 1L,
+                null);
         assertEquals(1, draftMapper.insert(row));
         DraftRow loaded = draftMapper.findById(id);
         assertEquals("启明", loaded.title());

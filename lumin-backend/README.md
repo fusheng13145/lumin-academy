@@ -1,12 +1,14 @@
 # lumin-backend · 启明书院后端
 
-> **本模块 = Spring Boot Web 应用 + P0-A 纯 Java 21 领域内核（同一 Maven 模块、同一根包 `com.leyon.lumin`）。**
-> 启动类 `com.leyon.lumin.LuminBackendApplication` 负责 Web 运行时；
-> `com.leyon.lumin.*` 下的 `foundation / identity / publication / billing_reserved` 仍然是
-> **纯 Java 领域层**：不可变 `record` + 显式枚举白名单 + 表驱动状态机，全部入口为 `public static`
-> 纯函数，时间一律由 `Clock` 注入。领域包**不依赖 Spring 上下文、DI、数据库、消息中间件、HTTP 服务器**，
-> 也不含 Controller / Service / Repository 实现、外部供应商 SDK。
-> 领域包零 Spring 依赖这一点在 `-Pcoverage` 与架构测试里可复核（依赖无环单测只扫 `com.leyon.lumin.*`）。
+> **本模块 = Spring Boot Web 应用 + Java 21 分层后端（同一 Maven 模块、同一根包 `com.leyon.lumin`）。**
+> **分层（2026-11-17 重构，对齐 02 §3.1/§4 与项目基线 §3.2）**：每个业务模块按
+> `api`（接入层 Controller+DTO）→ `service`（应用服务，事务边界）→ `repository`（数据访问，
+> 唯一 DB 出口）→ `domain`（领域模型与纯函数）组织；`event/config` 层随治理与事件批次落地。
+> `foundation` 为共享内核：`values/event/idempotency/cursor` 与各模块 `domain` 包保持
+> **零 Spring 依赖**（不可变 `record` + 显式枚举白名单 + 表驱动状态机，入口 `public static` 纯函数，
+> 时间由 `Clock` 注入）；`foundation/web` 与 `foundation/repository` 为基础设施适配
+> （统一信封、全局异常、TraceId、骨架认证过滤器、Mapper），属 Spring 技术层。
+> 领域包零 Spring 依赖这一点在架构测试里可复核（依赖无环单测只扫 `com.leyon.lumin.*` 模块边）。
 
 ## 离线命令
 
@@ -52,19 +54,15 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 
 | 路径 / 包 | 内容 |
 | --- | --- |
-| `src/main/java/com/leyon/lumin/LuminBackendApplication.java` | Spring Boot 启动类（根包；后续 Controller / Service / Repository / Config 放于此根包下，如 `com.leyon.lumin.api`） |
-| `src/main/java/com/leyon/lumin/foundation` | 错误码枚举、业务时间、服务主体常量 |
-| `src/main/java/com/leyon/lumin/foundation/values` | 共享枚举白名单（无业务判定、零出边到业务域） |
-| `src/main/java/com/leyon/lumin/foundation/event` | `EventEnvelope` 事件信封建模与校验、乱序拒绝（02 §5.2 / 03 §4.3） |
-| `src/main/java/com/leyon/lumin/foundation/idempotency` | `IdempotencyRules` 幂等作用域 / 请求摘要 / 24h 过期（03 §4.1、04 §5.1） |
-| `src/main/java/com/leyon/lumin/catalog/domain` | `TargetRef` 目标引用校验（04 §2/§4） |
-| `src/main/java/com/leyon/lumin/identity/domain` | `AgePolicy` / `RolePolicy` 年龄与角色内核 |
-| `src/main/java/com/leyon/lumin/authoring/domain` | `DraftContentValidator` 载荷边界、`MaterialSnapshot` 材料快照与 materialSha256、`SubmissionGate` 提交前提闸门（03 §2.2/§4.1） |
-| `src/main/java/com/leyon/lumin/moderation/domain` | `MachineReport` 契约校验、`ReviewDecisionRule`、`ReviewRoutingPolicy` 路由分级、`QualitySampler` HMAC 稳定采样、`ReviewCaseStateMachine` 案件状态机（03 §2.4/§5、05 §4.3） |
-| `src/main/java/com/leyon/lumin/engagement/domain` | `ReadingProgressValidator` 阅读进度边界（04 §5.1/T29） |
-| `src/main/java/com/leyon/lumin/publication/domain` | `VisibilityPolicy` 八步纯函数 + `PublicationStateMachine` 表驱动状态机 + `WorkflowSuspension` 挂起原因校验 |
+| `src/main/java/com/leyon/lumin/LuminBackendApplication.java` | Spring Boot 启动类（根包） |
+| `src/main/java/com/leyon/lumin/foundation` | 共享内核：`ErrorCodes`/`BusinessTime`/`StableBuckets`/`LuminBusinessException`；`values/` 共享枚举白名单（零 Spring）；`event/` 事件信封 + Outbox 退避；`idempotency/` 幂等规则 + 适配服务；`cursor/` 游标签码；`repository/` outbox/inbox/idempotency Mapper；`web/` 统一信封/全局异常/TraceId/**骨架认证过滤器**（基础设施适配，Spring 技术层） |
+| `src/main/java/com/leyon/lumin/{module}/api` | 接入层 Controller + DTO（已落地：`catalog/api/WorkController`、`authoring/api/DraftController`，其余随各批次落地） |
+| `src/main/java/com/leyon/lumin/{module}/service` | 应用服务（编排与事务边界；已落地：`catalog/service/WorkService`、`authoring/service/DraftCommandService`） |
+| `src/main/java/com/leyon/lumin/{module}/repository` | 数据访问层（MyBatis Mapper + 行记录，唯一 DB 出口；原 `persistence` 包已按基线六层更名） |
+| `src/main/java/com/leyon/lumin/{module}/domain` | 领域模型与纯函数：identity（AgePolicy/RolePolicy）、catalog（TargetRef）、authoring（DraftContentValidator/MaterialSnapshot/SubmissionGate）、publication（VisibilityPolicy/StateMachine/WorkflowSuspension）、moderation（路由/采样/案件状态机/申诉状态机）、governance（RestrictionStateMachine）、configuration（ConfigRevisionStateMachine/GrayRolloutPolicy）、engagement（ReadingProgressValidator） |
 | `src/main/java/com/leyon/lumin/billing_reserved` | 04 §6.2 六张表的**只读**骨架模型，无 DDL / 无入口 / 无授权 |
-| `src/test/java/com/leyon/lumin/**` | 纯函数、状态机、架构无环、契约骨架测试 |
+| `src/main/resources/db/migration/` | 版本化迁移脚本：`V1__p0b_core_schema.sql`（docs/04 → MySQL 8.4 方言 16 表） |
+| `src/test/java/com/leyon/lumin/**` | 纯函数穷举、架构无环、契约骨架、切片端点集成（MockMvc）、真实 MySQL 集成（`support/` 基类与夹具，凭据经 `LUMIN_TEST_DB_*` 注入） |
 
 模块方向：业务域 → `foundation` 单向；唯一真实跨域边 `publication → identity`
 （`VisibilityPolicy` 复用 `AgePolicy.canRead`），在 02 §3.1 允许列表内，供 T44 校验

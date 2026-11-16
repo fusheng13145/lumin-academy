@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.Set;
 import java.util.UUID;
@@ -102,8 +103,24 @@ public final class IdempotencyRules {
         return createdAt.plus(TTL);
     }
 
+    /** 持久化层便捷重载（DATETIME(6) 行值按 UTC 字面量处理，语义与 Instant 版本一致）。 */
+    public static LocalDateTime expiresAt(LocalDateTime createdAt) {
+        if (createdAt == null) {
+            return null;
+        }
+        return createdAt.plus(TTL);
+    }
+
     /** 过期判断：保留期内可回放；到期当刻起失效（「保留 24 小时」按 [created, created+24h) 计）。 */
     public static boolean isExpired(Instant expiresAt, Instant now) {
+        if (expiresAt == null || now == null) {
+            return true;
+        }
+        return !now.isBefore(expiresAt);
+    }
+
+    /** 持久化层便捷重载（语义与 Instant 版本一致）。 */
+    public static boolean isExpired(LocalDateTime expiresAt, LocalDateTime now) {
         if (expiresAt == null || now == null) {
             return true;
         }

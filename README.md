@@ -7,24 +7,35 @@ P0-A 阶段仓库。后端与前端分别收敛在 `lumin-backend/` 与 `lumin-f
 
 ```text
 lumin-academy/
-├── lumin-backend/            # 后端：Spring Boot 4.0.9 Web 应用 + P0-A 纯 Java 21 领域内核
-│   ├── pom.xml               #   单一 Maven 模块（Web 依赖 + JUnit 5.12.2 + 可选 JaCoCo）
-│   ├── README.md             #   领域内核口径、依赖清单、边界与执行证据
+├── lumin-backend/            # 后端：Spring Boot 4.0.9 + Java 21，按基线六层分层（2026-11-17 重构）
+│   ├── pom.xml               #   单一 Maven 模块（Web/MyBatis/MySQL + JUnit 5.12.2 + 可选 JaCoCo）
+│   ├── README.md             #   分层口径、依赖清单、边界与执行证据
 │   ├── src/main/java/com/leyon/lumin/
-│   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类（根包，后续 Controller / Service 放此包下）
-│   │   ├── foundation/       #   错误码 / 业务时间 / 14 个共享枚举
-│   │   ├── identity/domain/  #   AgePolicy / RolePolicy
-│   │   ├── publication/domain/ #  VisibilityPolicy / PublicationStateMachine
+│   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
+│   │   ├── foundation/       #   共享内核：values(枚举白名单)/event/idempotency/cursor/repository + web(信封/全局异常/TraceId/骨架认证)
+│   │   ├── {module}/api      #   接入层 Controller + DTO（catalog/authoring 已落地，其余随批次）
+│   │   ├── {module}/service  #   应用服务（事务边界；catalog/authoring 已落地）
+│   │   ├── {module}/repository  #  数据访问层（MyBatis Mapper + 行记录，唯一 DB 出口）
+│   │   ├── {module}/domain   #   领域模型与纯函数（identity/catalog/authoring/publication/moderation/governance/configuration/engagement）
 │   │   └── billing_reserved/ #   04 §6.2 六表只读骨架
-│   ├── src/main/resources/   #   application.yaml（spring.application.name=lumin-backend）
-│   └── src/test/java/com/leyon/lumin/
-│       ├── LuminBackendApplicationTests.java  # 启动类冒烟测试
-│       └── {architecture,foundation,identity,publication,billing_reserved,contracts,support}/  # 3322 用例
-├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite
+│   ├── src/main/resources/
+│   │   ├── application.yaml  #   数据源经 DATABASE_* 环境变量注入（08 §3）
+│   │   └── db/migration/     #   版本化迁移脚本（V1：docs/04 → MySQL 8.4 方言 16 表）
+│   └── src/test/java/com/leyon/lumin/   # 3434 用例：纯函数穷举/架构无环/契约骨架/真实 MySQL 集成
+├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，feature 分层（2026-11-17 重构）
 │   ├── index.html            #   入口（lang=zh-CN，主题色 #E8453B）
 │   ├── vite.config.ts        #   dev 5173 / host 开 / 构建出 dist + sourcemap
 │   ├── eslint.config.js      #   ESLint 10 + typescript-eslint
-│   ├── src/                  #   App / views / components / data(mock) / styles(tokens)
+│   ├── src/
+│   │   ├── main.tsx          #   挂载入口
+│   │   ├── app/              #   App.tsx 根组件（状态驱动路由、#live 播报）
+│   │   ├── features/         #   按业务域：reader(R01–R03)/author/reviewer/operator/account
+│   │   ├── components/       #   跨域通用件：layout(TopNav/BottomTab/SiteFooter)、icons/Icon
+│   │   ├── lib/              #   demoPolicy 唯一判定模块
+│   │   ├── services/         #   API 客户端层骨架（契约信封/http 封装，未接线待联调）
+│   │   ├── mocks/            #   合成夹具（不发网络请求）
+│   │   ├── types/            #   展示类型
+│   │   └── styles/           #   tokens/global/components（精确令牌不变）
 │   └── README.md             #   目录职责、与后端边界、合规约束
 ├── contracts/
 │   └── p0.openapi.yaml       # P0 唯一机器契约（只读，禁止修改；校验脚本比对 SHA256）
@@ -37,6 +48,8 @@ lumin-academy/
 ├── 启明书院_团队守则.md
 └── 启明书院_项目基线.md
 ```
+
+> **结构重构（2026-11-17）**：后端对齐基线六层（api/service/repository/domain/event/config，包按领域）；前端重构为 feature 分层（app/features/components/services/mocks/types/styles）。行为与视觉不变；详见两模块 README。
 
 ## 常用命令
 

@@ -28,21 +28,26 @@ npm run lint         # ESLint 10（eslint.config.js）
 
 ## 目录
 
+> **结构重构（2026-11-17）**：feature 分层（业界主流 React 目录规范）——`app/` 根组件、
+> `features/` 按业务域切分、`components/` 跨域通用件、`services/` API 客户端层、
+> `mocks/` 合成夹具、`types/`、`lib/`、`styles/`。**行为与视觉不变**（纯迁移 + 导入更新）。
+
 | 路径 | 内容 |
 | --- | --- |
 | `index.html` | 入口 HTML（`lang="zh-CN"`，主题色 `#E8453B`） |
 | `src/main.tsx` | 挂载入口，按 `tokens → global → components` 顺序引入样式 |
-| `src/App.tsx` | 根组件：工作区 + 视图状态路由、`ageBand` / `uiTheme` 全局态、`announce` 去重、全站唯一 `role=status` `#live`（C-38） |
-| `src/types.ts` | `AgeBand` / `Book` / `Chapter` / `FilterState` / `WordBucket` / `SortKey` / `ReadThemeId` / `WorkspaceId` / `ViewId` 等展示类型 |
+| `src/app/App.tsx` | 根组件：工作空间 + 视图状态路由、`ageBand` / `uiTheme` 全局态、`announce` 去重、全站唯一 `role=status` `#live`（C-38） |
+| `src/features/` | 按业务域切分：`reader/`（`CatalogView` R01、`BookDetailView` R02、`ReaderOverlay` R03、`components/BookCard`）、`author/`、`reviewer/`、`operator/`、`account/`（`MineView`） |
+| `src/components/` | 跨域通用件：`layout/`（`TopNav` / `BottomTab` / `SiteFooter`）、`icons/Icon`（内联 SVG） |
 | `src/lib/demoPolicy.ts` | **唯一判定模块**：`BAND_RANK`、`isAgeMuted()`、`bookBlockedReason()`、`filterBooks()`、`firstReadableBook()`；R01/R02/R03 三处门禁共用 |
-| `src/components/` | `TopNav` / `BottomTab` / `BookCard` / `ReaderOverlay` / `SiteFooter` / `Icon`（内联 SVG） |
-| `src/views/` | `CatalogView`(R01) / `BookDetailView`(R02) / `AuthorView` / `ReviewView` / `OperatorView` / `MineView` |
-| `src/data/mock.ts` | 12 部原创书目（每部 8–12 章、标签、简介、签名、字数与相对时间）、草稿 / 审核 / 审计夹具；固定基准日期派生，不读系统时钟 |
+| `src/services/` | API 客户端层骨架：`envelope.ts`（契约信封 + Receipt 类型，05 §2/§4.4）、`http.ts`（Bearer/Idempotency-Key/If-Match 协议封装，**未接线**）、`draftService.ts`（mock adapter，联调批次切换为真实调用） |
+| `src/mocks/mock.ts` | 12 部原创书目（每部 8–12 章、标签、简介、签名、字数与相对时间）、草稿 / 审核 / 审计夹具；固定基准日期派生，不读系统时钟 |
+| `src/types/index.ts` | `AgeBand` / `Book` / `Chapter` / `FilterState` / `WordBucket` / `SortKey` / `ReadThemeId` / `WorkspaceId` / `ViewId` 等展示类型 |
 | `src/styles/` | `tokens.css`（精确令牌 + 派生变量 / 明暗 / 4 阅读主题）、`global.css`（基线 / a11y / 布局）、`components.css`（组件 / R02 / 阅读器断点 / 页脚） |
 
 ## 与后端的边界
 
-- 本阶段前端**不调用接口**：`src/data/mock.ts` 提供确定性夹具，接口契约见仓库根 `contracts/p0.openapi.yaml`（只读）。
+- 本阶段前端**不调用接口**：`src/mocks/mock.ts` 提供确定性夹具，接口契约见仓库根 `contracts/p0.openapi.yaml`（只读）；`src/services/` 为 API 客户端层骨架（信封类型 + 协议封装 + mock adapter），**未接线**，联调批次把各 service 切换为真实调用即可、视图签名不变。后端已提供切片端点：`POST /api/v1/works`、`POST/GET/PUT /api/v1/drafts`（骨架认证替身，OIDC 接入前固定合成主体）。
 - 服务端类型后续应从契约生成，不在前端手写业务判定；可见性、适龄、状态机判定一律由后端 `lumin-backend` 领域层决定。
 - 年龄带、可见性在前端只是**演示态**：所有判定统一经 `src/lib/demoPolicy.ts`，页面统一标注「仅演示，不替代服务端 AgePolicy / VisibilityPolicy 裁决」；`Book.minAge` 仅作展示，不作为门禁来源。
 - 演示年龄带切换导致当前书失效时，自动切到第一部可读作品并经 `#live` 播报。
