@@ -15,7 +15,7 @@ export interface MyChapter {
 export async function listMyChapters(workId: string): Promise<MyChapter[]> {
   const envelope = await request<MyChapter[]>({
     method: 'GET',
-    path: `/me/works/${workId}/chapters/me`,
+    path: `/me/works/${workId}/chapters`,
   });
   return envelope.data;
 }

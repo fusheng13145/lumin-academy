@@ -404,6 +404,44 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                 Integer.class)).isGreaterThanOrEqualTo(1);
     }
 
+    @Test
+    void meWorkspaceContractPathsServeAuthorLists() throws Exception {
+        // 05 §3.2 契约路径：GET /me/works、GET /me/works/{id}/chapters（增量十七对齐）
+        String workId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts").header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"title\":\"契约路径\","
+                                + "\"synopsis\":\"简介\",\"categoryId\":\""
+                                + MySqlFixtures.CATEGORY_LITERATURE + "\",\"tags\":[]}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/me/works"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(workId))
+                .andExpect(jsonPath("$.data[0].draftState").value("EDITABLE"));
+        long workLock = jdbc.queryForObject(
+                "SELECT lock_version FROM work WHERE id = ?", Long.class, workId);
+        String chapterId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works/" + workId + "/chapters")
+                                .header("Idempotency-Key", uuidKey())
+                                .header("If-Match", "\"" + workLock + "\"")
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts").header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"chapterId\":\"" + chapterId
+                                + "\",\"title\":\"第一章\",\"body\":\"正文\"}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/me/works/" + workId + "/chapters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(chapterId))
+                .andExpect(jsonPath("$.data[0].businessState").value("DRAFT"))
+                .andExpect(jsonPath("$.data[0].draftState").value("EDITABLE"));
+    }
+
     private void submitAndApprove(String workId, String draftId) throws Exception {
         mockMvc.perform(post("/api/v1/drafts/" + draftId + "/submissions")
                         .header("Idempotency-Key", uuidKey())

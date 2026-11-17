@@ -148,6 +148,98 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk());
     }
 
+    /** 父作品已发布后发布章节；返回 chapterId（T23 四入口验证用）。 */
+    private String publishedChapter(String workId) throws Exception {
+        long lock = jdbc.queryForObject(
+                "SELECT lock_version FROM work WHERE id = ?", Long.class, workId);
+        String chapterId = field(mockMvc.perform(post("/api/v1/works/" + workId + "/chapters")
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"" + lock + "\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        String draftId = field(mockMvc.perform(post("/api/v1/drafts")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"chapterId\":\"" + chapterId
+                                + "\",\"title\":\"第一章\",\"body\":\"正文段落\"}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts/" + draftId + "/submissions")
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isAccepted());
+        dispatcher.deliverPending();
+        String workflowId = jdbc.queryForObject(
+                "SELECT id FROM publication_workflow WHERE version_id = (SELECT id FROM "
+                        + "content_version WHERE source_draft_id = ?)", String.class, draftId);
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
+        String versionId = jdbc.queryForObject(
+                "SELECT version_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
+        String materialSha = jdbc.queryForObject(
+                "SELECT material_sha256 FROM content_version WHERE id = ?", String.class, versionId);
+        sendReport(caseId, workflowId(caseId), versionId, materialSha, "LOW", "PASS", "G", "0.99");
+        dispatcher.deliverPending();
+        return chapterId;
+    }
+
+    @Test
+    void takedownSetsRemovedStateAndRestoresPriorAcrossFourEntries() throws Exception {
+        String workId = publishedWork();
+        String chapterId = publishedChapter(workId);
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("ACTIVE");
+        // T23：生效下架（TEMPORARY 提案 → 独立复核生效）→ REMOVED + 前态留痕
+        String restrictionId = field(mockMvc.perform(post("/api/v1/restrictions")
+                        .header("X-Lumin-Demo-Subject", L2A)
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"TEMPORARY\","
+                                + "\"reason\":\"涉嫌违规待核实\"}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json")
+                        .content("{\"activate\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("ACTIVE"));
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("REMOVED");
+        assertThat(jdbc.queryForObject(
+                "SELECT prior_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("ACTIVE");
+        // 四入口立即不可见（P0 无缓存：逐请求裁决，0 秒 ≤ 60 秒口径）
+        mockMvc.perform(get("/api/v1/works"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+        mockMvc.perform(get("/api/v1/works/" + workId))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/works/" + workId + "/chapters"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/chapters/" + chapterId + "/content"))
+                .andExpect(status().isNotFound());
+        // 改判解除 → 恢复记录的前态（ACTIVE）→ 四入口恢复
+        mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/revocations")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey()))
+                .andExpect(status().isOk());
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("ACTIVE");
+        mockMvc.perform(get("/api/v1/works"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
+        mockMvc.perform(get("/api/v1/works/" + workId)).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/works/" + workId + "/chapters"))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/chapters/" + chapterId + "/content"))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void temporaryRestrictionBlocksReaderThenAppealOverturnRestores() throws Exception {
         String workId = publishedWork();
@@ -203,13 +295,23 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                         .contentType("application/json")
                         .content("{\"activate\":true}"))
                 .andExpect(status().isOk());
+        // 生效下架同样落业务态（REMOVED，前态留痕）
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("REMOVED");
+        assertThat(jdbc.queryForObject(
+                "SELECT prior_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("ACTIVE");
         // 改判解除被状态机拒绝（03 §6：终局不可恢复传播，B2005 服务层口径）
         mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/revocations")
                         .header("X-Lumin-Demo-Subject", L1A)
                         .header("Idempotency-Key", uuidKey()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("B2001"));
-        // 读者持续不可见（T25：恢复请求始终 B2005，不恢复传播）
+        // 业务态维持 REMOVED（前态不被恢复）；读者持续不可见（T25：恢复请求始终 B2005）
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM work WHERE id = ?", String.class, workId))
+                .isEqualTo("REMOVED");
         mockMvc.perform(get("/api/v1/works/" + workId))
                 .andExpect(status().isNotFound());
     }

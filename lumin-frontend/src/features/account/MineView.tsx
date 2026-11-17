@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BAND_LABEL } from '../../lib/demoPolicy';
 import { Icon } from '../../components/icons/Icon';
+import { notificationService, type NotificationItem } from '../../services/notificationService';
 import type { AgeBand } from '../../types';
 
 interface MineViewProps {
@@ -66,16 +67,26 @@ export function MineView({
 }
 
 function NotificationList() {
-  const [items, setItems] = useState<
-    { id: string; category: string; title: string }[]
-  >([]);
+  const [items, setItems] = useState<NotificationItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/v1/me/notifications')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => setItems(d.data))
-      .catch((e) => setError(e instanceof Error ? e.message : '加载失败'));
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await notificationService.listNotifications();
+        if (alive) {
+          setItems(list);
+        }
+      } catch (e) {
+        if (alive) {
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (error) {

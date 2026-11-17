@@ -23,7 +23,7 @@ public interface ChapterMapper {
                @Param("sequenceNo") int sequenceNo, @Param("operator") String operator,
                @Param("now") java.time.LocalDateTime now);
 
-    @Select("SELECT id, business_state FROM chapter WHERE id = #{id} AND deleted_at IS NULL")
+    @Select("SELECT id, business_state, prior_state FROM chapter WHERE id = #{id} AND deleted_at IS NULL")
     ChapterStateRow findStateById(@Param("id") String id);
 
     /** 首版发布业务态迁移（乐观锁 + 期望态兜底并发，与 WorkMapper.updateBusinessState 同式）。 */

@@ -28,11 +28,14 @@ public class RestrictionService {
 
     private final RestrictionMapper restrictionMapper;
     private final AuditRecorder auditRecorder;
+    private final com.leyon.lumin.foundation.port.PublicationGatePort publicationGatePort;
 
     public RestrictionService(RestrictionMapper restrictionMapper,
-                              AuditRecorder auditRecorder) {
+                              AuditRecorder auditRecorder,
+                              com.leyon.lumin.foundation.port.PublicationGatePort publicationGatePort) {
         this.restrictionMapper = restrictionMapper;
         this.auditRecorder = auditRecorder;
+        this.publicationGatePort = publicationGatePort;
     }
 
     /** 提案（PENDING）：05 §3.3 requestRestriction——REVIEWER_L2/LEGAL/OPERATOR 提案。 */
@@ -100,6 +103,10 @@ public class RestrictionService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+        if (activate) {
+            // 03 §2.1 生效下架：SYSTEM 执行已核验治理措施（业务态 → REMOVED，保存前态）
+            publicationGatePort.takedown(targetScope(row), row.workId(), row.chapterId());
+        }
         auditRecorder.record(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction." + (activate ? "activated" : "rejected"),
                 "restriction", restrictionId, row.reason(),
@@ -128,10 +135,17 @@ public class RestrictionService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+        // 改判恢复：仅当所有生效限制均解除且指针在时恢复记录的前态（03 §2.1）
+        publicationGatePort.restore(targetScope(row), row.workId(), row.chapterId());
         auditRecorder.record(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction.revoked", "restriction", restrictionId,
                 "临时措施独立复核改判解除", traceId(), now.toInstant(ZoneOffset.UTC)));
         return "REVOKED";
+    }
+
+    /** 限制作用域：章节级限制 chapterId 非空，否则为作品级。 */
+    private static String targetScope(RestrictionRow row) {
+        return row.chapterId() == null ? "WORK" : "CHAPTER";
     }
 
     private String requesterRole(String requester) {

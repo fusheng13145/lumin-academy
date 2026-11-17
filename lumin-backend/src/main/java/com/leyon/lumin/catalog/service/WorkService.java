@@ -149,6 +149,95 @@ public class WorkService {
         return row == null ? null : row.businessState();
     }
 
+    /** 生效下架（03 §2.1）：作品业务态 →(TAKEDOWN_EFFECTIVE)→ REMOVED，保存前态。 */
+    @Transactional
+    public void markTakedown(String workId, String operator, LocalDateTime now) {
+        WorkRow work = workMapper.findById(workId);
+        if (work == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.valueOf(work.businessState()),
+                com.leyon.lumin.foundation.values.PublicationEvent.TAKEDOWN_EFFECTIVE,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.WORK,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        workMapper.updateBusinessState(workId, transition.toState().name(),
+                work.businessState(), null, operator, now, work.businessState());
+    }
+
+    /** 改判恢复（03 §2.1）：REMOVED →(TEMPORARY_APPEAL_UPHELD)→ 行内记录的前态；
+     *  前提核验（限制全解除/指针在）由端口实现方完成后调用。 */
+    @Transactional
+    public void markRestored(String workId, String operator, LocalDateTime now) {
+        WorkRow work = workMapper.findById(workId);
+        if (work == null || !"REMOVED".equals(work.businessState())
+                || work.priorState() == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.REMOVED,
+                com.leyon.lumin.foundation.values.PublicationEvent.TEMPORARY_APPEAL_UPHELD,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.WORK,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        workMapper.updateBusinessState(workId, work.priorState(), "REMOVED", null,
+                operator, now, "REMOVED");
+    }
+
+    /** 生效下架（章节）：业务态 → REMOVED，保存前态（03 §2.1 作品与章节业务态同表）。 */
+    @Transactional
+    public void markChapterTakedown(String chapterId, String operator, LocalDateTime now) {
+        com.leyon.lumin.catalog.repository.ChapterStateRow chapter =
+                chapterMapper.findStateById(chapterId);
+        if (chapter == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.valueOf(chapter.businessState()),
+                com.leyon.lumin.foundation.values.PublicationEvent.TAKEDOWN_EFFECTIVE,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.CHAPTER,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        chapterMapper.updateBusinessState(chapterId, transition.toState().name(),
+                chapter.businessState(), operator, now, chapter.businessState());
+    }
+
+    /** 改判恢复（章节）：REMOVED → 记录的前态（前提核验由端口实现方完成）。 */
+    @Transactional
+    public void markChapterRestored(String chapterId, String operator, LocalDateTime now) {
+        com.leyon.lumin.catalog.repository.ChapterStateRow chapter =
+                chapterMapper.findStateById(chapterId);
+        if (chapter == null || !"REMOVED".equals(chapter.businessState())
+                || chapter.priorState() == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.REMOVED,
+                com.leyon.lumin.foundation.values.PublicationEvent.TEMPORARY_APPEAL_UPHELD,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.CHAPTER,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        chapterMapper.updateBusinessState(chapterId, chapter.priorState(), "REMOVED",
+                operator, now, "REMOVED");
+    }
+
     /** 章节首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */
     @Transactional
     public void markChapterPublished(String chapterId, String operator, LocalDateTime now) {
