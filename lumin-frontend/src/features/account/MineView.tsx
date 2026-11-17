@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { BAND_LABEL } from '../../lib/demoPolicy';
 import { Icon } from '../../components/icons/Icon';
 import type { AgeBand } from '../../types';
@@ -53,6 +54,44 @@ export function MineView({
           </select>
         </div>
       </div>
+
+      <div className="card setting-block">
+        <h2 className="setting-block__title">
+          <Icon name="bell" size={18} /> 通知
+        </h2>
+        <NotificationList />
+      </div>
     </section>
+  );
+}
+
+function NotificationList() {
+  const [items, setItems] = useState<
+    { id: string; category: string; title: string }[]
+  >([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/me/notifications')
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => setItems(d.data))
+      .catch((e) => setError(e instanceof Error ? e.message : '加载失败'));
+  }, []);
+
+  if (error) {
+    return <p className="muted-note">{error}</p>;
+  }
+  if (items.length === 0) {
+    return <p className="muted-note">暂无通知</p>;
+  }
+  return (
+    <ul className="notice-list">
+      {items.map((n) => (
+        <li key={n.id} className="notice notice--info">
+          <span className="badge badge--neutral">{n.category}</span>
+          <p>{n.title}</p>
+        </li>
+      ))}
+    </ul>
   );
 }

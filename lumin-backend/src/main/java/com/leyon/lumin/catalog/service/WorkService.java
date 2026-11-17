@@ -1,6 +1,7 @@
 package com.leyon.lumin.catalog.service;
 
 import com.leyon.lumin.catalog.repository.ChapterMapper;
+import com.leyon.lumin.catalog.repository.MyWorkRow;
 import com.leyon.lumin.catalog.repository.WorkMapper;
 import com.leyon.lumin.catalog.repository.WorkRow;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -51,6 +53,12 @@ public class WorkService {
         }
         return new WorkSummary(row.id(), row.authorId(), row.copyrightStatus(),
                 row.businessState(), row.lockVersion());
+    }
+
+    /** 作者私有作品列表（05 §3.2 listMyWorks：含 DRAFT 与最新版本状态）。 */
+    @Transactional(readOnly = true)
+    public List<MyWorkRow> listMyWorks(String authorId) {
+        return workMapper.listMyWorks(authorId);
     }
 
     /** 无归属校验的摘要读取（authoring 组装版本核验数据用；缺失返回 null）。 */

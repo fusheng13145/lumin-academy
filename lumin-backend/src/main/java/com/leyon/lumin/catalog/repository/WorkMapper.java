@@ -53,4 +53,21 @@ public interface WorkMapper {
                             @Param("operator") String operator,
                             @Param("now") java.time.LocalDateTime now,
                             @Param("expectedState") String expectedState);
+
+    /** 作者私有作品列表（05 §3.2 listMyWorks：含 DRAFT 与可编辑草稿状态）。 */
+    @Select("""
+            SELECT w.id, w.business_state, w.copyright_status, w.lock_version,
+                   d.id AS draft_id, d.state AS draft_state, d.title AS draft_title,
+                   d.lock_version AS draft_lock_version,
+                   cv.title AS latest_title, cv.state AS latest_version_state,
+                   cv.grade AS latest_grade
+            FROM work w
+            LEFT JOIN draft d ON d.work_id = w.id AND d.state = 'EDITABLE'
+                AND d.deleted_at IS NULL
+            LEFT JOIN content_version cv ON cv.id = (SELECT c.id FROM content_version c
+                WHERE c.work_id = w.id ORDER BY c.revision_no DESC LIMIT 1)
+            WHERE w.author_id = #{authorId} AND w.deleted_at IS NULL
+            ORDER BY w.created_at DESC
+            """)
+    java.util.List<MyWorkRow> listMyWorks(@Param("authorId") String authorId);
 }

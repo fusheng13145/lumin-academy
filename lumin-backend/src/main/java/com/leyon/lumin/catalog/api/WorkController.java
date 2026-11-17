@@ -14,9 +14,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.time.ZoneOffset;
 
-/** 作品接入层（05 §3.2 createWork；作品元数据审核走草稿-版本链路，无公开 PATCH 旁路）。 */
+/** 作品接入层（05 §3.2：listMyWorks / createWork；作品元数据审核走草稿-版本链路）。 */
 @RestController
 @RequestMapping("/api/v1/works")
 public class WorkController {
@@ -27,6 +28,20 @@ public class WorkController {
     public WorkController(WorkService workService, IdempotentExecutor idempotentExecutor) {
         this.workService = workService;
         this.idempotentExecutor = idempotentExecutor;
+    }
+
+    /** 私有作品列表（05 §3.2 listMyWorks：仅本人，含 DRAFT 与最新版本状态）。 */
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public org.springframework.http.ResponseEntity<com.leyon.lumin.foundation.web.ApiEnvelope> listMyWorks(
+            @org.springframework.web.bind.annotation.RequestAttribute(
+                    DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject) {
+        var works = workService.listMyWorks(subject).stream()
+                .map(w -> new MyWorkView(w.id(), w.businessState(), w.copyrightStatus(),
+                        w.draftId(), w.draftState(), w.draftTitle(),
+                        w.latestTitle(), w.latestVersionState()))
+                .toList();
+        return org.springframework.http.ResponseEntity.ok()
+                .body(com.leyon.lumin.foundation.web.ApiEnvelope.ok(works));
     }
 
     @PostMapping
@@ -40,5 +55,11 @@ public class WorkController {
                 () -> new IdempotentExecutor.ApiResult(200, new ReceiptView(
                         workService.createWork(subject, LocalDateTime.now(ZoneOffset.UTC)),
                         "work", "DRAFT", 1L)));
+    }
+
+    /** 私有作品列表项（05 §3.2：含可编辑草稿状态与最新版本摘要）。 */
+    public record MyWorkView(String id, String businessState, String copyrightStatus,
+                             String draftId, String draftState, String draftTitle,
+                             String latestTitle, String latestVersionState) {
     }
 }

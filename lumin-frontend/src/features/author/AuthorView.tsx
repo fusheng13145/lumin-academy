@@ -1,14 +1,54 @@
+import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/icons/Icon';
-import { DRAFTS } from '../../mocks/mock';
+import type { MyWork } from '../../services/workService';
+import { createWork, listMyWorks } from '../../services/workService';
+import { draftService } from '../../services/draftService';
 
-const DRAFT_LABEL: Record<string, { text: string; cls: string }> = {
-  EDITABLE: { text: '草稿', cls: 'badge--neutral' },
-  SUBMITTED: { text: '已提交', cls: 'badge--review' },
-  DISCARDED: { text: '已废弃', cls: 'badge--removed' },
-};
-
-// 创作：草稿列表
+// 创作：我的作品（真实数据，经替身身份）
 export function AuthorView() {
+  const [works, setWorks] = useState<MyWork[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setError(null);
+    try {
+      setWorks(await listMyWorks());
+    } catch (e) {
+      setWorks([]);
+      setError(e instanceof Error ? e.message : '加载失败');
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const createNewWork = async (): Promise<void> => {
+    setError(null);
+    try {
+      await createWork();
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '创建失败');
+    }
+  };
+
+  const submitLatest = async (workId: string): Promise<void> => {
+    setError(null);
+    try {
+      // 最小演示流：作品下建一个默认草稿并提交（幂等键由 http 层生成）
+      const draft = await draftService.createDraft({
+        workId,
+        title: '未命名草稿',
+        synopsis: ' ',
+      });
+      await draftService.submitDraft(draft.id, String(draft.revision));
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '提交失败');
+    }
+  };
+
   return (
     <section aria-labelledby="author-h">
       <header className="page-head">
@@ -16,27 +56,39 @@ export function AuthorView() {
       </header>
 
       <div className="toolbar">
-        <button className="btn btn--primary" type="button">
-          <Icon name="author" size={18} /> 新建草稿
+        <button className="btn btn--primary" type="button" onClick={() => void createNewWork()}>
+          新建作品
         </button>
       </div>
 
-      <ul className="draft-list">
-        {DRAFTS.map((d) => {
-          const s = DRAFT_LABEL[d.state];
-          return (
-            <li key={d.id} className="draft-item card">
+      {error && <p className="muted-note">{error}</p>}
+
+      {works === null ? null : works.length === 0 ? (
+        <div className="empty">还没有作品，点击「新建作品」开始</div>
+      ) : (
+        <ul className="draft-list">
+          {works.map((w) => (
+            <li key={w.id} className="draft-item card">
               <div className="draft-item__main">
-                <h3>{d.title}</h3>
+                <h3>{w.latestTitle ?? '（无版本）'}</h3>
                 <p className="draft-item__meta">
-                  {d.words.toLocaleString()} 字 · 更新于 {d.updatedAt}
+                  {w.businessState} · 最新版本 {w.latestVersionState ?? '—'}
+                  {w.draftState ? ` · 草稿 ${w.draftState}` : ''}
                 </p>
               </div>
-              <span className={'badge ' + s.cls}>{s.text}</span>
+              {w.draftState === 'EDITABLE' && w.draftId && (
+                <button
+                  className="btn btn--soft"
+                  type="button"
+                  onClick={() => void submitLatest(w.id)}
+                >
+                  <Icon name="review" size={16} /> 提交审校
+                </button>
+              )}
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

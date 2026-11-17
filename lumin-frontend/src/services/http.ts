@@ -33,10 +33,16 @@ export interface RequestOptions {
   ifMatch?: string;
   body?: unknown;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 }
 
 export async function request<T>(options: RequestOptions): Promise<ApiEnvelope<T>> {
   const headers = new Headers({ 'Content-Type': 'application/json' });
+  if (options.headers) {
+    for (const [k, v] of Object.entries(options.headers)) {
+      headers.set(k, v);
+    }
+  }
   if (options.idempotencyKey) {
     headers.set('Idempotency-Key', options.idempotencyKey);
   }
