@@ -4,7 +4,6 @@ import { BOOKS } from '../../mocks/mock';
 import { BookCard } from './components/BookCard';
 import {
   BAND_LABEL,
-  POLICY_HINT,
   SORT_LABEL,
   STATE_LABEL,
   WORD_BUCKET_LABEL,
@@ -31,13 +30,13 @@ const DEFAULT_FILTERS: FilterState = {
   sort: 'recent',
 };
 
-// 书城 R01：静态合规横幅 + 四维「与」组合筛选 + 单选排序 + 书卡网格
+// 书城：筛选 + 书卡网格
 export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const list = useMemo(() => filterBooks(BOOKS, filters), [filters]);
 
   useEffect(() => {
-    announce(`筛选后共 ${list.length} 部作品。`);
+    announce(`共 ${list.length} 部作品`);
   }, [list.length, announce]);
 
   const open = (bookId: string): void => {
@@ -56,89 +55,56 @@ export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProp
     <section aria-labelledby="catalog-h">
       <header className="page-head">
         <h1 id="catalog-h" tabIndex={-1}>书城</h1>
-        <p className="page-head__sub">
-          原创长篇阅读社区 · 按适龄、状态、字数与排序发现作品
-        </p>
       </header>
 
-      <div className="compliance-banner" role="note">
-        适龄阅读 · 每一部作品都经过年龄分级审核后向适龄读者开放
+      <div className="toolbar">
+        <select
+          className="select"
+          aria-label="按年龄带筛选"
+          value={filters.age}
+          onChange={(event) => setFilters((prev) => ({ ...prev, age: event.target.value as AgeBand | 'all' }))}
+        >
+          {AGE_OPTIONS.map((value) => (
+            <option key={value} value={value}>{value === 'all' ? '全部年龄' : BAND_LABEL[value]}</option>
+          ))}
+        </select>
+
+        <select
+          className="select"
+          aria-label="按状态筛选"
+          value={filters.status}
+          onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value as BookState | 'all' }))}
+        >
+          {STATUS_OPTIONS.map((value) => (
+            <option key={value} value={value}>{value === 'all' ? '全部状态' : STATE_LABEL[value]}</option>
+          ))}
+        </select>
+
+        <select
+          className="select"
+          aria-label="按字数筛选"
+          value={filters.words}
+          onChange={(event) => setFilters((prev) => ({ ...prev, words: event.target.value as WordBucket }))}
+        >
+          {WORD_OPTIONS.map((value) => (
+            <option key={value} value={value}>{WORD_BUCKET_LABEL[value]}</option>
+          ))}
+        </select>
+
+        <select
+          className="select"
+          aria-label="排序方式"
+          value={filters.sort}
+          onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value as SortKey }))}
+        >
+          {SORT_OPTIONS.map((value) => (
+            <option key={value} value={value}>排序：{SORT_LABEL[value]}</option>
+          ))}
+        </select>
       </div>
-
-      <div className="filters">
-        <div className="filter-row">
-          <span className="filter-name">年龄带</span>
-          <div className="filter-chips" role="group" aria-label="按年龄带筛选">
-            {AGE_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="chip"
-                aria-pressed={filters.age === value}
-                onClick={() => setFilters((prev) => ({ ...prev, age: value }))}
-              >
-                {value === 'all' ? '全部' : BAND_LABEL[value]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="filter-name">状态</span>
-          <div className="filter-chips" role="group" aria-label="按作品状态筛选">
-            {STATUS_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="chip"
-                aria-pressed={filters.status === value}
-                onClick={() => setFilters((prev) => ({ ...prev, status: value }))}
-              >
-                {value === 'all' ? '全部' : STATE_LABEL[value]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="filter-name">字数</span>
-          <div className="filter-chips" role="group" aria-label="按字数档筛选">
-            {WORD_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="chip"
-                aria-pressed={filters.words === value}
-                onClick={() => setFilters((prev) => ({ ...prev, words: value }))}
-              >
-                {WORD_BUCKET_LABEL[value]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="filter-row">
-          <span className="filter-name">排序</span>
-          <div className="filter-chips" role="group" aria-label="选择排序方式">
-            {SORT_OPTIONS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="chip"
-                aria-pressed={filters.sort === value}
-                onClick={() => setFilters((prev) => ({ ...prev, sort: value }))}
-              >
-                {SORT_LABEL[value]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <p className="results-count">共 {list.length} 部作品 · 排序：{SORT_LABEL[filters.sort]}</p>
 
       {list.length === 0 ? (
-        <div className="empty">当前筛选条件下暂无作品，请调整筛选维度。</div>
+        <div className="empty">暂无作品</div>
       ) : (
         <div className="book-grid">
           {list.map((book) => (
@@ -146,10 +112,6 @@ export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProp
           ))}
         </div>
       )}
-
-      <p className="data-note">
-        示例数据（合成）· {POLICY_HINT} 书城不设搜索框与书架入口，不使用排行类机制、推荐流与轮播。
-      </p>
     </section>
   );
 }

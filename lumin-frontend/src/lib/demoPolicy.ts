@@ -46,11 +46,8 @@ export const SORT_LABEL: Record<SortKey, string> = {
   words: '字数最多',
 };
 
-export const MUTED_HINT =
-  '超出当前演示年龄带，暂不可读。仅演示边界，不代表真实年龄政策。';
+export const MUTED_HINT = '超出当前年龄带，暂不可读。';
 export const REMOVED_HINT = '内容暂不可访问';
-export const POLICY_HINT =
-  '年龄与可见性判定仅作演示，不替代服务端 AgePolicy / VisibilityPolicy 裁决。';
 
 const WORD_BUCKETS: Record<
   Exclude<WordBucket, 'all'>,

@@ -79,3 +79,18 @@ npm run lint         # ESLint 10（eslint.config.js）
 - TS 6：`verbatimModuleSyntax` → 类型导入必须 `import type`；`erasableSyntaxOnly` → 禁 enum / namespace / 参数属性；`noUnusedLocals/noUnusedParameters` → 删除入口后必须同步删净未用导入；`moduleResolution: bundler` → 不写 `.js` 后缀。
 - ESLint 10 flat config + `react-hooks` + `react-refresh`：新增视图文件只导出组件。
 - Vite 8 `build.sourcemap: true`、`outDir: dist`；`npm run build` 会写 `dist/`（已被 .gitignore 忽略）。
+
+## 设计语言（增量十二，2026-11-17）
+
+目标风格：Linear / Apple Notes 式简洁——目标简单、架构简单、设计简单、实现简单。
+
+- **砍掉**：每页的副标题说明、合规横幅、页尾数据说明（data-note）、工具行提示（toolbar-row__hint）、设置提示（setting-hint）、治理公示卡（AUDITS 合成数据）、页脚三栏文案、书卡「（示例）」后缀、冗余的卷分组与作者签名卡。
+- **保留**：全部功能逻辑（筛选/排序/灰显/裁决/阅读器）、无障碍机制（live region、焦点管理、跳转链接）、替身身份头。
+- **布局原则**：内容优先——页面 = 标题 + 工具行 + 内容列表；理解页面不需要任何说明文字，靠布局与数据本身。
+- **视觉**：中性纸面（#fbfbfa）、系统字体全站统一、细边框、无/极轻阴影、单一朱红强调色仅用于主操作；夜间/阅读主题令牌同步精简。
+- **AX**：announce 文案同步精简为结果句（去掉演示声明），live region/焦点管理不变；DOM 更小、结构更平，agent 解析更容易。
+
+## 运行
+
+- 前端：`npm run dev`（5173；/api 代理到 8081）
+- 后端：`DATABASE_PASSWORD=<pwd> mvn spring-boot:run --server.port=8081`（8080 被占时）

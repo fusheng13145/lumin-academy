@@ -209,24 +209,11 @@ h3 {
   font-size: 26px;
   margin: 0;
 }
-.page-head__sub {
-  margin: 6px 0 0;
-  color: var(--text-aux);
-  font-size: 13px;
-}
 .section-title {
   font-size: 18px;
   margin: var(--sp-6) 0 var(--sp-3);
   border-bottom: 1px solid var(--hairline);
   padding-bottom: 6px;
-}
-.data-note,
-.aux {
-  font-size: 11.5px;
-  line-height: 1.8;
-  color: var(--text-aux);
-  max-width: 82ch;
-  margin: var(--sp-3) 0;
 }
 code {
   font-family: var(--font-mono);

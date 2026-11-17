@@ -7,13 +7,12 @@ const STATUS: Record<string, { text: string; cls: string }> = {
   rejected: { text: '驳回', cls: 'badge--removed' },
 };
 
-// 审核：机审/人审队列（仅运营/审核角色可见，按 RBAC 由后端裁决）
+// 审核：裁决队列
 export function ReviewView() {
   return (
     <section aria-labelledby="review-h">
       <header className="page-head">
         <h1 id="review-h">审核</h1>
-        <p className="page-head__sub">机审命中与人审裁决队列（角色受限视图）</p>
       </header>
 
       <ul className="review-list">

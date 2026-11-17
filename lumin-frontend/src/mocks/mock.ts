@@ -1,7 +1,6 @@
 import type { IconName } from '../components/icons/Icon';
 import type {
   AgeBand,
-  AuditNotice,
   Book,
   Chapter,
   Draft,
@@ -235,8 +234,3 @@ export const REVIEWS: ReviewItem[] = [
   { id: 'r3', title: '旧梦裁缝铺', author: '苏锦', kind: '人审', status: 'rejected', reason: '违规内容，已下架' },
 ];
 
-export const AUDITS: AuditNotice[] = [
-  { id: 'a1', time: '2026-11-12 22:10', level: 'warning', text: '作品《霜河渡》触发机审命中，等待人工复核。' },
-  { id: 'a2', time: '2026-11-12 19:42', level: 'danger', text: '作品《旧梦裁缝铺》已下架，相关处置可走申诉通道。' },
-  { id: 'a3', time: '2026-11-11 09:30', level: 'info', text: '配置变更：适龄分级开关保持默认开启（演示）。' },
-];

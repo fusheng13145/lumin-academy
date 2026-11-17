@@ -78,7 +78,7 @@ export function App() {
     setDetailId(null);
     setReading(null);
     const label = WORKSPACES.find((workspace) => workspace.id === id)?.label ?? id;
-    announce(`已切换到${label}。此为 demo 视图切换，非登录态。`);
+    announce(`已切换到${label}`);
   };
 
   const openDetail = (bookId: string): void => {
@@ -92,7 +92,7 @@ export function App() {
     }
     setDetailId(bookId);
     setView('R02');
-    announce(`已打开《${book.title}》书籍详情。面包屑可返回书城。`);
+    announce(`已打开《${book.title}》`);
   };
 
   const backToCatalog = (): void => {
@@ -114,7 +114,7 @@ export function App() {
     readerTriggerRef.current = document.activeElement as HTMLElement | null;
     setReading({ bookId, chapterIdx });
     setView('R03');
-    announce(`已打开《${book.title}》第 ${chapterIdx + 1} 章。试试使用键盘左右键切章。`);
+    announce(`已打开《${book.title}》第 ${chapterIdx + 1} 章`);
   };
 
   const closeReader = (): void => {
@@ -145,15 +145,12 @@ export function App() {
         const fallback = firstReadableBook(BOOKS, band);
         if (fallback) {
           setReading({ bookId: fallback.id, chapterIdx: 0 });
-          switched = `当前阅读的《${current.title}》已不适配新演示年龄带，已切换到《${fallback.title}》第一章。`;
+          switched = `已切换到《${fallback.title}》`;
         }
       }
     }
 
-    announce(
-      switched +
-        `演示年龄带已切换为 ${BAND_LABEL[band]}，书城灰显已更新。仅演示边界，不代表真实年龄政策。`
-    );
+    announce(switched + `年龄带已切换为 ${BAND_LABEL[band]}`);
   };
 
   const toggleUiTheme = (): void => {

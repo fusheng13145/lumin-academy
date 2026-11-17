@@ -18,7 +18,6 @@ export type SortKey = 'recent' | 'title' | 'words';
 
 export type ReadThemeId = 'rice' | 'green' | 'parchment' | 'night';
 
-export type NoticeLevel = 'info' | 'warning' | 'danger';
 
 export interface Chapter {
   title: string;
@@ -85,9 +84,3 @@ export interface ReviewItem {
   reason?: string;
 }
 
-export interface AuditNotice {
-  id: string;
-  time: string;
-  level: NoticeLevel;
-  text: string;
-}

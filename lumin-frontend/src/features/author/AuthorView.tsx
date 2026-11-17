@@ -7,20 +7,18 @@ const DRAFT_LABEL: Record<string, { text: string; cls: string }> = {
   DISCARDED: { text: '已废弃', cls: 'badge--removed' },
 };
 
-// 创作：我的草稿（草稿三态：EDITABLE / SUBMITTED / DISCARDED）
+// 创作：草稿列表
 export function AuthorView() {
   return (
     <section aria-labelledby="author-h">
       <header className="page-head">
-        <h1 id="author-h">创作</h1>
-        <p className="page-head__sub">管理你的草稿与提交状态</p>
+        <h1 id="author-h" tabIndex={-1}>创作</h1>
       </header>
 
-      <div className="toolbar-row">
-        <button className="btn btn--primary">
+      <div className="toolbar">
+        <button className="btn btn--primary" type="button">
           <Icon name="author" size={18} /> 新建草稿
         </button>
-        <span className="toolbar-row__hint">草稿仅保存在本地示例，提交后将进入机审/人审流程</span>
       </div>
 
       <ul className="draft-list">
