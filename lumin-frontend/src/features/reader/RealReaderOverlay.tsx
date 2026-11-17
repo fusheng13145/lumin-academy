@@ -71,6 +71,11 @@ export function RealReaderOverlay({
         if (alive) {
           setContent(body);
           setError(null);
+          // 版本变更提示（T29）：已有进度绑定旧版本时如实告知，位置不跨版本套用
+          const progress = await readerService.getProgress(chapters[idx].id, ageBand);
+          if (alive && progress && progress.versionId !== body.versionId) {
+            announce('该章节已更新至新版本，之前保存的阅读位置属于旧版本。');
+          }
         }
       } catch (e) {
         if (alive) {
@@ -81,7 +86,7 @@ export function RealReaderOverlay({
     return () => {
       alive = false;
     };
-  }, [chapters, chapterIdx, ageBand]);
+  }, [chapters, chapterIdx, ageBand, announce]);
 
   if (!chapters || !detail) {
     return (

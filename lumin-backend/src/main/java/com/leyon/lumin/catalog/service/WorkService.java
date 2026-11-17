@@ -120,12 +120,17 @@ public class WorkService {
         return chapterMapper.listByWorkWithDraft(workId);
     }
 
-    /** 首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */
+    /** 首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。
+     *  已发布（非 DRAFT）作品发布修订版不触发业务态迁移（状态机无此事件行）——
+     *  否则迁移拒绝将回滚整个发布事务（含指针交换），修订永远无法发布。 */
     @Transactional
     public void markFirstVersionPublished(String workId, String operator, LocalDateTime now) {
         WorkRow work = workMapper.findById(workId);
         if (work == null) {
             throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        if (!"DRAFT".equals(work.businessState())) {
+            return;
         }
         var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
                 com.leyon.lumin.foundation.values.BusinessState.valueOf(work.businessState()),
@@ -238,13 +243,17 @@ public class WorkService {
                 operator, now, "REMOVED");
     }
 
-    /** 章节首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */
+    /** 章节首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。
+     *  已发布章节发布修订版不触发业务态迁移（同上，防回滚吞指针交换）。 */
     @Transactional
     public void markChapterPublished(String chapterId, String operator, LocalDateTime now) {
         com.leyon.lumin.catalog.repository.ChapterStateRow chapter =
                 chapterMapper.findStateById(chapterId);
         if (chapter == null) {
             throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        if (!"DRAFT".equals(chapter.businessState())) {
+            return;
         }
         var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
                 com.leyon.lumin.foundation.values.BusinessState.valueOf(chapter.businessState()),

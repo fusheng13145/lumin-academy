@@ -31,6 +31,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class GovernanceIntegrationTest extends MySqlIntegrationBase {
 
+    /** 嵌套配置：抽检闸恒未命中——AUTO 链路确定性验证（抽检函数另有单测）。
+     *  缺失时 5% 抽检会把 LOW+PASS 案件路由人工，发布链路非确定（本轮增量十八
+     *  暴露的偶发失败根因：发布后断言偶发落空——rr=[] 无 ReviewResolved 事件）。 */
+    @org.springframework.boot.test.context.TestConfiguration
+    static class NeverSampledGate {
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        com.leyon.lumin.moderation.service.AutoSampleGate neverSampled() {
+            return caseId -> false;
+        }
+    }
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired

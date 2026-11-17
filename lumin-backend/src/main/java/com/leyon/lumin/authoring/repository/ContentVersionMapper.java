@@ -32,6 +32,16 @@ public interface ContentVersionMapper {
     @Select("SELECT * FROM content_version WHERE id = #{id}")
     ContentVersionRow findById(@Param("id") String id);
 
+    /** 同目标下一修订号（04 §5.2：rev_key + revision_no 唯一；<=> 为 NULL 安全比较）。 */
+    @Select("""
+            SELECT COALESCE(MAX(revision_no), 0) + 1 FROM content_version
+            WHERE target_type = #{targetType} AND work_id = #{workId}
+                AND chapter_id <=> #{chapterId}
+            """)
+    Long nextRevisionNo(@Param("targetType") String targetType,
+                        @Param("workId") String workId,
+                        @Param("chapterId") String chapterId);
+
     /** 仅状态机合法字段更新：状态、等级、审计字段；其余列不出现在 UPDATE 中。 */
     @Update("""
             UPDATE content_version SET state = #{state}, grade = #{grade},

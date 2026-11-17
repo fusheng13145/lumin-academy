@@ -1,4 +1,4 @@
-import { request } from './http';
+import { request, ApiError } from './http';
 import type { AgeBand } from '../types';
 
 /**
@@ -87,4 +87,34 @@ export async function readChapter(
   return envelope.data;
 }
 
-export const readerService = { listWorks, getWork, listChapters, readChapter };
+/** 本人阅读进度（05 §3.4 getProgress；不存在返回 null——未读过/越权同为 404 语义）。 */
+export async function getProgress(
+  chapterId: string,
+  band?: AgeBand | null,
+): Promise<ProgressDto | null> {
+  try {
+    const envelope = await request<ProgressDto>({
+      method: 'GET',
+      path: `/me/reading-progress/${chapterId}`,
+      headers: readerHeaders(band),
+    });
+    return envelope.data;
+  } catch (e) {
+    if (e instanceof ApiError && e.httpStatus === 404) {
+      return null;
+    }
+    throw e;
+  }
+}
+
+/** 进度视图（契约：位置、版本与 ETag）。 */
+export interface ProgressDto {
+  chapterId: string;
+  versionId: string;
+  positionBasisPoints: number;
+  readSeconds: number;
+  clientUpdatedAt: string;
+  etag: string;
+}
+
+export const readerService = { listWorks, getWork, listChapters, readChapter, getProgress };

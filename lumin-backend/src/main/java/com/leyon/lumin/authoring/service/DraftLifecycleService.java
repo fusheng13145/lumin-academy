@@ -141,8 +141,12 @@ public class DraftLifecycleService {
         // material_snapshot 列即规范化快照本体（03 §4.1 第 8 段固定键 JSON）
         String snapshotCanonicalJson =
                 new String(snapshot.canonicalBytes(), StandardCharsets.UTF_8);
+        // 同目标修订号单调递增（04 §5.2 rev_key + revision_no 唯一）——
+        // 首版为 1，修订版按既有最大值 +1（此前恒为 1，修订发布必撞唯一约束）
+        long revisionNo = contentVersionMapper.nextRevisionNo(
+                draft.targetType(), draft.workId(), draft.chapterId());
         contentVersionMapper.insert(new ContentVersionRow(versionId, draft.workId(),
-                draft.chapterId(), draft.targetType(), 1L, draft.id(), draft.title(),
+                draft.chapterId(), draft.targetType(), revisionNo, draft.id(), draft.title(),
                 draft.synopsis(), draft.categoryId(), toJson(draft.tags()), null,
                 objectKey, bodySha256, snapshotCanonicalJson, materialSha256,
                 byteLength, "SUBMITTED", null, policyVersion, now, now, operator,

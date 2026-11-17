@@ -139,6 +139,16 @@ public class ReaderService {
                                String grade, String chapterId) {
     }
 
+    /** 章节可读裁决桥（foundation.ChapterAccessPort；engagement 进度域使用）：
+     *  可读返回当前公开指针所指版本 ID（进度版本绑定），否则 null（404 语义）。 */
+    public String readableVersion(String subject, String chapterId) {
+        try {
+            return decide(subject, TargetType.CHAPTER, chapterId).versionId();
+        } catch (LuminBusinessException denied) {
+            return null;
+        }
+    }
+
     /** 三态裁决组装（03 §3.1 八步输入全部来自权威记录，INV-07）。 */
     private VisibilityDecision decide(String subject, TargetType targetType, String targetId) {
         PublicationPointerRow pointer = pointerMapper.findByTarget(targetType.name(), targetId);
