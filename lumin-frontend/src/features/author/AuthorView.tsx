@@ -2,12 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/icons/Icon';
 import type { MyWork } from '../../services/workService';
 import { createWork, listMyWorks } from '../../services/workService';
-import { draftService } from '../../services/draftService';
+import { createDraft, submitDraft } from '../../services/draftService';
+import { chapterService, type MyChapter } from '../../services/chapterService';
 
-// 创作：我的作品（真实数据，经替身身份）
+// 创作：作品列表 → 章节 → 章节草稿 → 提交审校（真实 API）
 export function AuthorView() {
   const [works, setWorks] = useState<MyWork[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [chapters, setChapters] = useState<MyChapter[] | null>(null);
+  const [chapterBody, setChapterBody] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
     setError(null);
@@ -33,19 +38,52 @@ export function AuthorView() {
     }
   };
 
-  const submitLatest = async (workId: string): Promise<void> => {
-    setError(null);
+  const select = async (work: MyWork): Promise<void> => {
+    if (selectedId === work.id) {
+      setSelectedId(null);
+      setChapters(null);
+      return;
+    }
+    setSelectedId(work.id);
+    setChapters(null);
     try {
-      // 最小演示流：作品下建一个默认草稿并提交（幂等键由 http 层生成）
-      const draft = await draftService.createDraft({
-        workId,
-        title: '未命名草稿',
-        synopsis: ' ',
+      setChapters(await chapterService.listMyChapters(work.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '章节加载失败');
+    }
+  };
+
+  const createNewChapter = async (work: MyWork): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      const { chapterService: svc } = await import('../../services/chapterService');
+      await svc.createChapter(work.id);
+      setChapters(await chapterService.listMyChapters(work.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '新建章节失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createAndSubmitChapterDraft = async (work: MyWork, chapter: MyChapter): Promise<void> => {
+    setError(null);
+    setBusy(true);
+    try {
+      const draft = await createDraft({
+        workId: work.id,
+        chapterId: chapter.id,
+        title: `第 ${chapter.sequenceNo} 章`,
+        body: chapterBody,
       });
-      await draftService.submitDraft(draft.id, String(draft.revision));
-      await reload();
+      await submitDraft(draft.id, String(draft.revision));
+      setChapterBody('');
+      setChapters(await chapterService.listMyChapters(work.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : '提交失败');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -56,7 +94,7 @@ export function AuthorView() {
       </header>
 
       <div className="toolbar">
-        <button className="btn btn--primary" type="button" onClick={() => void createNewWork()}>
+        <button className="btn btn--primary" type="button" disabled={busy} onClick={() => void createNewWork()}>
           新建作品
         </button>
       </div>
@@ -80,14 +118,50 @@ export function AuthorView() {
                 <button
                   className="btn btn--soft"
                   type="button"
-                  onClick={() => void submitLatest(w.id)}
+                  onClick={() => void select(w)}
                 >
-                  <Icon name="review" size={16} /> 提交审校
+                  <Icon name="review" size={16} /> 写章节
                 </button>
               )}
             </li>
           ))}
         </ul>
+      )}
+
+      {selectedId && chapters !== null && (
+        <div className="card setting-block" style={{ marginTop: 'var(--sp-5)' }}>
+          <h2 className="setting-block__title">章节</h2>
+          {chapters.map((ch) => (
+            <div key={ch.id} className="setting-row">
+              <span>第 {ch.sequenceNo} 章 · {ch.businessState}
+                {ch.draftState ? ` · 草稿 ${ch.draftState}` : ''}</span>
+            </div>
+          ))}
+          <div className="toolbar">
+            <button className="btn btn--soft" type="button" disabled={busy}
+              onClick={() => { const w = (works ?? []).find((w) => w.id === selectedId); if (w) void createNewChapter(w); }}>
+              新建章节
+            </button>
+          </div>
+          {chapters.length > 0 && (
+            <div>
+              <textarea
+                aria-label="章节草稿正文"
+                rows={8}
+                style={{ width: '100%', fontFamily: 'inherit', fontSize: 'inherit' }}
+                value={chapterBody}
+                onChange={(e) => setChapterBody(e.target.value)}
+                placeholder="章节正文"
+              />
+              <div className="toolbar">
+                <button className="btn btn--primary" type="button" disabled={busy || chapterBody.trim() === ''}
+                  onClick={() => { const w = (works ?? []).find((w) => w.id === selectedId); const ch = chapters[0]; if (w && ch) void createAndSubmitChapterDraft(w, ch); }}>
+                  提交章节审校
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );

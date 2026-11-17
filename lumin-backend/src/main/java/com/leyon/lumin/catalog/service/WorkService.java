@@ -1,5 +1,6 @@
 package com.leyon.lumin.catalog.service;
 
+import com.leyon.lumin.catalog.repository.ChapterListRow;
 import com.leyon.lumin.catalog.repository.ChapterMapper;
 import com.leyon.lumin.catalog.repository.MyWorkRow;
 import com.leyon.lumin.catalog.repository.WorkMapper;
@@ -110,6 +111,13 @@ public class WorkService {
         if (chapterWorkId == null || !chapterWorkId.equals(workId)) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
+    }
+
+    /** 作者作品的章节列表（05 §3.2 listMyChapters：归属校验 + 可编辑草稿状态）。 */
+    @Transactional(readOnly = true)
+    public List<ChapterListRow> listMyChapters(String subject, String workId) {
+        requireOwnedRow(workId, subject);
+        return chapterMapper.listByWorkWithDraft(workId);
     }
 
     /** 首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */

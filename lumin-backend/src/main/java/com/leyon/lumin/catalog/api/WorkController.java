@@ -62,4 +62,23 @@ public class WorkController {
                              String draftId, String draftState, String draftTitle,
                              String latestTitle, String latestVersionState) {
     }
+
+    /** 作者作品的章节列表（05 §3.2 listMyChapters；仅本人）。 */
+    @org.springframework.web.bind.annotation.GetMapping("/{workId}/chapters/me")
+    public org.springframework.http.ResponseEntity<com.leyon.lumin.foundation.web.ApiEnvelope> listMyChapters(
+            @org.springframework.web.bind.annotation.RequestAttribute(
+                    DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @org.springframework.web.bind.annotation.PathVariable String workId) {
+        var chapters = workService.listMyChapters(subject, workId).stream()
+                .map(c -> new ChapterListItem(c.id(), c.sequenceNo(), c.businessState(),
+                        c.draftId(), c.draftState(), c.draftTitle()))
+                .toList();
+        return org.springframework.http.ResponseEntity.ok()
+                .body(com.leyon.lumin.foundation.web.ApiEnvelope.ok(chapters));
+    }
+
+    /** 私有章节列表项。 */
+    public record ChapterListItem(String id, int sequenceNo, String businessState,
+                                  String draftId, String draftState, String draftTitle) {
+    }
 }
