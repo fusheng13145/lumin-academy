@@ -34,6 +34,9 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
     public static final String READER_C2 = "READER_C2";
     public static final String READER_C3 = "READER_C3";
     public static final String READER_C4 = "READER_C4";
+    /** 配置域替身（05 §3.4：提案 OPERATOR/REVIEWER_L2、审批 ADMIN）。 */
+    public static final String OPERATOR = "OPERATOR";
+    public static final String ADMIN = "ADMIN";
 
     public static final String STUB_SUBJECT =
             UUID.fromString("9f8f8f8f-0000-4000-8000-0000000000a1").toString();
@@ -41,6 +44,10 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             UUID.fromString("8f8f8f8f-0000-4000-8000-0000000000b2").toString();
     public static final String REVIEWER_L2A_SUBJECT =
             UUID.fromString("7f7f7f7f-0000-4000-8000-0000000000c3").toString();
+    public static final String OPERATOR_SUBJECT =
+            UUID.fromString("5e8f8f8f-0000-4000-8000-0000000000e1").toString();
+    public static final String ADMIN_SUBJECT =
+            UUID.fromString("4d8f8f8f-0000-4000-8000-0000000000f2").toString();
     public static final String READER_C0_SUBJECT =
             UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d001").toString();
     public static final String READER_C1_SUBJECT =
@@ -53,15 +60,17 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d005").toString();
 
     /** 有界替身映射：名称 → 主体 UUID（仅集合内成员可用）。 */
-    private static final Map<String, String> STUB_SUBJECTS = Map.of(
-            AUTHOR, STUB_SUBJECT,
-            REVIEWER_L1A, REVIEWER_L1A_SUBJECT,
-            REVIEWER_L2A, REVIEWER_L2A_SUBJECT,
-            READER_C0, READER_C0_SUBJECT,
-            READER_C1, READER_C1_SUBJECT,
-            READER_C2, READER_C2_SUBJECT,
-            READER_C3, READER_C3_SUBJECT,
-            READER_C4, READER_C4_SUBJECT);
+    private static final Map<String, String> STUB_SUBJECTS = Map.ofEntries(
+            Map.entry(AUTHOR, STUB_SUBJECT),
+            Map.entry(REVIEWER_L1A, REVIEWER_L1A_SUBJECT),
+            Map.entry(REVIEWER_L2A, REVIEWER_L2A_SUBJECT),
+            Map.entry(READER_C0, READER_C0_SUBJECT),
+            Map.entry(READER_C1, READER_C1_SUBJECT),
+            Map.entry(READER_C2, READER_C2_SUBJECT),
+            Map.entry(READER_C3, READER_C3_SUBJECT),
+            Map.entry(READER_C4, READER_C4_SUBJECT),
+            Map.entry(OPERATOR, OPERATOR_SUBJECT),
+            Map.entry(ADMIN, ADMIN_SUBJECT));
 
     private static final Map<String, String> STUB_ROLES = Map.of(
             AUTHOR, "AUTHOR",
@@ -71,7 +80,9 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             READER_C1, "READER",
             READER_C2, "READER",
             READER_C3, "READER",
-            READER_C4, "READER");
+            READER_C4, "READER",
+            OPERATOR, "OPERATOR",
+            ADMIN, "ADMIN");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,

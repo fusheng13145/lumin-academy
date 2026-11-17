@@ -37,6 +37,11 @@ public final class MySqlFixtures {
             UUID.fromString("8f8f8f8f-0000-4000-8000-0000000000b2").toString();
     public static final String REVIEWER_L2A =
             UUID.fromString("7f7f7f7f-0000-4000-8000-0000000000c3").toString();
+    /** 配置域替身主体（提案 OPERATOR / 审批 ADMIN；与过滤器集合一致）。 */
+    public static final String OPERATOR =
+            UUID.fromString("5e8f8f8f-0000-4000-8000-0000000000e1").toString();
+    public static final String ADMIN =
+            UUID.fromString("4d8f8f8f-0000-4000-8000-0000000000f2").toString();
 
     private MySqlFixtures() {
     }
@@ -87,9 +92,25 @@ public final class MySqlFixtures {
                 """, STUB_SUBJECT, BUSINESS_TIME, BUSINESS_TIME, SYSTEM, SYSTEM);
     }
 
+    /** 配置域替身建档（提案 OPERATOR / 审批 ADMIN；幂等）。 */
+    public static void insertConfigStubs(JdbcTemplate jdbc) {
+        String[][] stubs = {
+                {OPERATOR, "sub-operator", "运营"},
+                {ADMIN, "sub-admin", "管理员"}};
+        for (String[] stub : stubs) {
+            jdbc.update("""
+                    INSERT IGNORE INTO user_profile (id, oidc_issuer, oidc_subject, nickname,
+                        declared_age_band, verified_age_band, effective_age_band, account_status,
+                        policy_revision, created_at, updated_at, created_by, updated_by)
+                    VALUES (?, 'https://id.example', ?, ?, 'C3', 'C3', 'C3', 'ACTIVE',
+                        1, ?, ?, ?, ?)
+                    """, stub[0], stub[1], stub[2],
+                    BUSINESS_TIME, BUSINESS_TIME, SYSTEM, SYSTEM);
+        }
+    }
+
     /** 读者替身 C0–C4 建档（T27 读者链矩阵；与 DemoAuthenticationFilter 集合一致，幂等）。 */
-    public static void insertReaderProfiles(JdbcTemplate jdbc) {
-        String[] subjects = {
+    public static void insertReaderProfiles(JdbcTemplate jdbc) {        String[] subjects = {
                 com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C0_SUBJECT,
                 com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C1_SUBJECT,
                 com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C2_SUBJECT,
