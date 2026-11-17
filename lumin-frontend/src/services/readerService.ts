@@ -1,9 +1,16 @@
 import { request } from './http';
+import type { AgeBand } from '../types';
 
 /**
  * 读者域服务（05 §3.4：listWorks / getWork / listChapters / readChapter）。
  * 未授权统一 404（B2004），正文由服务端可见性闸门返回。
+ *
+ * 读者年龄带经有界替身头（READER_C0–C4）显式随请求送达后端——
+ * 服务端按 effective_age_band 真实裁决；仅读者链请求携带，不影响创作/审核替身。
  */
+function readerHeaders(band?: AgeBand | null): Record<string, string> {
+  return band ? { 'X-Lumin-Demo-Subject': `READER_${band}` } : {};
+}
 export interface WorkListItemDto {
   versionId: string;
   workId: string;
@@ -38,28 +45,44 @@ export interface ContentDto {
   grade: string;
 }
 
-export async function listWorks(): Promise<WorkListItemDto[]> {
-  const envelope = await request<WorkListItemDto[]>({ method: 'GET', path: '/works' });
-  return envelope.data;
-}
-
-export async function getWork(workId: string): Promise<WorkDetailDto> {
-  const envelope = await request<WorkDetailDto>({ method: 'GET', path: `/works/${workId}` });
-  return envelope.data;
-}
-
-export async function listChapters(workId: string): Promise<ChapterEntryDto[]> {
-  const envelope = await request<ChapterEntryDto[]>({
+export async function listWorks(band?: AgeBand | null): Promise<WorkListItemDto[]> {
+  const envelope = await request<WorkListItemDto[]>({
     method: 'GET',
-    path: `/works/${workId}/chapters`,
+    path: '/works',
+    headers: readerHeaders(band),
   });
   return envelope.data;
 }
 
-export async function readChapter(chapterId: string): Promise<ContentDto> {
+export async function getWork(workId: string, band?: AgeBand | null): Promise<WorkDetailDto> {
+  const envelope = await request<WorkDetailDto>({
+    method: 'GET',
+    path: `/works/${workId}`,
+    headers: readerHeaders(band),
+  });
+  return envelope.data;
+}
+
+export async function listChapters(
+  workId: string,
+  band?: AgeBand | null,
+): Promise<ChapterEntryDto[]> {
+  const envelope = await request<ChapterEntryDto[]>({
+    method: 'GET',
+    path: `/works/${workId}/chapters`,
+    headers: readerHeaders(band),
+  });
+  return envelope.data;
+}
+
+export async function readChapter(
+  chapterId: string,
+  band?: AgeBand | null,
+): Promise<ContentDto> {
   const envelope = await request<ContentDto>({
     method: 'GET',
     path: `/chapters/${chapterId}/content`,
+    headers: readerHeaders(band),
   });
   return envelope.data;
 }

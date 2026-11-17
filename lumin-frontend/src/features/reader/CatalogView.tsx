@@ -41,7 +41,7 @@ export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProp
     let alive = true;
     void (async () => {
       try {
-        const list = await readerService.listWorks();
+        const list = await readerService.listWorks(ageBand);
         if (alive) {
           setWorks(list);
         }
@@ -54,7 +54,7 @@ export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProp
     return () => {
       alive = false;
     };
-  }, []);
+  }, [ageBand]);
 
   const demoMode = works === null || works.length === 0;
   const demoList = useMemo(() => filterBooks(BOOKS, filters), [filters]);

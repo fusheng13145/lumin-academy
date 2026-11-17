@@ -28,8 +28,8 @@ export function RealBookDetailView({ workId, index, ageBand, onBack, onRead }: R
     let alive = true;
     void (async () => {
       try {
-        const detail = await readerService.getWork(workId);
-        const chapters = await readerService.listChapters(workId);
+        const detail = await readerService.getWork(workId, ageBand);
+        const chapters = await readerService.listChapters(workId, ageBand);
         if (alive) {
           setLoaded({ detail, chapters });
         }
@@ -42,7 +42,7 @@ export function RealBookDetailView({ workId, index, ageBand, onBack, onRead }: R
     return () => {
       alive = false;
     };
-  }, [workId]);
+  }, [workId, ageBand]);
 
   if (error) {
     return (

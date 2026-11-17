@@ -86,4 +86,25 @@ public final class MySqlFixtures {
                     'C3', 'ACTIVE', 1, ?, ?, ?, ?)
                 """, STUB_SUBJECT, BUSINESS_TIME, BUSINESS_TIME, SYSTEM, SYSTEM);
     }
+
+    /** 读者替身 C0–C4 建档（T27 读者链矩阵；与 DemoAuthenticationFilter 集合一致，幂等）。 */
+    public static void insertReaderProfiles(JdbcTemplate jdbc) {
+        String[] subjects = {
+                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C0_SUBJECT,
+                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C1_SUBJECT,
+                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C2_SUBJECT,
+                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C3_SUBJECT,
+                com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C4_SUBJECT};
+        String[] bands = {"C0", "C1", "C2", "C3", "C4"};
+        for (int i = 0; i < bands.length; i++) {
+            jdbc.update("""
+                    INSERT IGNORE INTO user_profile (id, oidc_issuer, oidc_subject, nickname,
+                        declared_age_band, effective_age_band, account_status,
+                        policy_revision, created_at, updated_at, created_by, updated_by)
+                    VALUES (?, 'https://id.example', ?, ?, ?, ?, 'ACTIVE', 1, ?, ?, ?, ?)
+                    """, subjects[i], "sub-reader-" + bands[i].toLowerCase(),
+                    "读者" + bands[i], bands[i], bands[i],
+                    BUSINESS_TIME, BUSINESS_TIME, SYSTEM, SYSTEM);
+        }
+    }
 }

@@ -40,8 +40,8 @@ export function RealReaderOverlay({
     void (async () => {
       try {
         const [list, work] = await Promise.all([
-          readerService.listChapters(workId),
-          readerService.getWork(workId),
+          readerService.listChapters(workId, ageBand),
+          readerService.getWork(workId, ageBand),
         ]);
         if (alive) {
           setChapters(list);
@@ -56,7 +56,7 @@ export function RealReaderOverlay({
     return () => {
       alive = false;
     };
-  }, [workId]);
+  }, [workId, ageBand]);
 
   // 正文：随章号变化拉取对应已发布版本；切换期间保留上一章正文（阅读连续性）。
   useEffect(() => {
@@ -67,7 +67,7 @@ export function RealReaderOverlay({
     let alive = true;
     void (async () => {
       try {
-        const body = await readerService.readChapter(chapters[idx].id);
+        const body = await readerService.readChapter(chapters[idx].id, ageBand);
         if (alive) {
           setContent(body);
           setError(null);
@@ -81,7 +81,7 @@ export function RealReaderOverlay({
     return () => {
       alive = false;
     };
-  }, [chapters, chapterIdx]);
+  }, [chapters, chapterIdx, ageBand]);
 
   if (!chapters || !detail) {
     return (
