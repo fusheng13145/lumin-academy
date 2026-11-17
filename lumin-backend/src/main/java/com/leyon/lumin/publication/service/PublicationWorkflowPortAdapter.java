@@ -70,10 +70,12 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         this.objectMapper = objectMapper;
     }
 
-    @Override
+    /**
+     * ReviewResolved.v1 终局裁决执行（N5；由 publication 事件消费者调用）。
+     */
     @Transactional
-    public String executeAutoDecision(String workflowId, String versionId, String decision,
-                                      String grade, long policyVersion) {
+    public String executeReviewResolved(String workflowId, String versionId, String decision,
+                                        String grade, long policyVersion) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         PublicationWorkflowRow workflow = workflowMapper.findByIdForUpdate(workflowId);
         if (workflow == null) {

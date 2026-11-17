@@ -38,6 +38,22 @@ public class ReviewCasePortAdapter implements ReviewCasePort {
 
     @Override
     @Transactional
+    public String createReportCase(ReportCaseRequest request) {
+        if (request == null || request.workId() == null) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        ReviewCaseRow row = new ReviewCaseRow(UUID.randomUUID().toString(), null, null,
+                request.workId(), request.chapterId(), "REPORT", "LOW", "P2", "QUEUED",
+                DEFAULT_QUEUE_ID, 1, null, null,
+                now.plusHours(P2_RESPONSE_HOURS), now.plusHours(P2_COMPLETION_HOURS),
+                request.policyVersion(), now, now, "system", "system", 1L, null);
+        reviewCaseMapper.insert(row);
+        return row.id();
+    }
+
+    @Override
+    @Transactional
     public String createSubmissionCase(SubmissionCaseRequest request) {
         if (request == null || request.versionId() == null || request.workflowId() == null) {
             throw new LuminBusinessException(ErrorCode.P1001);

@@ -112,6 +112,7 @@ class MachineReviewIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.resourceType").value("machine_report"));
+        dispatcher.deliverPending();
         // N5：SYSTEM 裁决记录 + case DECIDED
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM review_decision WHERE case_id = ? AND actor_type = 'SYSTEM' "
@@ -151,6 +152,7 @@ class MachineReviewIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(jsonPath("$.code").value("P1001"));
         sendReport(s, "LOW", "REVISE", null, "0.99")
                 .andExpect(status().isOk());
+        dispatcher.deliverPending();
         assertThat(jdbc.queryForObject(
                 "SELECT state FROM content_version WHERE id = ?", String.class, s.versionId()))
                 .isEqualTo("REJECTED");
@@ -207,6 +209,7 @@ class MachineReviewIntegrationTest extends MySqlIntegrationBase {
         Submitted s = new Submitted(workId, draftId, workflowId, caseId, versionId, materialSha);
         // 03 §2.3：父作品未发布 → 停留 HUMAN_REVIEW，不将不满足前提的审批提交成功
         sendReport(s, "LOW", "PASS", "G", "0.99").andExpect(status().isOk());
+        dispatcher.deliverPending();
         assertThat(jdbc.queryForObject(
                 "SELECT state FROM publication_workflow WHERE id = ?", String.class, s.workflowId()))
                 .isEqualTo("HUMAN_REVIEW");
@@ -232,6 +235,7 @@ class MachineReviewIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("P1001"));
         sendReport(s, "LOW", "PASS", "G", "0.99").andExpect(status().isOk());
+        dispatcher.deliverPending();
         // 晚到报告：案件已 DECIDED → 409/B2001 + 过期审计
         sendReport(s, "LOW", "PASS", "G", "0.99")
                 .andExpect(status().isConflict())

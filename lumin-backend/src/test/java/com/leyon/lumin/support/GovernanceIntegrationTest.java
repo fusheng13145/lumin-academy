@@ -122,6 +122,7 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                 "SELECT material_sha256 FROM content_version WHERE id = ?",
                 String.class, versionId);
         sendReport(caseId, workflowId(caseId), versionId, materialSha, "LOW", "PASS", "G", "0.99");
+        dispatcher.deliverPending();
         return workId;
     }
 
@@ -214,6 +215,34 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
     }
 
     @Test
+    void reportCreatesCaseViaPortAndDeduplicates() throws Exception {
+        String workId = publishedWork();
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"reasonCode\":\"COPYRIGHT\","
+                                + "\"description\":\"涉嫌抄袭\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("ACCEPTED"));
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM report WHERE work_id = ? LIMIT 1", String.class, workId);
+        assertThat(jdbc.queryForObject(
+                "SELECT source FROM review_case WHERE id = ?", String.class, caseId))
+                .isEqualTo("REPORT");
+        assertThat(jdbc.queryForObject(
+                "SELECT state FROM review_case WHERE id = ?", String.class, caseId))
+                .isEqualTo("QUEUED");
+        // 24h 内同主体同目标同 reason_code → 去重 409（04 §5）
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json")
+                        .content("{\"workId\":\"" + workId + "\",\"reasonCode\":\"COPYRIGHT\","
+                                + "\"description\":\"重复举报\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("B2001"));
+    }
+
+    @Test
     void appealCreationRequiresOwnershipAndReviewerRecusal() throws Exception {
         String workId = publishedWork();
         // 申诉需关联案件：发布链的案件（source=SUBMISSION）——作者本人可申诉
@@ -279,9 +308,10 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
         String materialSha = jdbc.queryForObject(
                 "SELECT material_sha256 FROM content_version WHERE id = ?",
                 String.class, versionId);
-        // LOW AUTO_REVISE 裁决 → 驳回通知作者（02 §5.2 NotificationCreated）
+        // LOW AUTO_REVISE 裁决 → ReviewResolved 事件 → 消费后驳回 + 通知作者
         sendReport(caseId, workflowId(caseId), versionId, materialSha,
                 "LOW", "REVISE", null, "0.99");
+        dispatcher.deliverPending();
         // 作者为替身主体（STUB_AUTHOR）——通知行存在即验证幂等创建
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM notification WHERE category = 'REVIEW_RESULT'",

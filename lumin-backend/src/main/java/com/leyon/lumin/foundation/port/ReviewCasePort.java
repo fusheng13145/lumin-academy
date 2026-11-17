@@ -17,4 +17,13 @@ public interface ReviewCasePort {
     record SubmissionCaseRequest(String versionId, String workflowId, String workId,
                                  String chapterId, long policyVersion) {
     }
+
+    /** 举报建案请求（目标未发布前 version/workflow 为空；04 §5 review_case）。 */
+    record ReportCaseRequest(String workId, String chapterId, long policyVersion) {
+    }
+
+    /**
+     * 举报建案（source=REPORT；目标可为准发布内容）。
+     */
+    String createReportCase(ReportCaseRequest request);
 }

@@ -162,9 +162,9 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                         .content("""
                                 {"decision":"PASS","grade":"G","reasonCode":"OK_1001",
                                  "reason":"内容合规","evidenceRefs":["ev:1"]}""" ))
-                .andDo(org.springframework.test.web.servlet.result.MockMvcResultHandlers.print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.state").value("DECIDED"));
+        dispatcher.deliverPending();
         assertThat(jdbc.queryForObject(
                 "SELECT state FROM content_version WHERE id = ?", String.class, versionId))
                 .isEqualTo("APPROVED");
@@ -301,7 +301,8 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                 "SELECT version_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
         String materialSha = jdbc.queryForObject(
                 "SELECT material_sha256 FROM content_version WHERE id = ?", String.class, versionId);
-        // 机审 AUTO_ACCEPT（校准开启 + 恒未抽中上下文由本类无嵌套配置提供——默认抽检闸）
+        // 机审 AUTO_ACCEPT（ReviewResolved 事件）→ 消费后发布
         sendReport(caseId, workflowId, versionId, materialSha, "LOW", "PASS", "G", "0.99");
+        dispatcher.deliverPending();
     }
 }

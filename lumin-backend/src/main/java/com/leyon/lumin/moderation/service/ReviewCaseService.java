@@ -3,7 +3,8 @@ package com.leyon.lumin.moderation.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
-import com.leyon.lumin.foundation.port.PublicationWorkflowPort;
+import com.leyon.lumin.foundation.event.OutboxAppender;
+import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.foundation.values.ReviewDecision;
 import com.leyon.lumin.foundation.values.ReviewCaseEvent;
 import com.leyon.lumin.foundation.values.ReviewCaseState;
@@ -42,17 +43,17 @@ public class ReviewCaseService {
 
     private final ReviewCaseMapper caseMapper;
     private final ReviewDecisionMapper decisionMapper;
-    private final PublicationWorkflowPort publicationWorkflowPort;
+    private final OutboxAppender outboxAppender;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
 
     public ReviewCaseService(ReviewCaseMapper caseMapper,
                              ReviewDecisionMapper decisionMapper,
-                             PublicationWorkflowPort publicationWorkflowPort,
+                             OutboxAppender outboxAppender,
                              AuditRecorder auditRecorder, ObjectMapper objectMapper) {
         this.caseMapper = caseMapper;
         this.decisionMapper = decisionMapper;
-        this.publicationWorkflowPort = publicationWorkflowPort;
+        this.outboxAppender = outboxAppender;
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
     }
@@ -150,14 +151,24 @@ public class ReviewCaseService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
-        // 终局裁决（DECIDED）驱动发布/驳回；治理语义（HIDE/REMOVE/BAN）随治理批次（登记）
+        // 终局裁决（DECIDED）写 ReviewResolved.v1——publication 消费者执行状态机与发布事务
+        // （02 §5.2；HIDE/REMOVE/BAN 为治理语义，随治理批次接线，登记）
         if (transition.targetState() == ReviewCaseState.DECIDED
                 && row.workflowId() != null
                 && decision != ReviewDecision.HIDE && decision != ReviewDecision.REMOVE
                 && decision != ReviewDecision.BAN) {
-            publicationWorkflowPort.executeAutoDecision(row.workflowId(),
-                    row.versionId() == null ? null : row.versionId(), decision.name(),
-                    request.grade(), row.policyVersion());
+            java.util.LinkedHashMap<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("caseId", row.id());
+            payload.put("workflowId", row.workflowId());
+            payload.put("versionId", row.versionId());
+            payload.put("decision", decision.name());
+            payload.put("grade", decision.requiresGrade() ? request.grade() : null);
+            payload.put("policyVersion", row.policyVersion());
+            outboxAppender.append(new OutboxEventRow(UUID.randomUUID().toString(),
+                    UUID.randomUUID().toString(), "review_case", row.id(), 1L,
+                    "REVIEW_RESOLVED_V1", 1, objectMapper.writeValueAsString(payload),
+                    LocalDateTime.now(ZoneOffset.UTC), null, 0, null, now, now,
+                    subject, subject, 1L));
         }
         auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,
                 "review_case.decided", "review_case", caseId,

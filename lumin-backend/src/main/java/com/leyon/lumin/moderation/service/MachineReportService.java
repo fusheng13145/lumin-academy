@@ -1,10 +1,13 @@
 package com.leyon.lumin.moderation.service;
 
 import com.leyon.lumin.foundation.port.ContentMaterialPort;
+import com.leyon.lumin.foundation.port.NotificationPort;
+import com.leyon.lumin.foundation.port.PublicationWorkflowPort;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
-import com.leyon.lumin.foundation.port.PublicationWorkflowPort;
+import com.leyon.lumin.foundation.event.OutboxAppender;
+import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.foundation.values.AgeBand;
 import com.leyon.lumin.foundation.values.CaseSource;
 import com.leyon.lumin.foundation.values.ReviewDecision;
@@ -47,6 +50,7 @@ public class MachineReportService {
     private final ReviewDecisionMapper decisionMapper;
     private final ContentMaterialPort contentMaterialPort;
     private final PublicationWorkflowPort publicationWorkflowPort;
+    private final OutboxAppender outboxAppender;
     private final AutoSampleGate autoSampleGate;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
@@ -56,6 +60,7 @@ public class MachineReportService {
                                 ReviewDecisionMapper decisionMapper,
                                 ContentMaterialPort contentMaterialPort,
                                 PublicationWorkflowPort publicationWorkflowPort,
+                                OutboxAppender outboxAppender,
                                 AutoSampleGate autoSampleGate, AuditRecorder auditRecorder,
                                 ObjectMapper objectMapper,
                                 @Value("${lumin.review.calibration-valid:false}")
@@ -65,6 +70,7 @@ public class MachineReportService {
         this.decisionMapper = decisionMapper;
         this.contentMaterialPort = contentMaterialPort;
         this.publicationWorkflowPort = publicationWorkflowPort;
+        this.outboxAppender = outboxAppender;
         this.autoSampleGate = autoSampleGate;
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
@@ -132,12 +138,14 @@ public class MachineReportService {
                 // 先裁决记录 + 状态迁移（乐观锁用快照 lock），再更新风险/SLA（迁移后 lock+1）
                 recordSystemDecision(reviewCase, report, decision, now);
                 decideCase(reviewCase, now);
-                workflowState = publicationWorkflowPort.executeAutoDecision(
-                        reviewCase.workflowId(), report.versionId().toString(),
-                        decision.name(),
+                // 02 §5.2 ReviewResolved.v1：publication 消费者执行状态机与发布事务
+                // （03 §4.2：不把 HTTP 200 当发布事实——workflowState 返回当前真实状态）
+                appendReviewResolved(reviewCase.id(), reviewCase.workflowId(),
+                        report.versionId().toString(), decision.name(),
                         decision.requiresGrade() && report.grade() != null
                                 ? report.grade().name() : null,
-                        report.policyVersion());
+                        report.policyVersion(), now);
+                workflowState = "AUTO_REVIEW";
             }
         } else {
             // HUMAN / HOLD：报告已存，案件保持 QUEUED 等待人审（HOLD 挂起原因枚举待裁决）
@@ -186,6 +194,24 @@ public class MachineReportService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+    }
+
+    /** ReviewResolved.v1 事件（02 §5.2）：publication 消费者执行状态机与发布事务。 */
+    private void appendReviewResolved(String caseId, String workflowId, String versionId,
+                                      String decision, String grade, long policyVersion,
+                                      LocalDateTime now) {
+        java.util.LinkedHashMap<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("caseId", caseId);
+        payload.put("workflowId", workflowId);
+        payload.put("versionId", versionId);
+        payload.put("decision", decision);
+        payload.put("grade", grade);
+        payload.put("policyVersion", policyVersion);
+        outboxAppender.append(new OutboxEventRow(
+                UUID.randomUUID().toString(), UUID.randomUUID().toString(),
+                "review_case", caseId, 1L, "REVIEW_RESOLVED_V1", 1,
+                objectMapper.writeValueAsString(payload), now, null, 0, null,
+                now, now, "system", "system", 1L));
     }
 
     /** 风险 → SLA 优先级映射（03 §2.4 / 08 §5 骨架口径）。 */
