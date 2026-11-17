@@ -42,6 +42,9 @@ public final class MySqlFixtures {
             UUID.fromString("5e8f8f8f-0000-4000-8000-0000000000e1").toString();
     public static final String ADMIN =
             UUID.fromString("4d8f8f8f-0000-4000-8000-0000000000f2").toString();
+    /** 审计读取替身主体（AUDITOR 只读作用域；与过滤器集合一致）。 */
+    public static final String AUDITOR =
+            UUID.fromString("3c8f8f8f-0000-4000-8000-0000000000a9").toString();
 
     private MySqlFixtures() {
     }
@@ -92,11 +95,12 @@ public final class MySqlFixtures {
                 """, STUB_SUBJECT, BUSINESS_TIME, BUSINESS_TIME, SYSTEM, SYSTEM);
     }
 
-    /** 配置域替身建档（提案 OPERATOR / 审批 ADMIN；幂等）。 */
+    /** 配置域替身建档（提案 OPERATOR / 审批 ADMIN / 审计 AUDITOR；幂等）。 */
     public static void insertConfigStubs(JdbcTemplate jdbc) {
         String[][] stubs = {
                 {OPERATOR, "sub-operator", "运营"},
-                {ADMIN, "sub-admin", "管理员"}};
+                {ADMIN, "sub-admin", "管理员"},
+                {AUDITOR, "sub-auditor", "审计员"}};
         for (String[] stub : stubs) {
             jdbc.update("""
                     INSERT IGNORE INTO user_profile (id, oidc_issuer, oidc_subject, nickname,

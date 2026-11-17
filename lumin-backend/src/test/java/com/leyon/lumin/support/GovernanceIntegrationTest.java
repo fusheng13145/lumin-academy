@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -268,6 +269,22 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                     + row.get("after_redacted") + row.get("reason");
             assertThat(joined).doesNotContain("正文段落");
         }
+        // AUDITOR 只读审查读取（05 §3.4 listAuditRecords）：过滤 + 脱敏字段可见
+        String auditor = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.AUDITOR;
+        String auditList = mockMvc.perform(get("/api/v1/audit-records")
+                        .param("resourceId", workId)
+                        .param("resourceType", "work")
+                        .header("X-Lumin-Demo-Subject", auditor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].action").value("takedown.restored"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(auditList).contains("afterRedacted").contains("ACTIVE").contains("digest");
+        // 非 AUDITOR 替身 → 403（授权作用域）
+        mockMvc.perform(get("/api/v1/audit-records")
+                        .header("X-Lumin-Demo-Subject", L2A))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("A2001"));
     }
 
     @Test

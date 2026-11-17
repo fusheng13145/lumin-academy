@@ -37,6 +37,8 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
     /** 配置域替身（05 §3.4：提案 OPERATOR/REVIEWER_L2、审批 ADMIN）。 */
     public static final String OPERATOR = "OPERATOR";
     public static final String ADMIN = "ADMIN";
+    /** 审计读取替身（05 §3.4：AUDITOR 授权作用域只读）。 */
+    public static final String AUDITOR = "AUDITOR";
 
     public static final String STUB_SUBJECT =
             UUID.fromString("9f8f8f8f-0000-4000-8000-0000000000a1").toString();
@@ -48,6 +50,8 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             UUID.fromString("5e8f8f8f-0000-4000-8000-0000000000e1").toString();
     public static final String ADMIN_SUBJECT =
             UUID.fromString("4d8f8f8f-0000-4000-8000-0000000000f2").toString();
+    public static final String AUDITOR_SUBJECT =
+            UUID.fromString("3c8f8f8f-0000-4000-8000-0000000000a9").toString();
     public static final String READER_C0_SUBJECT =
             UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d001").toString();
     public static final String READER_C1_SUBJECT =
@@ -70,19 +74,21 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             Map.entry(READER_C3, READER_C3_SUBJECT),
             Map.entry(READER_C4, READER_C4_SUBJECT),
             Map.entry(OPERATOR, OPERATOR_SUBJECT),
-            Map.entry(ADMIN, ADMIN_SUBJECT));
+            Map.entry(ADMIN, ADMIN_SUBJECT),
+            Map.entry(AUDITOR, AUDITOR_SUBJECT));
 
-    private static final Map<String, String> STUB_ROLES = Map.of(
-            AUTHOR, "AUTHOR",
-            REVIEWER_L1A, "REVIEWER_L1",
-            REVIEWER_L2A, "REVIEWER_L2",
-            READER_C0, "READER",
-            READER_C1, "READER",
-            READER_C2, "READER",
-            READER_C3, "READER",
-            READER_C4, "READER",
-            OPERATOR, "OPERATOR",
-            ADMIN, "ADMIN");
+    private static final Map<String, String> STUB_ROLES = Map.ofEntries(
+            Map.entry(AUTHOR, "AUTHOR"),
+            Map.entry(REVIEWER_L1A, "REVIEWER_L1"),
+            Map.entry(REVIEWER_L2A, "REVIEWER_L2"),
+            Map.entry(READER_C0, "READER"),
+            Map.entry(READER_C1, "READER"),
+            Map.entry(READER_C2, "READER"),
+            Map.entry(READER_C3, "READER"),
+            Map.entry(READER_C4, "READER"),
+            Map.entry(OPERATOR, "OPERATOR"),
+            Map.entry(ADMIN, "ADMIN"),
+            Map.entry(AUDITOR, "AUDITOR"));
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
