@@ -11,11 +11,11 @@ export default defineConfig({
     // 后端 API 代理（骨架联调：Spring Boot 8080；OIDC 接入前为替身身份）
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
       '/internal': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
     },
