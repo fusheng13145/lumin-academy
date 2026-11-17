@@ -27,6 +27,9 @@ public interface NotificationMapper {
                        @Param("sourceEventId") String sourceEventId,
                        @Param("category") String category);
 
+    @Select("SELECT * FROM notification WHERE id = #{id}")
+    NotificationRow findById(@Param("id") String id);
+
     /** 标记已读（重复已读不重复产生副作用——T33）。 */
     @Update("""
             UPDATE notification SET read_at = #{readAt}, updated_at = #{readAt},

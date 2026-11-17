@@ -60,14 +60,19 @@ public class NotificationService {
         return notificationMapper.listUnread(recipientId);
     }
 
-    /** 标记已读（T33：重复已读不重复产生副作用——read_at IS NULL 守卫）。 */
+    /** 标记已读（T33 幂等：本人已读 → 无副作用成功返回；不存在/非本人 → 404）。 */
     @Transactional
     public void markRead(String recipientId, String notificationId) {
-        int rows = notificationMapper.markRead(notificationId, recipientId,
-                LocalDateTime.now(ZoneOffset.UTC));
-        if (rows == 0) {
-            // 已读或非本人：幂等返回 / 404 由调用方区分（此处幂等）
+        NotificationRow row = notificationId == null ? null
+                : notificationMapper.findById(notificationId);
+        if (row == null || !recipientId.equals(row.recipientId())) {
             throw new LuminBusinessException(ErrorCode.B2004);
         }
+        if (row.readAt() != null) {
+            // 重复已读：幂等返回，不重复产生副作用
+            return;
+        }
+        notificationMapper.markRead(notificationId, recipientId,
+                LocalDateTime.now(ZoneOffset.UTC));
     }
 }

@@ -95,12 +95,12 @@ public class ConfigRevisionController {
         return LocalDateTime.parse(value.replace("Z", ""));
     }
 
-    /** 审查视图（含原始 payload 与审批身份；不回显可兑换凭证）。 */
+    /** 审查视图（含原始 payload、审批身份与乐观锁版本——审批 If-Match 依据）。 */
     public record ConfigRevisionView(String id, String configKey, Long revision,
                                      Long baseRevision, String state, String payload,
                                      String reason, String requestedBy, String approvedBy,
                                      String effectiveAt, Integer rolloutBasisPoints,
-                                     String rollbackOf) {
+                                     String rollbackOf, Long lockVersion) {
     }
 
     private static ConfigRevisionView toView(ConfigRevisionRow row) {
@@ -108,7 +108,7 @@ public class ConfigRevisionController {
                 row.baseRevision(), row.state(), row.payload(), row.reason(),
                 row.requestedBy(), row.approvedBy(),
                 row.effectiveAt().toInstant(ZoneOffset.UTC).toString(),
-                row.rolloutBasisPoints(), row.rollbackOf());
+                row.rolloutBasisPoints(), row.rollbackOf(), row.lockVersion());
     }
 
     /** 提案请求体（类型化 payload 以 JSON 字符串携带；回滚走 rollbackOf）。 */
