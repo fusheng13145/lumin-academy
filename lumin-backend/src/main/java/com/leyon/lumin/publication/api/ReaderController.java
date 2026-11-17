@@ -44,6 +44,15 @@ public class ReaderController {
                         com.leyon.lumin.foundation.ErrorCodes.ErrorCode.B2004));
     }
 
+    /** 章节目录（05 §3.4 listChapters：仅可见章节，sequenceNo 稳定排序）。 */
+    @GetMapping("/works/{id}/chapters")
+    public ApiEnvelope listChapters(
+            @RequestAttribute(com.leyon.lumin.foundation.web.DemoAuthenticationFilter.ATTRIBUTE_SUBJECT)
+            String subject,
+            @PathVariable String id) {
+        return ApiEnvelope.ok(readerService.listChapters(subject, id));
+    }
+
     /** 章节正文：三态裁决通过返回最新通过版本纯文本（不接受 versionId 指定历史）。 */
     @GetMapping("/chapters/{id}/content")
     public ApiEnvelope readChapter(

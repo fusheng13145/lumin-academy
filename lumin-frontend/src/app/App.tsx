@@ -5,6 +5,8 @@ import { SiteFooter } from '../components/layout/SiteFooter';
 import { ReaderOverlay } from '../features/reader/ReaderOverlay';
 import { CatalogView } from '../features/reader/CatalogView';
 import { BookDetailView } from '../features/reader/BookDetailView';
+import { RealBookDetailView } from '../features/reader/RealBookDetailView';
+import { RealReaderOverlay } from '../features/reader/RealReaderOverlay';
 import { AuthorView } from '../features/author/AuthorView';
 import { ReviewView } from '../features/reviewer/ReviewView';
 import { OperatorView } from '../features/operator/OperatorView';
@@ -71,6 +73,12 @@ export function App() {
 
   const detailBook = detailId ? BOOKS.find((book) => book.id === detailId) ?? null : null;
   const readingBook = reading ? BOOKS.find((book) => book.id === reading.bookId) ?? null : null;
+  // 真实作品 UUID 不在演示夹具 id 集内：按 id 归属分流演示/真实两条阅读链。
+  const isRealWork = (id: string | null): boolean =>
+    id !== null && !BOOKS.some((book) => book.id === id);
+  // 书城真实列表第 N 项的封面配色序号：保证同一作品每次渲染封面一致。
+  const realCoverIndex = (id: string): number =>
+    id.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
 
   const select = (id: WorkspaceId): void => {
     setActive(id);
@@ -84,6 +92,10 @@ export function App() {
   const openDetail = (bookId: string): void => {
     const book = BOOKS.find((item) => item.id === bookId);
     if (!book) {
+      // 真实作品：门禁权威在后端（未授权 404 由详情页如实呈现）。
+      setDetailId(bookId);
+      setView('R02');
+      announce('已打开作品');
       return;
     }
     if (bookBlockedReason(book, ageBand) !== null) {
@@ -104,6 +116,11 @@ export function App() {
   const openReader = (bookId: string, chapterIdx: number): void => {
     const book = BOOKS.find((item) => item.id === bookId);
     if (!book) {
+      // 真实作品：正文可见性由后端闸门裁决。
+      readerTriggerRef.current = document.activeElement as HTMLElement | null;
+      setReading({ bookId, chapterIdx });
+      setView('R03');
+      announce(`已打开第 ${chapterIdx + 1} 章`);
       return;
     }
     // 阅读入口兜底：与 R01 / R02 共用 demoPolicy 判定。
@@ -168,6 +185,16 @@ export function App() {
           <CatalogView ageBand={ageBand} announce={announce} onOpenDetail={openDetail} />
         )}
         {/* R03 全屏覆盖层之下保留 R02 书详情，使「关闭回焦」的触发按钮不被卸载。 */}
+        {active === 'catalog' && view !== 'R01' && detailId && isRealWork(detailId) && (
+          <RealBookDetailView
+            key={detailId}
+            workId={detailId}
+            index={realCoverIndex(detailId)}
+            ageBand={ageBand}
+            onBack={backToCatalog}
+            onRead={openReader}
+          />
+        )}
         {active === 'catalog' && view !== 'R01' && detailBook && (
           <BookDetailView
             book={detailBook}
@@ -196,6 +223,20 @@ export function App() {
         <ReaderOverlay
           book={readingBook}
           chapterIdx={reading.chapterIdx}
+          ageBand={ageBand}
+          uiTheme={uiTheme}
+          onToggleUiTheme={toggleUiTheme}
+          announce={announce}
+          onChapterChange={changeChapter}
+          onClose={closeReader}
+        />
+      )}
+
+      {reading && !readingBook && (
+        <RealReaderOverlay
+          workId={reading.bookId}
+          chapterIdx={reading.chapterIdx}
+          index={realCoverIndex(reading.bookId)}
           ageBand={ageBand}
           uiTheme={uiTheme}
           onToggleUiTheme={toggleUiTheme}

@@ -8,7 +8,6 @@ export function ReviewView() {
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    setError(null);
     try {
       setCases(await caseService.listCases());
     } catch (e) {
@@ -18,8 +17,24 @@ export function ReviewView() {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await caseService.listCases();
+        if (alive) {
+          setCases(list);
+        }
+      } catch (e) {
+        if (alive) {
+          setCases([]);
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const claim = async (id: string): Promise<void> => {
     setError(null);

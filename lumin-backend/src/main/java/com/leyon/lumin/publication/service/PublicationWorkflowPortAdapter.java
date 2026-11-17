@@ -90,9 +90,16 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         PublicationEvent event = resolveEvent(workflow, versionId, decision);
 
         TransitionResult transition = PublicationStateMachine.workflow(
-                WorkflowState.valueOf(workflow.state()), event, context(version.targetType()));
+                WorkflowState.valueOf(workflow.state()), event, context(workflow));
         if (!transition.accepted()) {
-            throw new LuminBusinessException(ErrorCode.B2001);
+            // 03 §2.3：前提不满足（如章节父作品无可见已通过版本）→ 拒绝是终局结论，
+            // 审计后如实返回当前状态——不抛异常（事务标记 rollback-only 会吞收据与审计，
+            // 事件将无限重试；增量八 ReceiveResult 同一教训）
+            auditRecorder.record(new AuditRecorder.AuditEntry("system", "SYSTEM",
+                    "review_resolved.rejected", "publication_workflow", workflowId,
+                    "裁决执行被拒：" + event.name() + "（前提不满足）", traceId(),
+                    now.toInstant(ZoneOffset.UTC)));
+            return workflow.state();
         }
         workflowMapper.updateState(workflowId, transition.toState().name(), null,
                 "system", now);
@@ -102,9 +109,11 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         // 03 §2.3：机审 AUTO_PASS / 人审 HUMAN_FINAL_PASS 终态 APPROVED → 建公开指针
         if (transition.toState() == WorkflowState.APPROVED) {
             publishPointer(workflow, versionId, now);
-            // 03 §2.1：首版发布成功 → 作品业务态 DRAFT→ACTIVE（SYSTEM）
+            // 03 §2.1：首版发布成功 → 作品/章节业务态 DRAFT→ACTIVE（SYSTEM）
             if ("WORK".equals(workflow.targetType())) {
                 workService.markFirstVersionPublished(version.workId(), "system", now);
+            } else {
+                workService.markChapterPublished(version.chapterId(), "system", now);
             }
         }
         // N6 通知：模板确定文案，不让模型自述成功（03 §5.1 N6 / 02 §5.2 NotificationCreated）
@@ -125,7 +134,7 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         }
         TransitionResult transition = PublicationStateMachine.workflow(
                 WorkflowState.valueOf(workflow.state()), PublicationEvent.ROUTE_HUMAN_REVIEW,
-                context("CHAPTER"));
+                context(workflow));
         if (!transition.accepted()) {
             throw new LuminBusinessException(ErrorCode.B2001);
         }
@@ -218,11 +227,21 @@ public class PublicationWorkflowPortAdapter implements PublicationWorkflowPort {
         return objectMapper.writeValueAsString(payload);
     }
 
-    private static TransitionContext context(String targetType) {
-        return new TransitionContext(
-                targetType == null ? null : TargetType.valueOf(targetType),
+    /** 裁决上下文：前提布尔从权威记录注入——章节的父作品门禁以 WORK 指针为准
+     * （03 §2.3：父作品无可见已通过版本时 HUMAN_FINAL_PASS 一并被状态机拒绝），
+     * 其余布尔为骨架恒真值（与 WorkService 首版发布同口径）。 */
+    private TransitionContext context(PublicationWorkflowRow workflow) {
+        TargetType targetType = TargetType.valueOf(workflow.targetType());
+        boolean parentApproved = true;
+        if (targetType == TargetType.CHAPTER) {
+            ContentMaterialPort.MaterialRef version =
+                    contentMaterialPort.findVersionMaterial(workflow.versionId());
+            parentApproved = version != null
+                    && pointerMapper.findByTarget("WORK", version.workId()) != null;
+        }
+        return new TransitionContext(targetType,
                 true, true, true, null, true, true, true, true, true, true,
-                true, true, true, false, true, false);
+                true, true, parentApproved, false, true, false);
     }
 
     private static String traceId() {

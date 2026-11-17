@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AgeBand, BookState, FilterState, SortKey, WordBucket } from '../../types';
 import { BOOKS } from '../../mocks/mock';
+import { readerService } from '../../services/readerService';
+import type { WorkListItemDto } from '../../services/readerService';
+import { gradeBand, gradeLabel } from '../../lib/realBook';
 import { BookCard } from './components/BookCard';
 import {
   BAND_LABEL,
+  BAND_RANK,
   SORT_LABEL,
   STATE_LABEL,
   WORD_BUCKET_LABEL,
-  bookBlockedHint,
-  bookBlockedReason,
   filterBooks,
 } from '../../lib/demoPolicy';
 
@@ -30,26 +32,71 @@ const DEFAULT_FILTERS: FilterState = {
   sort: 'recent',
 };
 
-// 书城：筛选 + 书卡网格
+// 书城：真实读者链为主数据源；API 不可用时回退演示夹具（保留筛选体验）。
 export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const list = useMemo(() => filterBooks(BOOKS, filters), [filters]);
+  const [works, setWorks] = useState<WorkListItemDto[] | null>(null);
 
   useEffect(() => {
-    announce(`共 ${list.length} 部作品`);
-  }, [list.length, announce]);
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await readerService.listWorks();
+        if (alive) {
+          setWorks(list);
+        }
+      } catch {
+        if (alive) {
+          setWorks([]); // 空数组视为不可用 → 回退演示夹具
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const open = (bookId: string): void => {
-    const book = BOOKS.find((item) => item.id === bookId);
-    if (!book) {
+  const demoMode = works === null || works.length === 0;
+  const demoList = useMemo(() => filterBooks(BOOKS, filters), [filters]);
+
+  useEffect(() => {
+    if (demoMode) {
+      announce(`共 ${demoList.length} 部作品`);
+    } else if (works) {
+      announce(`共 ${works.length} 部作品`);
+    }
+  }, [demoMode, demoList.length, works, announce]);
+
+  // 真实作品：展示层灰显用 grade→band 派生口径，真实门禁在后端（未授权 404）。
+  const openWork = (work: WorkListItemDto): void => {
+    const band = gradeBand(work.grade);
+    if (BAND_RANK[band] > BAND_RANK[ageBand]) {
+      announce(`《${work.title}》当前年龄带暂不可读`);
       return;
     }
-    if (bookBlockedReason(book, ageBand) !== null) {
-      announce(`《${book.title}》${bookBlockedHint(book, ageBand)}`);
-      return;
-    }
-    onOpenDetail(bookId);
+    onOpenDetail(work.workId);
   };
+
+  if (!demoMode) {
+    return (
+      <section aria-labelledby="catalog-h">
+        <header className="page-head">
+          <h1 id="catalog-h" tabIndex={-1}>书城</h1>
+        </header>
+        {works!.map((work) => (
+          <button
+            key={work.workId}
+            type="button"
+            className="chapter-item"
+            onClick={() => openWork(work)}
+          >
+            <span>《{work.title}》 {work.author}</span>
+            <span className="ch-date">{gradeLabel(work.grade)}</span>
+          </button>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="catalog-h">
@@ -103,12 +150,12 @@ export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProp
         </select>
       </div>
 
-      {list.length === 0 ? (
+      {demoList.length === 0 ? (
         <div className="empty">暂无作品</div>
       ) : (
         <div className="book-grid">
-          {list.map((book) => (
-            <BookCard key={book.id} book={book} ageBand={ageBand} onOpen={open} />
+          {demoList.map((book) => (
+            <BookCard key={book.id} book={book} ageBand={ageBand} onOpen={onOpenDetail} />
           ))}
         </div>
       )}

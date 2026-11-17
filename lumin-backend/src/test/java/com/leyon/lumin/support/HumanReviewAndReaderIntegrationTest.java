@@ -285,6 +285,125 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(jsonPath("$.data[0].workId").value(workId));
     }
 
+    @Test
+    void chapterCatalogAndContentVisibleAfterPublish() throws Exception {
+        String workId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        String workDraft = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/drafts").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json")
+                                .content("{\"workId\":\"" + workId + "\",\"title\":\"目录作品\","
+                                        + "\"synopsis\":\"简介\",\"categoryId\":\""
+                                        + MySqlFixtures.CATEGORY_LITERATURE + "\",\"tags\":[]}"))
+                .andExpect(status().isOk()), "id");
+        submitAndApprove(workId, workDraft);
+        // 父作品已发布 → 章节走 AUTO 链（03 §2.3 前提满足）；发布推进过 work 乐观锁
+        long workLock = jdbc.queryForObject(
+                "SELECT lock_version FROM work WHERE id = ?", Long.class, workId);
+        String chapterId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works/" + workId + "/chapters")
+                                .header("Idempotency-Key", uuidKey())
+                                .header("If-Match", "\"" + workLock + "\"")
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        String chapterDraft = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/drafts").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json")
+                                .content("{\"workId\":\"" + workId + "\",\"chapterId\":\"" + chapterId
+                                        + "\",\"title\":\"第一章\",\"body\":\"第一段\\n第二段\"}"))
+                .andExpect(status().isOk()), "id");
+        submitAndApprove(workId, chapterDraft);
+        // 章节目录：仅含已发布章节，sequenceNo 排序
+        mockMvc.perform(get("/api/v1/works/" + workId + "/chapters"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(chapterId))
+                .andExpect(jsonPath("$.data[0].sequenceNo").value(1));
+        // 正文：返回已发布版本纯文本
+        mockMvc.perform(get("/api/v1/chapters/" + chapterId + "/content"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.body").value("第一段\n第二段"));
+        // 未发布章节目录为空（未发布作品维度 404 由 readerChainWorksAfterPublication 覆盖）
+        String otherWork = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(get("/api/v1/works/" + otherWork + "/chapters"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("B2004"));
+    }
+
+    @Test
+    void reviewerFinalPassWithoutParentWorkDoesNotPublishChapter() throws Exception {
+        // 03 §2.3：父作品无可见已通过版本 → 人审终局 PASS 也被状态机 PARENT_APPROVED 拒绝
+        String workId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        String chapterId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/works/" + workId + "/chapters")
+                                .header("Idempotency-Key", uuidKey())
+                                .header("If-Match", "\"1\"")
+                                .contentType("application/json").content("{}"))
+                .andExpect(status().isOk()), "id");
+        String chapterDraft = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
+                        post("/api/v1/drafts").header("Idempotency-Key", uuidKey())
+                                .contentType("application/json")
+                                .content("{\"workId\":\"" + workId + "\",\"chapterId\":\"" + chapterId
+                                        + "\",\"title\":\"孤儿章\",\"body\":\"正文\"}"))
+                .andExpect(status().isOk()), "id");
+        mockMvc.perform(post("/api/v1/drafts/" + chapterDraft + "/submissions")
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isAccepted());
+        dispatcher.deliverPending();
+        String workflowId = jdbc.queryForObject(
+                "SELECT id FROM publication_workflow WHERE version_id = (SELECT id FROM "
+                        + "content_version WHERE source_draft_id = ?)", String.class, chapterDraft);
+        String caseId = jdbc.queryForObject(
+                "SELECT case_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
+        String versionId = jdbc.queryForObject(
+                "SELECT version_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
+        String materialSha = jdbc.queryForObject(
+                "SELECT material_sha256 FROM content_version WHERE id = ?", String.class, versionId);
+        // 机审 MEDIUM：路由人工队列（案件保持 QUEUED；父作品门禁使流程停留 HUMAN_REVIEW）
+        sendReport(caseId, workflowId, versionId, materialSha, "MEDIUM", "PASS", "G", "0.99");
+        dispatcher.deliverPending();
+        // 审核员终局 PASS → 案件 DECIDED，但发布事件被 PARENT_APPROVED 拒绝
+        mockMvc.perform(post("/api/v1/review-cases/" + caseId + "/claims")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"1\"")
+                        .contentType("application/json").content("{}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/review-cases/" + caseId + "/decisions")
+                        .header("X-Lumin-Demo-Subject", L1A)
+                        .header("Idempotency-Key", uuidKey())
+                        .header("If-Match", "\"2\"")
+                        .contentType("application/json")
+                        .content("{\"decision\":\"PASS\",\"grade\":\"G\",\"reasonCode\":\"OK_1001\","
+                                + "\"reason\":\"合规\",\"evidenceRefs\":[\"ev:1\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.state").value("DECIDED"));
+        dispatcher.deliverPending();
+        // 无章节指针、业务态停留 DRAFT、流程停留 HUMAN_REVIEW + 拒绝审计
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM publication_pointer WHERE target_type = 'CHAPTER' "
+                        + "AND target_id = ?", Integer.class, chapterId)).isZero();
+        assertThat(jdbc.queryForObject(
+                "SELECT business_state FROM chapter WHERE id = ?", String.class, chapterId))
+                .isEqualTo("DRAFT");
+        assertThat(jdbc.queryForObject(
+                "SELECT state FROM publication_workflow WHERE id = ?", String.class, workflowId))
+                .isEqualTo("HUMAN_REVIEW");
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM audit_record WHERE action = 'review_resolved.rejected'",
+                Integer.class)).isGreaterThanOrEqualTo(1);
+    }
+
     private void submitAndApprove(String workId, String draftId) throws Exception {
         mockMvc.perform(post("/api/v1/drafts/" + draftId + "/submissions")
                         .header("Idempotency-Key", uuidKey())
@@ -294,7 +413,7 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
         dispatcher.deliverPending();
         String workflowId = jdbc.queryForObject(
                 "SELECT id FROM publication_workflow WHERE version_id = (SELECT id FROM "
-                        + "content_version WHERE work_id = ? LIMIT 1)", String.class, workId);
+                        + "content_version WHERE source_draft_id = ?)", String.class, draftId);
         String caseId = jdbc.queryForObject(
                 "SELECT case_id FROM publication_workflow WHERE id = ?", String.class, workflowId);
         String versionId = jdbc.queryForObject(

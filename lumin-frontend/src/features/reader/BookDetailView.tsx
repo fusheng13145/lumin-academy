@@ -45,7 +45,7 @@ export function BookDetailView({ book, ageBand, onBack, onRead }: BookDetailView
               {STATE_LABEL[book.state]}
             </span>
           </div>
-          <p className="book-meta">{book.author} · {book.wt} · {book.category}</p>
+          <p className="book-meta">{[book.author, book.wt, book.category].filter(Boolean).join(' · ')}</p>
           {blocked && <p className="muted-note">{bookBlockedHint(book, ageBand)}</p>}
 
           <div className="btn-row">

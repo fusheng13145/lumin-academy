@@ -6,6 +6,7 @@ import com.leyon.lumin.catalog.service.WorkService;
 import com.leyon.lumin.catalog.service.WorkService.WorkSummary;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.port.ActiveRestrictionsPort;
+import com.leyon.lumin.foundation.port.CaseOwnershipPort;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.storage.ContentObjectStore;
 import com.leyon.lumin.foundation.values.AccountStatus;
@@ -47,13 +48,15 @@ public class ReaderService {
     private final ProfileService profileService;
     private final com.leyon.lumin.foundation.storage.ContentObjectStore objectStore;
     private final com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort;
+    private final com.leyon.lumin.foundation.port.CaseOwnershipPort caseOwnershipPort;
 
     public ReaderService(PublicationPointerMapper pointerMapper,
                          PublicationWorkflowMapper workflowMapper,
                          DraftLifecycleService draftLifecycleService, WorkService workService,
                          ProfileService profileService,
                          com.leyon.lumin.foundation.storage.ContentObjectStore objectStore,
-                         com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort) {
+                         com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort,
+                         com.leyon.lumin.foundation.port.CaseOwnershipPort caseOwnershipPort) {
         this.pointerMapper = pointerMapper;
         this.workflowMapper = workflowMapper;
         this.draftLifecycleService = draftLifecycleService;
@@ -61,6 +64,7 @@ public class ReaderService {
         this.profileService = profileService;
         this.objectStore = objectStore;
         this.activeRestrictionsPort = activeRestrictionsPort;
+        this.caseOwnershipPort = caseOwnershipPort;
     }
 
     /** 读者可见的作品详情（05 §3.4 getWork：最新公开元数据，未授权统一 404）。 */
@@ -71,9 +75,11 @@ public class ReaderService {
         }
         PublishedVersionRef version = draftLifecycleService
                 .findPublishedVersion(decision.versionId());
+        String authorId = caseOwnershipPort.authorIdOfWork(version.workId());
+        String author = authorId == null ? null : profileService.findNickname(authorId);
         return Optional.of(new WorkView(version.versionId(), version.workId(),
-                version.title(), version.synopsis(), version.categoryId(), version.tags(),
-                version.grade()));
+                version.title(), author == null ? "" : author, version.synopsis(),
+                version.categoryId(), version.tags(), version.grade()));
     }
 
     /** 读者可见的章节正文（05 §3.4 readChapter：不接受 versionId 指定历史版本）。 */
@@ -85,6 +91,8 @@ public class ReaderService {
         PublishedVersionRef version = draftLifecycleService
                 .findPublishedVersion(decision.versionId());
         if (version.objectKey() == null) {
+            System.out.println("DBG-NOOBJ vid=" + version.versionId()
+                    + " ch=" + version.chapterId() + " state=" + version.state());
             return Optional.empty();
         }
         String body = new String(objectStore.read(version.objectKey()),
@@ -94,23 +102,41 @@ public class ReaderService {
     }
 
     /** 作品列表（骨架：SQL 等价过滤 + AgePolicy 逐条年龄过滤；游标分页随 P1 批次）。 */
-    public java.util.List<WorkView> listWorks(String subject) {
+    public java.util.List<WorkListItem> listWorks(String subject) {
         ProfileSummary requester = profileService.requireProfile(subject);
+        AgeBand requesterBand = AgeBand.valueOf(requester.effectiveAgeBand());
         var rows = pointerMapper.listPublishedWorks(100);
-        return rows.stream()
-                .filter(row -> {
-                    PublishedVersionRef version = draftLifecycleService
-                            .findPublishedVersion(row.versionId());
-                    return version != null && AgePolicy.canReadPublic(
-                            AgeBand.valueOf(requester.effectiveAgeBand()),
-                            Grade.valueOf(version.grade()));
-                })
-                .map(row -> draftLifecycleService.findPublishedVersion(row.versionId()))
-                .filter(java.util.Objects::nonNull)
-                .map(version -> new WorkView(version.versionId(), version.workId(),
-                        version.title(), version.synopsis(), version.categoryId(),
-                        version.tags(), version.grade()))
+        java.util.List<WorkListItem> items = new java.util.ArrayList<>();
+        for (var row : rows) {
+            PublishedVersionRef version = draftLifecycleService.findPublishedVersion(row.versionId());
+            if (version == null || !AgePolicy.canReadPublic(requesterBand,
+                    Grade.valueOf(version.grade()))) {
+                continue;
+            }
+            String authorId = caseOwnershipPort.authorIdOfWork(version.workId());
+            String author = authorId == null ? null
+                    : profileService.findNickname(authorId);
+            items.add(new WorkListItem(version.versionId(), version.workId(), version.title(),
+                    author == null ? "" : author, version.grade(), version.chapterId()));
+        }
+        return items;
+    }
+
+    /** 读者可见的章节目录（05 §3.4 listChapters：SQL 等价过滤，sequenceNo 排序）。 */
+    public java.util.List<ChapterEntry> listChapters(String subject, String workId) {
+        decide(subject, TargetType.WORK, workId);
+        return pointerMapper.listPublishedChapters(workId).stream()
+                .map(c -> new ChapterEntry(c.id(), c.sequenceNo(), c.businessState()))
                 .toList();
+    }
+
+    /** 章节目录项。 */
+    public record ChapterEntry(String id, int sequenceNo, String businessState) {
+    }
+
+    /** 作品列表项（书城卡片：含作者昵称与首章 ID）。 */
+    public record WorkListItem(String versionId, String workId, String title, String author,
+                               String grade, String chapterId) {
     }
 
     /** 三态裁决组装（03 §3.1 八步输入全部来自权威记录，INV-07）。 */
@@ -119,6 +145,8 @@ public class ReaderService {
         PublishedVersionRef version = pointer == null ? null
                 : draftLifecycleService.findPublishedVersion(pointer.versionId());
         if (pointer == null || version == null) {
+            System.out.println("DBG-NOPTR type=" + targetType + " id=" + targetId
+                    + " ptr=" + (pointer == null) + " ver=" + (version == null));
             // 无发布指针且无已发布事实：不告警（03 §3.1 步骤 3）
             throw new LuminBusinessException(ErrorCode.B2004);
         }
@@ -126,12 +154,18 @@ public class ReaderService {
                 workflowMapper.findByVersionId(pointer.versionId());
         WorkSummary work = workService.getWorkSummary(version.workId());
         ProfileSummary requester = profileService.requireProfile(subject);
+        boolean chapterTarget = targetType == TargetType.CHAPTER;
+        String versionTargetId = chapterTarget ? version.chapterId() : version.workId();
+        // CHAPTER 目标用章节自身业务态；WORK 目标用作品业务态（03 §3.1 步骤 2/6）
+        String targetStateRaw = chapterTarget
+                ? workService.chapterBusinessState(versionTargetId)
+                : (work == null ? null : work.businessState());
         VisibilityDecision decision = VisibilityPolicy.decide(new VisibilityInput(
                 AgeBand.valueOf(requester.effectiveAgeBand()),
                 AccountStatus.valueOf(requester.accountStatus()),
                 targetType, targetId,
-                work == null ? null : com.leyon.lumin.foundation.values.BusinessState
-                        .valueOf(work.businessState()),
+                targetStateRaw == null ? null
+                        : com.leyon.lumin.foundation.values.BusinessState.valueOf(targetStateRaw),
                 work == null ? null : com.leyon.lumin.foundation.values.BusinessState
                         .valueOf(work.businessState()),
                 activeRestrictionsPort.activeKinds(targetType.name(), version.workId(),
@@ -143,7 +177,7 @@ public class ReaderService {
                 workflow == null ? null : workflow.versionId(),
                 version.policyVersion(), version.policyVersion(),
                 pointer.versionId(), targetId,
-                "CHAPTER".equals(targetType) ? version.chapterId() : version.workId(),
+                versionTargetId,
                 true, true, true,
                 false, false)); // AccessPolicy 无 ACTIVE 配置：A 级默认关闭（契约）
         if (!decision.allowed()) {
@@ -153,9 +187,10 @@ public class ReaderService {
         return decision;
     }
 
-    /** 作品详情视图（元数据来自不可变公开版本）。 */
-    public record WorkView(String versionId, String workId, String title, String synopsis,
-                           String categoryId, java.util.List<String> tags, String grade) {
+    /** 作品详情视图（元数据来自不可变公开版本；作者昵称为公开档案字段）。 */
+    public record WorkView(String versionId, String workId, String title, String author,
+                           String synopsis, String categoryId, java.util.List<String> tags,
+                           String grade) {
     }
 
     /** 章节正文视图（契约 Content：chapterId/versionId/title/body/grade）。 */

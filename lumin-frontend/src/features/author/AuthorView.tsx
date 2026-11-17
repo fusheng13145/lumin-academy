@@ -15,7 +15,6 @@ export function AuthorView() {
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
-    setError(null);
     try {
       setWorks(await listMyWorks());
     } catch (e) {
@@ -25,8 +24,24 @@ export function AuthorView() {
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await listMyWorks();
+        if (alive) {
+          setWorks(list);
+        }
+      } catch (e) {
+        if (alive) {
+          setWorks([]);
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const createNewWork = async (): Promise<void> => {
     setError(null);

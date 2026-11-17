@@ -53,4 +53,14 @@ public interface PublicationPointerMapper {
             LIMIT #{limit}
             """)
     java.util.List<PublicationPointerRow> listPublishedWorks(@Param("limit") int limit);
+
+    /** 已发布章节目录（读者 listChapters：SQL 等价过滤——指针即已发布事实）。 */
+    @Select("""
+            SELECT c.id, c.sequence_no, c.business_state
+            FROM chapter c
+            JOIN publication_pointer p ON p.target_type = 'CHAPTER' AND p.target_id = c.id
+            WHERE c.work_id = #{workId} AND c.deleted_at IS NULL
+            ORDER BY c.sequence_no
+            """)
+    java.util.List<ReaderChapterRow> listPublishedChapters(@Param("workId") String workId);
 }

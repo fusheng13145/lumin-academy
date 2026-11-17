@@ -33,4 +33,10 @@ public class ProfileService {
         }
         return new ProfileSummary(row.id(), row.effectiveAgeBand(), row.accountStatus());
     }
+
+    /** 读者书城展示用作者昵称（PUBLIC 级字段；缺失返回 null）。 */
+    public String findNickname(String userId) {
+        UserProfileRow row = userId == null ? null : userProfileMapper.findById(userId);
+        return row == null ? null : row.nickname();
+    }
 }

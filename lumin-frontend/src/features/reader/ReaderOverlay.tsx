@@ -13,6 +13,12 @@ interface ReaderOverlayProps {
   announce: (message: string) => void;
   onChapterChange: (chapterIdx: number) => void;
   onClose: () => void;
+  /** 真实数据路径：已发布正文纯文本（null = 演示夹具路径或加载中）。 */
+  realBody?: string | null;
+  /** 真实数据路径：当前章节标题（来自不可变版本）。 */
+  realTitle?: string | null;
+  /** 真实数据路径：正文拉取失败提示。 */
+  realError?: string | null;
 }
 
 // 单章原创正文段落池：按章号确定性取三段，不读系统时钟。
@@ -57,6 +63,9 @@ export function ReaderOverlay({
   announce,
   onChapterChange,
   onClose,
+  realBody = null,
+  realTitle = null,
+  realError = null,
 }: ReaderOverlayProps) {
   const [toolbarOpen, setToolbarOpen] = useState(false);
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
@@ -75,11 +84,14 @@ export function ReaderOverlay({
   const idx = Math.min(Math.max(chapterIdx, 0), book.chapters.length - 1);
   const chapter = book.chapters[idx];
   const marginPx = margin === 0 ? '8%' : margin === 1 ? '12%' : '18%';
-  const paragraphs = [
-    BODY_POOL[idx % BODY_POOL.length],
-    BODY_POOL[(idx + 3) % BODY_POOL.length],
-    BODY_POOL[(idx + 5) % BODY_POOL.length],
-  ];
+  const isReal = realBody !== null || realError !== null;
+  const paragraphs = isReal
+    ? (realBody ?? '').split(/\n+/).map((text) => text.trim()).filter((text) => text !== '')
+    : [
+        BODY_POOL[idx % BODY_POOL.length],
+        BODY_POOL[(idx + 3) % BODY_POOL.length],
+        BODY_POOL[(idx + 5) % BODY_POOL.length],
+      ];
 
   // 阅读主题写入根属性：从渲染期副作用移入 useEffect（React 19 StrictMode 安全）。
   useEffect(() => {
@@ -258,14 +270,22 @@ export function ReaderOverlay({
               paddingRight: marginPx,
             }}
           >
-            <h2 className="reader-chapter-title">第 {idx + 1} 章 {chapter.title}</h2>
-            <p className="chapter-meta">
-              本章字数：{chapter.words} 字 · 更新时间：{chapter.updatedAt}（示例）
-            </p>
+            <h2 className="reader-chapter-title">
+              {isReal ? realTitle ?? `第 ${idx + 1} 章` : <>第 {idx + 1} 章 {chapter.title}</>}
+            </h2>
+            {isReal ? (
+              realBody === null ? (
+                <p className="muted-note">{realError ?? '正在获取正文'}</p>
+              ) : null
+            ) : (
+              <p className="chapter-meta">
+                本章字数：{chapter.words} 字 · 更新时间：{chapter.updatedAt}（示例）
+              </p>
+            )}
             {paragraphs.map((text, position) => (
               <p key={`${idx}-${position}`}>{text}</p>
             ))}
-            {showNotes && (
+            {showNotes && !isReal && (
               <div className="inline-notes">
                 <aside className="margin-note">
                   <span className="margin-note__tag">读者</span>

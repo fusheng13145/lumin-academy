@@ -140,4 +140,34 @@ public class WorkService {
         workMapper.updateBusinessState(workId, transition.toState().name(),
                 work.businessState(), null, operator, now, work.businessState());
     }
+
+    /** 章节业务态读取（读者链 CHAPTER 目标裁决输入；无行返回 null）。 */
+    @Transactional(readOnly = true)
+    public String chapterBusinessState(String chapterId) {
+        com.leyon.lumin.catalog.repository.ChapterStateRow row =
+                chapterMapper.findStateById(chapterId);
+        return row == null ? null : row.businessState();
+    }
+
+    /** 章节首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。 */
+    @Transactional
+    public void markChapterPublished(String chapterId, String operator, LocalDateTime now) {
+        com.leyon.lumin.catalog.repository.ChapterStateRow chapter =
+                chapterMapper.findStateById(chapterId);
+        if (chapter == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        var transition = com.leyon.lumin.publication.domain.PublicationStateMachine.business(
+                com.leyon.lumin.foundation.values.BusinessState.valueOf(chapter.businessState()),
+                com.leyon.lumin.foundation.values.PublicationEvent.FIRST_VERSION_PUBLISHED,
+                new com.leyon.lumin.publication.domain.TransitionContext(
+                        com.leyon.lumin.foundation.values.TargetType.CHAPTER,
+                        true, true, true, null, true, true, true, true, true, true,
+                        true, true, true, false, true, false));
+        if (!transition.accepted()) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        chapterMapper.updateBusinessState(chapterId, transition.toState().name(),
+                chapter.businessState(), operator, now, chapter.businessState());
+    }
 }
