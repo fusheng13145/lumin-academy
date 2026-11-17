@@ -146,10 +146,12 @@ public class ConfigRevisionService {
                 approve ? subject : null, row.state(), row.lockVersion(), subject, now) == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
-        auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,
+        auditRecorder.recordTransition(new AuditRecorder.AuditEntry(subject, stubRole,
                 "config_revision." + (approve ? "approved" : "rejected"),
                 "config_revision", id, reason == null ? "" : reason,
-                traceId(), now.toInstant(ZoneOffset.UTC)));
+                traceId(), now.toInstant(ZoneOffset.UTC)),
+                java.util.Map.of("configState", row.state()),
+                java.util.Map.of("configState", transition.targetState().name()));
         return transition.targetState().name();
     }
 
@@ -192,10 +194,12 @@ public class ConfigRevisionService {
                 row.state(), row.lockVersion(), subject, now) == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
-        auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,
+        auditRecorder.recordTransition(new AuditRecorder.AuditEntry(subject, stubRole,
                 "config_revision.activated", "config_revision", id,
                 "激活 revision=" + row.revision() + " rollout=" + row.rolloutBasisPoints(),
-                traceId(), now.toInstant(ZoneOffset.UTC)));
+                traceId(), now.toInstant(ZoneOffset.UTC)),
+                java.util.Map.of("configState", row.state()),
+                java.util.Map.of("configState", transition.targetState().name()));
         return transition.targetState().name();
     }
 

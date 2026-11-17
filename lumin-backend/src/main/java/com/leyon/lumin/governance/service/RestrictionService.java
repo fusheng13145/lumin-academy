@@ -107,10 +107,12 @@ public class RestrictionService {
             // 03 §2.1 生效下架：SYSTEM 执行已核验治理措施（业务态 → REMOVED，保存前态）
             publicationGatePort.takedown(targetScope(row), row.workId(), row.chapterId());
         }
-        auditRecorder.record(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
+        auditRecorder.recordTransition(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction." + (activate ? "activated" : "rejected"),
                 "restriction", restrictionId, row.reason(),
-                traceId(), now.toInstant(ZoneOffset.UTC)));
+                traceId(), now.toInstant(ZoneOffset.UTC)),
+                java.util.Map.of("restrictionState", row.state()),
+                java.util.Map.of("restrictionState", transition.targetState().name()));
         return transition.targetState().name();
     }
 
@@ -137,9 +139,11 @@ public class RestrictionService {
         }
         // 改判恢复：仅当所有生效限制均解除且指针在时恢复记录的前态（03 §2.1）
         publicationGatePort.restore(targetScope(row), row.workId(), row.chapterId());
-        auditRecorder.record(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
+        auditRecorder.recordTransition(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction.revoked", "restriction", restrictionId,
-                "临时措施独立复核改判解除", traceId(), now.toInstant(ZoneOffset.UTC)));
+                "临时措施独立复核改判解除", traceId(), now.toInstant(ZoneOffset.UTC)),
+                java.util.Map.of("restrictionState", "ACTIVE"),
+                java.util.Map.of("restrictionState", "REVOKED"));
         return "REVOKED";
     }
 

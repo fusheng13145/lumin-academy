@@ -13,6 +13,13 @@ public interface AuditRecorder {
      */
     void record(AuditEntry entry);
 
+    /**
+     * 追加带状态迁移的审计记录（T35：高危变更留 before/after 脱敏快照——
+     * 调用方仅传业务态类字段，不传正文/令牌/证件；digest 覆盖前后状态）。
+     */
+    void recordTransition(AuditEntry entry, java.util.Map<String, String> before,
+                          java.util.Map<String, String> after);
+
     /** 审计条目（脱敏由调用方负责；digest 由适配器对规范字段计算）。 */
     record AuditEntry(String actorId, String roleContext, String action,
                       String resourceType, String resourceId, String reason,

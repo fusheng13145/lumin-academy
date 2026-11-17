@@ -250,6 +250,24 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/chapters/" + chapterId + "/content"))
                 .andExpect(status().isOk());
+        // T35：下架/恢复审计带 before/after 脱敏快照与可校验 digest，且不含正文
+        var audits = jdbc.queryForList(
+                "SELECT action, before_redacted, after_redacted, digest, reason "
+                        + "FROM audit_record WHERE resource_type = 'work' AND resource_id = ? "
+                        + "AND action LIKE 'takedown%' ORDER BY event_at", workId);
+        assertThat(audits).hasSize(2);
+        assertThat(String.valueOf(audits.get(0).get("before_redacted")))
+                .contains("businessState").contains("ACTIVE");
+        assertThat(String.valueOf(audits.get(0).get("after_redacted")))
+                .contains("businessState").contains("REMOVED");
+        assertThat(String.valueOf(audits.get(1).get("before_redacted"))).contains("REMOVED");
+        assertThat(String.valueOf(audits.get(1).get("after_redacted"))).contains("ACTIVE");
+        for (var row : audits) {
+            assertThat((String) row.get("digest")).matches("[a-f0-9]{64}");
+            String joined = String.valueOf(row.get("before_redacted"))
+                    + row.get("after_redacted") + row.get("reason");
+            assertThat(joined).doesNotContain("正文段落");
+        }
     }
 
     @Test
