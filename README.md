@@ -20,7 +20,7 @@ lumin-academy/
 │   │   │   └── {module}/api      #   接入层 Controller（catalog/authoring/.../ai）
 │   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V7
 │   └── （旧单模块 src/ 已移除）
-├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，feature 分层（2026-11-17 重构）
+├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，纵向 feature + 共享层 + 展示壳（见 docs/19）
 │   ├── android/              # Android 壳：Capacitor 8 + Gradle 8.14.3（2026-11-18）
 │   ├── src/mobile/           # Android 移动端页面/组件/演示服务（2026-11-18）
 │   ├── dist-mobile/          # 移动端构建产物（npm run build:mobile）
@@ -67,7 +67,8 @@ mvn verify -Pcoverage       # 追加 JaCoCo 0.8.15 覆盖率报告（各模块 t
 cd lumin-frontend
 npm run dev                 # http://localhost:5173
 npm run build               # tsc -b 类型检查 + vite 生产构建
-npm run lint
+npm run lint                # eslint + 前端依赖边界检查
+npm run check:architecture  # 只检查 feature / 共享层 / 展示壳依赖方向
 
 # Android 移动端
 npm run dev:mobile          # http://localhost:5174
@@ -89,7 +90,7 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 
 - 技术路线：**Java 21 + Spring Boot 4.0.9 后端 + React 19 + TypeScript + Capacitor 8 Android 壳**；iOS 仅在 `capacitor.config.ts` 与设计文档中预留，不实现。
 - 当前范围：读者 + 作者 + 账号；审核/运营保留 Web 工作台。
-- 设计文档：`docs/17-Android移动端实施设计（Java+React+Capacitor）.md`；产品/页面/三模式补充见 `docs/16`，作者工作台见 `docs/15`。
+- 设计文档：`docs/17-Android移动端实施设计（Java+React+Capacitor）.md`；产品/页面/三模式补充见 `docs/16`，作者工作台见 `docs/15`；前端分级与依赖边界见 `docs/19`。
 - APK：`lumin-frontend/android/app/build/outputs/apk/debug/app-debug.apk`；debug 包名 `com.leyon.lumin`，minSdk 24，targetSdk 36。
 - Android 工具链：SDK 36 + build-tools 36.0.0 + AGP 8.13.0 + Gradle wrapper 8.14.3；中文项目路径已用 `android.overridePathCheck=true` 放行，Maven 依赖优先走阿里云镜像。
 - 移动端构建与 Web 构建互不影响：`npm run build:mobile` 输出 `dist-mobile`，`npm run build` 输出 `dist`。

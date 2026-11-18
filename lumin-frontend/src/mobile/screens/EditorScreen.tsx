@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CreationMode, DraftPayload, MobileChapter, StudioWork } from '../types';
-import { MODE_DESC, MODE_LABEL } from '../services/aiDemo';
+import { MODE_DESC, MODE_LABEL } from '../../lib/creationMode';
 import { Sheet } from '../components/ui';
 import {
   IconBack,

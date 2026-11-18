@@ -1,3 +1,5 @@
+import type { CreationMode } from '../lib/creationMode';
+
 export const MOBILE_TABS = ['home', 'studio', 'ai', 'me'] as const;
 export type MobileTab = (typeof MOBILE_TABS)[number];
 
@@ -8,7 +10,7 @@ export type MobileRoute =
   | { name: 'reader'; bookId: string; chapterNo: number }
   | { name: 'studio' }
   | { name: 'work'; workId: string }
-  | { name: 'editor'; workId: string; chapterId?: string; mode?: 'manual' | 'assisted' | 'autonomous' }
+  | { name: 'editor'; workId: string; chapterId?: string; mode?: CreationMode }
   | { name: 'ai'; workId?: string; chapterId?: string }
   | { name: 'materials' }
   | { name: 'illustration' }

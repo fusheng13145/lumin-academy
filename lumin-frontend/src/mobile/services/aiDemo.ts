@@ -1,16 +1,5 @@
-import type { AiRun, AiStage, CreationMode, MemoryFact } from '../types';
-
-export const MODE_LABEL: Record<CreationMode, string> = {
-  manual: '传统写作',
-  assisted: 'AI 辅助',
-  autonomous: '纯 AI',
-};
-
-export const MODE_DESC: Record<CreationMode, string> = {
-  manual: '你写每一个字，AI 不介入正文。',
-  assisted: 'AI 给候选段落，你决定是否采纳。',
-  autonomous: '你给方向，多 Agent 工作流产出候选章节。',
-};
+import type { AiRun, AiStage, MemoryFact } from '../types';
+import type { CreationMode } from '../../lib/creationMode';
 
 const STAGE_SETS: Record<Exclude<CreationMode, 'manual'>, Array<{ id: string; label: string; detail: string }>> = {
   assisted: [

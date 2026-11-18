@@ -1,7 +1,8 @@
 import type { Book, Chapter } from '../types';
+import type { CreationMode } from '../lib/creationMode';
 
-/** 三种创作模式：与 docs/15 的 creation_mode 口径一致。 */
-export type CreationMode = 'manual' | 'assisted' | 'autonomous';
+/** 三种创作模式统一由 lib/creationMode 定义，移动端只做类型再导出。 */
+export type { CreationMode } from '../lib/creationMode';
 
 export interface MobileChapter extends Chapter {
   id: string;

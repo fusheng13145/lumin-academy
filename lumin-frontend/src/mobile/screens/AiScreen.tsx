@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { AiRun, CreationMode, MemoryFact } from '../types';
-import { MODE_DESC, MODE_LABEL, createAiRun, runAiWorkflow } from '../services/aiDemo';
+import { MODE_DESC, MODE_LABEL } from '../../lib/creationMode';
+import { createAiRun, runAiWorkflow } from '../services/aiDemo';
 import { Sheet, StatusBadge, TopBar } from '../components/ui';
 import {
   IconBrain,
