@@ -54,6 +54,45 @@ public interface PublicationPointerMapper {
             """)
     java.util.List<PublicationPointerRow> listPublishedWorks(@Param("limit") int limit);
 
+    /** 读者作品列表行（UGC-009：授权过滤 SQL 化——等级口径见 ReaderService；
+     *  字段顺序与 SELECT 列序一致）。 */
+    record WorkFeedRow(
+            java.time.LocalDateTime publishedAt,
+            String pointerId,
+            String versionId,
+            String workId,
+            String title,
+            String author,
+            String grade,
+            String chapterId) {
+    }
+
+    /**
+     * 读者授权 keyset 分页（UGC-009；05 §2 游标口径）：授权过滤 SQL 化——
+     * G/PG_12 全带可见；PG_16 仅 bandVar∈(C2,C3)（C4 按 C1）；A 级默认关闭；
+     * keyset (published_at, id) 稳定排序，跨页无漏重。
+     */
+    @Select("""
+            SELECT p.published_at, p.id AS pointerId,
+                   cv.id AS versionId, w.id AS workId, cv.title,
+                   COALESCE(u.nickname, '') AS author, cv.grade, cv.chapter_id AS chapterId
+            FROM publication_pointer p
+            JOIN work w ON w.id = p.target_id AND p.target_type = 'WORK'
+                AND w.business_state IN ('ACTIVE','COMPLETED') AND w.deleted_at IS NULL
+            JOIN content_version cv ON cv.id = p.version_id AND cv.state = 'APPROVED'
+            LEFT JOIN user_profile u ON u.id = w.author_id AND u.deleted_at IS NULL
+            WHERE (cv.grade IN ('G','PG_12')
+                OR (cv.grade = 'PG_16' AND #{bandVar} IN ('C2','C3')))
+              AND (#{cursorAt} IS NULL
+                OR (p.published_at, p.id) < (#{cursorAt}, #{cursorId}))
+            ORDER BY p.published_at DESC, p.id
+            LIMIT #{limit}
+            """)
+    java.util.List<WorkFeedRow> listVisibleWorks(@Param("bandVar") String bandVar,
+                                                 @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                                 @Param("cursorId") String cursorId,
+                                                 @Param("limit") int limit);
+
     /** 已发布章节目录（读者 listChapters：SQL 等价过滤——指针即已发布事实）。 */
     @Select("""
             SELECT c.id, c.sequence_no, c.business_state

@@ -27,6 +27,7 @@ import com.leyon.lumin.publication.repository.PublicationWorkflowMapper;
 import com.leyon.lumin.publication.repository.PublicationWorkflowRow;
 import org.springframework.stereotype.Service;
 
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -49,6 +50,7 @@ public class ReaderService {
     private final com.leyon.lumin.foundation.storage.ContentObjectStore objectStore;
     private final com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort;
     private final com.leyon.lumin.foundation.port.CaseOwnershipPort caseOwnershipPort;
+    private final String cursorKey;
 
     public ReaderService(PublicationPointerMapper pointerMapper,
                          PublicationWorkflowMapper workflowMapper,
@@ -56,7 +58,9 @@ public class ReaderService {
                          ProfileService profileService,
                          com.leyon.lumin.foundation.storage.ContentObjectStore objectStore,
                          com.leyon.lumin.foundation.port.ActiveRestrictionsPort activeRestrictionsPort,
-                         com.leyon.lumin.foundation.port.CaseOwnershipPort caseOwnershipPort) {
+                         com.leyon.lumin.foundation.port.CaseOwnershipPort caseOwnershipPort,
+                         @org.springframework.beans.factory.annotation.Value(
+                                 "${lumin.cursor.key}") String cursorKey) {
         this.pointerMapper = pointerMapper;
         this.workflowMapper = workflowMapper;
         this.draftLifecycleService = draftLifecycleService;
@@ -65,6 +69,7 @@ public class ReaderService {
         this.objectStore = objectStore;
         this.activeRestrictionsPort = activeRestrictionsPort;
         this.caseOwnershipPort = caseOwnershipPort;
+        this.cursorKey = cursorKey;
     }
 
     /** 读者可见的作品详情（05 §3.4 getWork：最新公开元数据，未授权统一 404）。 */
@@ -101,25 +106,64 @@ public class ReaderService {
                 version.title(), body, version.grade()));
     }
 
-    /** 作品列表（骨架：SQL 等价过滤 + AgePolicy 逐条年龄过滤；游标分页随 P1 批次）。 */
-    public java.util.List<WorkListItem> listWorks(String subject) {
-        ProfileSummary requester = profileService.requireProfile(subject);
-        AgeBand requesterBand = AgeBand.valueOf(requester.effectiveAgeBand());
-        var rows = pointerMapper.listPublishedWorks(100);
-        java.util.List<WorkListItem> items = new java.util.ArrayList<>();
-        for (var row : rows) {
-            PublishedVersionRef version = draftLifecycleService.findPublishedVersion(row.versionId());
-            if (version == null || !AgePolicy.canReadPublic(requesterBand,
-                    Grade.valueOf(version.grade()))) {
-                continue;
-            }
-            String authorId = caseOwnershipPort.authorIdOfWork(version.workId());
-            String author = authorId == null ? null
-                    : profileService.findNickname(authorId);
-            items.add(new WorkListItem(version.versionId(), version.workId(), version.title(),
-                    author == null ? "" : author, version.grade(), version.chapterId()));
+    /** 作品列表页（UGC-009：签名字游标——授权过滤 SQL 化，跨页无漏重、隐藏数不泄露）。 */
+    public record WorksPage(java.util.List<WorkListItem> items, String nextCursor) {
+    }
+
+    /**
+     * 读者作品列表（UGC-009；05 §2 游标口径）：授权过滤在 SQL（等级口径与
+     * AgePolicy.canReadPublic 同源等价）；游标绑定主体 + 过滤摘要、HMAC 签名、
+     * 15 分钟过期；响应 data 为数组（契约不变），nextCursor 经响应头传递。
+     */
+    public WorksPage listWorks(String subject, String cursorToken, Integer limitParam) {
+        ErrorCode limitCheck = com.leyon.lumin.foundation.cursor.CursorCodec
+                .validateLimit(limitParam);
+        if (limitCheck != ErrorCode.OK) {
+            throw new LuminBusinessException(limitCheck);
         }
-        return items;
+        int limit = com.leyon.lumin.foundation.cursor.CursorCodec.resolveLimit(limitParam);
+        ProfileSummary requester = profileService.requireProfile(subject);
+        AgeBand band = AgeBand.valueOf(requester.effectiveAgeBand());
+        // C4 读带按 C1（AgeBand.readingBand 同源口径）
+        String bandVar = (band == AgeBand.C4 ? AgeBand.C1 : band).name();
+        String filterDigest = com.leyon.lumin.foundation.cursor.CursorCodec
+                .filterDigest("list=works;band=" + bandVar);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(ZoneOffset.UTC);
+        java.time.LocalDateTime cursorAt = null;
+        String cursorId = null;
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            var decoded = com.leyon.lumin.foundation.cursor.CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    java.time.Instant.now(), filterDigest);
+            if (decoded.code() != ErrorCode.OK) {
+                // 失效/过期/篡改游标 → 400（05 §2；客户端应从第一页重新分页）
+                throw new LuminBusinessException(decoded.code());
+            }
+            if (!decoded.payload().subjectId().toString().equals(subject)) {
+                // 主体作用域绑定：他人游标不可用
+                throw new LuminBusinessException(ErrorCode.P1001);
+            }
+            cursorAt = java.time.LocalDateTime.parse(decoded.payload().sortKeyValue());
+            cursorId = decoded.payload().lastId().toString();
+        }
+        var rows = pointerMapper.listVisibleWorks(bandVar, cursorAt, cursorId, limit + 1);
+        boolean hasMore = rows.size() > limit;
+        var page = rows.subList(0, Math.min(rows.size(), limit));
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            var last = page.get(page.size() - 1);
+            nextCursor = com.leyon.lumin.foundation.cursor.CursorCodec.encode(
+                    new com.leyon.lumin.foundation.cursor.CursorCodec.Payload(
+                            last.publishedAt().toString(), UUID.fromString(last.pointerId()),
+                            filterDigest, UUID.fromString(subject),
+                            now.toInstant(ZoneOffset.UTC)),
+                    cursorKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        var items = page.stream()
+                .map(row -> new WorkListItem(row.versionId(), row.workId(), row.title(),
+                        row.author(), row.grade(), row.chapterId()))
+                .toList();
+        return new WorksPage(items, nextCursor);
     }
 
     /** 读者可见的章节目录（05 §3.4 listChapters：SQL 等价过滤，sequenceNo 排序）。 */

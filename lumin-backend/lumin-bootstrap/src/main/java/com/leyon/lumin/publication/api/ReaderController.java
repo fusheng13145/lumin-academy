@@ -23,13 +23,23 @@ public class ReaderController {
         this.readerService = readerService;
     }
 
-    /** 作品列表（仅可见作品；骨架无游标，limit 由服务层限制）。 */
+    /** 作品列表（UGC-009：签名字游标分页——data 契约为数组，nextCursor 经响应头传递；
+     *  limit 默认 20 上限 100，失效/过期/篡改/跨主体游标 400）。 */
     @GetMapping("/works")
     public ApiEnvelope listWorks(
             @org.springframework.web.bind.annotation.RequestAttribute(
                     com.leyon.lumin.foundation.web.DemoAuthenticationFilter.ATTRIBUTE_SUBJECT)
-            java.lang.String subject) {
-        return ApiEnvelope.ok(readerService.listWorks(subject));
+            java.lang.String subject,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.String cursor,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.Integer limit,
+            jakarta.servlet.http.HttpServletResponse response) {
+        var page = readerService.listWorks(subject, cursor, limit);
+        if (page.nextCursor() != null) {
+            response.setHeader("X-Lumin-Next-Cursor", page.nextCursor());
+        }
+        return ApiEnvelope.ok(page.items());
     }
 
     /** 作品详情：三态裁决通过返回最新公开元数据，未授权统一 404。 */

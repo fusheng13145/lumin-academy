@@ -16,6 +16,8 @@ spring:
 lumin:
   outbox:
     enabled: false
+  cursor:
+    key: lumin-cursor-key-test
   review:
     calibration-valid: false
     sample-seed: lumin-review-seed-test

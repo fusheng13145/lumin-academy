@@ -24,6 +24,12 @@ lumin:
   outbox:
     enabled: true
     interval-ms: 1000
+  auth:
+    # UGC-002：session=演示头被忽略（生产必须 session，部署 profile 置定）；demo=开发/测试骨架
+    mode: ${LUMIN_AUTH_MODE:demo}
+  cursor:
+    # UGC-009 游标签名密钥：生产必须经 Secret Manager 注入（缺省仅本地开发占位）
+    key: ${LUMIN_CURSOR_KEY:lumin-cursor-dev-key}
   review:
     # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
     calibration-valid: false
