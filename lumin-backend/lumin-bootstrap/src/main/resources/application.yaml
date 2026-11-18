@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: lumin-backend
+  datasource:
+    # 08 §3：凭据一律经环境变量注入（DATABASE_DSN/DATABASE_USERNAME/DATABASE_PASSWORD），
+    # 禁止写入代码或镜像；默认值仅为本地开发占位
+    url: ${DATABASE_DSN:jdbc:mysql://127.0.0.1:3306/lumin?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true}
+    username: ${DATABASE_USERNAME:root}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      # 主应用上下文加载不因数据库暂不可达而失败；真实可用性由集成测试与部署准入验证
+      initialization-fail-timeout: -1
+  outbox:
+    enabled: true
+    interval-ms: 1000
+  mybatis:
+    configuration:
+      map-underscore-to-camel-case: true
+      arg-name-based-constructor-auto-mapping: true
+# P0-B 增量四（2026-11-16）：持久化单元落地，移除增量一时的 DataSource/MyBatis
+# 自动配置排除；生产部署须另行提供 Secret Manager 注入的 DSN（08 §3）。
+
+lumin:
+  outbox:
+    enabled: true
+    interval-ms: 1000
+  review:
+    # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
+    calibration-valid: false
+    sample-seed: ${LUMIN_REVIEW_SAMPLE_SEED:lumin-review-seed-dev}
+  storage:
+    dir: ${LUMIN_STORAGE_DIR:${user.home}/.lumin-storage}
+  # AI 供应商：本地 Ollama（默认 deepseek-r1:8b）；后续切换 DeepSeek 官方 API 只改这里。
+  ai:
+    provider: ${LUMIN_AI_PROVIDER:ollama}
+    timeout-seconds: ${LUMIN_AI_TIMEOUT_SECONDS:120}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+      model: ${OLLAMA_MODEL:deepseek-r1:8b}
+      temperature: ${OLLAMA_TEMPERATURE:0.7}
+      max-tokens: ${OLLAMA_MAX_TOKENS:1200}
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: ${DEEPSEEK_MODEL:deepseek-chat}
+      api-key: ${DEEPSEEK_API_KEY:}
+      temperature: ${DEEPSEEK_TEMPERATURE:0.7}
+      max-tokens: ${DEEPSEEK_MAX_TOKENS:1200}
+    workflow:
+      max-revision-attempts: ${LUMIN_AI_MAX_REVISIONS:1}
+      max-memory-facts: ${LUMIN_AI_MAX_MEMORY_FACTS:24}

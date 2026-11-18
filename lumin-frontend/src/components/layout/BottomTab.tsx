@@ -1,5 +1,5 @@
 import { Icon } from '../icons/Icon';
-import { WORKSPACES } from '../../mocks/mock';
+import { WORKSPACES } from '../../app/navigation';
 import type { WorkspaceId } from '../../types';
 
 interface BottomTabProps {

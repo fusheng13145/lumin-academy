@@ -1,4 +1,3 @@
-import type { IconName } from '../components/icons/Icon';
 import type {
   AgeBand,
   Book,
@@ -6,24 +5,9 @@ import type {
   Draft,
   ReadThemeId,
   ReviewItem,
-  WorkspaceId,
 } from '../types';
 
 // 全部为原创合成夹具；固定基准日期派生相对时间，不读系统时钟、不发起网络请求。
-
-export interface WorkspaceDef {
-  id: WorkspaceId;
-  label: string;
-  icon: IconName;
-}
-
-export const WORKSPACES: WorkspaceDef[] = [
-  { id: 'catalog', label: '书城', icon: 'catalog' },
-  { id: 'author', label: '创作工作区', icon: 'author' },
-  { id: 'reviewer', label: '审核工作区', icon: 'review' },
-  { id: 'operator', label: '运营与配置', icon: 'config' },
-  { id: 'me', label: '我的', icon: 'mine' },
-];
 
 export const READ_THEMES: { id: ReadThemeId; label: string }[] = [
   { id: 'rice', label: '米白' },

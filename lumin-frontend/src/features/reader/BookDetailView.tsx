@@ -1,84 +1,73 @@
-import type { CSSProperties } from 'react';
+import { useRef } from 'react';
 import type { AgeBand, Book } from '../../types';
-import {
-  BAND_LABEL,
-  STATE_LABEL,
-  bookBlockedHint,
-  bookBlockedReason,
-} from '../../lib/demoPolicy';
+import { bookBlockedHint, bookBlockedReason } from '../../lib/demoPolicy';
+
+export type BookDetailState =
+  | { status: 'loading' }
+  | { status: 'error'; onRetry: () => void }
+  | { status: 'ready'; book: Book };
 
 interface BookDetailViewProps {
-  book: Book;
+  state: BookDetailState;
   ageBand: AgeBand;
   onBack: () => void;
   onRead: (bookId: string, chapterIdx: number) => void;
 }
 
-// 书详情：封面 / 元信息 / 简介 / 章节目录
-export function BookDetailView({ book, ageBand, onBack, onRead }: BookDetailViewProps) {
-  const reason = bookBlockedReason(book, ageBand);
-  const blocked = reason !== null;
-  const coverStyle = {
-    '--cover-a': book.cover[0],
-    '--cover-b': book.cover[1],
-  } as CSSProperties;
-  const ctaLabel = blocked ? '暂不可读' : '开始阅读';
+export function BookDetailView({ state, ageBand, onBack, onRead }: BookDetailViewProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const book = state.status === 'ready' ? state.book : null;
+  const blocked = book !== null && bookBlockedReason(book, ageBand) !== null;
 
   return (
-    <section aria-labelledby="detail-h">
-      <nav className="breadcrumb" aria-label="面包屑">
-        <button className="crumb" type="button" onClick={onBack}>书城</button>
-        <span className="crumb-sep" aria-hidden="true">/</span>
-        <span className="crumb-current" aria-current="page">{book.title}</span>
+    <section className="book-detail" aria-labelledby="detail-h" aria-busy={state.status === 'loading'}>
+      <nav className="detail-back" aria-label="返回">
+        <button className="btn btn--ghost" type="button" onClick={onBack}>书城</button>
       </nav>
-
-      <div className="book-head" style={coverStyle}>
-        <div className="book-cover book-cover--lg" aria-hidden="true">
-          <span className="cover-title">{book.title}</span>
-          <span className="cover-author">{book.author}</span>
+      <header className="detail-head">
+        <div className="detail-heading">
+          <h1 id="detail-h" ref={headingRef} tabIndex={-1}>{book?.title ?? '作品详情'}</h1>
+          {book && <p className="detail-author">{book.author}</p>}
         </div>
-        <div className="book-head-info">
-          <h1 id="detail-h" tabIndex={-1}>{book.title}</h1>
-          <div className="book-badges">
-            <span className="badge badge--age">{BAND_LABEL[book.band]}</span>
-            <span className={'badge ' + (book.state === 'removed' ? 'badge--removed' : book.state === 'inreview' ? 'badge--review' : 'badge--published')}>
-              {STATE_LABEL[book.state]}
-            </span>
-          </div>
-          <p className="book-meta">{[book.author, book.wt, book.category].filter(Boolean).join(' · ')}</p>
-          {blocked && <p className="muted-note">{bookBlockedHint(book, ageBand)}</p>}
-
-          <div className="btn-row">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={blocked}
-              onClick={() => onRead(book.id, 0)}
-            >
-              {ctaLabel}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <h2 className="section-title">简介</h2>
-      <p className="detail-intro">{book.intro}</p>
-
-      <h2 className="section-title">目录</h2>
-      <div className="chapter-list">
-        {book.chapters.map((chapter, index) => (
-          <button
-            key={`${book.id}-${index}`}
-            type="button"
-            className="chapter-item"
-            disabled={blocked}
-            onClick={() => onRead(book.id, index)}
-          >
-            <span>第 {index + 1} 章 {chapter.title}</span>
-            <span className="ch-date">{chapter.updatedAt}</span>
+        {book && (
+          <button type="button" className="btn btn--primary"
+            disabled={blocked || book.chapters.length === 0}
+            onClick={() => onRead(book.id, 0)}>
+            {blocked ? '暂不可读' : '开始阅读'}
           </button>
-        ))}
-      </div>
+        )}
+      </header>
+
+      {state.status === 'loading' && <p className="detail-state">正在加载作品</p>}
+      {state.status === 'error' && (
+        <div className="detail-state">
+          <p role="alert">作品加载失败</p>
+          <button className="btn btn--soft" type="button" onClick={() => {
+            headingRef.current?.focus();
+            state.onRetry();
+          }}>重试</button>
+        </div>
+      )}
+      {book && (
+        <>
+          {blocked && <p className="detail-restriction">{bookBlockedHint(book, ageBand)}</p>}
+          {book.intro.trim() && <p className="detail-intro">{book.intro}</p>}
+          <h2 className="section-title">目录</h2>
+          {book.chapters.length === 0 ? <p className="detail-state">暂无章节</p> : (
+            <ul className="chapter-list" aria-label="章节目录">
+              {book.chapters.map((chapter, index) => (
+                <li key={`${book.id}-${index}`}>
+                  <button type="button" className="chapter-item" disabled={blocked}
+                    onClick={() => onRead(book.id, index)}>
+                    <span>第 {index + 1} 章 {chapter.title}</span>
+                    {chapter.updatedAt && <span className="ch-date">{chapter.updatedAt}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgeBand, BookState, FilterState, SortKey, WordBucket } from '../../types';
 import { BOOKS } from '../../mocks/mock';
 import { readerService } from '../../services/readerService';
@@ -14,10 +14,15 @@ import {
   filterBooks,
 } from '../../lib/demoPolicy';
 
-interface CatalogViewProps {
+interface CatalogContentProps {
   ageBand: AgeBand;
   announce: (message: string) => void;
   onOpenDetail: (bookId: string) => void;
+}
+
+interface CatalogViewProps extends CatalogContentProps {
+  source: 'live' | 'demo';
+  onSourceChange: (source: 'live' | 'demo') => void;
 }
 
 const AGE_OPTIONS: (AgeBand | 'all')[] = ['all', 'C0', 'C1', 'C2', 'C3', 'C4'];
@@ -32,133 +37,175 @@ const DEFAULT_FILTERS: FilterState = {
   sort: 'recent',
 };
 
-// 书城：真实读者链为主数据源；API 不可用时回退演示夹具（保留筛选体验）。
-export function CatalogView({ ageBand, announce, onOpenDetail }: CatalogViewProps) {
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-  const [works, setWorks] = useState<WorkListItemDto[] | null>(null);
+type CatalogState =
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ready'; works: WorkListItemDto[] };
 
-  useEffect(() => {
-    let alive = true;
-    void (async () => {
-      try {
-        const list = await readerService.listWorks(ageBand);
-        if (alive) {
-          setWorks(list);
-        }
-      } catch {
-        if (alive) {
-          setWorks([]); // 空数组视为不可用 → 回退演示夹具
-        }
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [ageBand]);
+export function CatalogView({ source, onSourceChange, ...contentProps }: CatalogViewProps) {
+  const [attempt, setAttempt] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const demoMode = works === null || works.length === 0;
-  const demoList = useMemo(() => filterBooks(BOOKS, filters), [filters]);
-
-  useEffect(() => {
-    if (demoMode) {
-      announce(`共 ${demoList.length} 部作品`);
-    } else if (works) {
-      announce(`共 ${works.length} 部作品`);
-    }
-  }, [demoMode, demoList.length, works, announce]);
-
-  // 真实作品：展示层灰显用 grade→band 派生口径，真实门禁在后端（未授权 404）。
-  const openWork = (work: WorkListItemDto): void => {
-    const band = gradeBand(work.grade);
-    if (BAND_RANK[band] > BAND_RANK[ageBand]) {
-      announce(`《${work.title}》当前年龄带暂不可读`);
-      return;
-    }
-    onOpenDetail(work.workId);
-  };
-
-  if (!demoMode) {
-    return (
-      <section aria-labelledby="catalog-h">
-        <header className="page-head">
-          <h1 id="catalog-h" tabIndex={-1}>书城</h1>
-        </header>
-        {works!.map((work) => (
-          <button
-            key={work.workId}
-            type="button"
-            className="chapter-item"
-            onClick={() => openWork(work)}
-          >
-            <span>《{work.title}》 {work.author}</span>
-            <span className="ch-date">{gradeLabel(work.grade)}</span>
-          </button>
-        ))}
-      </section>
-    );
+  function retry() {
+    headingRef.current?.focus();
+    setAttempt((previous) => previous + 1);
   }
 
   return (
-    <section aria-labelledby="catalog-h">
-      <header className="page-head">
-        <h1 id="catalog-h" tabIndex={-1}>书城</h1>
+    <section className="catalog" aria-labelledby="catalog-h">
+      <header className="page-head catalog-head">
+        <h1 id="catalog-h" ref={headingRef} tabIndex={-1}>{source === 'demo' ? '示例书城' : '书城'}</h1>
+        <button
+          className="catalog-source"
+          type="button"
+          onClick={() => onSourceChange(source === 'demo' ? 'live' : 'demo')}
+        >
+          {source === 'demo' ? '返回书城' : '浏览示例'}
+        </button>
       </header>
-
-      <div className="toolbar">
-        <select
-          className="select"
-          aria-label="按年龄带筛选"
-          value={filters.age}
-          onChange={(event) => setFilters((prev) => ({ ...prev, age: event.target.value as AgeBand | 'all' }))}
-        >
-          {AGE_OPTIONS.map((value) => (
-            <option key={value} value={value}>{value === 'all' ? '全部年龄' : BAND_LABEL[value]}</option>
-          ))}
-        </select>
-
-        <select
-          className="select"
-          aria-label="按状态筛选"
-          value={filters.status}
-          onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value as BookState | 'all' }))}
-        >
-          {STATUS_OPTIONS.map((value) => (
-            <option key={value} value={value}>{value === 'all' ? '全部状态' : STATE_LABEL[value]}</option>
-          ))}
-        </select>
-
-        <select
-          className="select"
-          aria-label="按字数筛选"
-          value={filters.words}
-          onChange={(event) => setFilters((prev) => ({ ...prev, words: event.target.value as WordBucket }))}
-        >
-          {WORD_OPTIONS.map((value) => (
-            <option key={value} value={value}>{WORD_BUCKET_LABEL[value]}</option>
-          ))}
-        </select>
-
-        <select
-          className="select"
-          aria-label="排序方式"
-          value={filters.sort}
-          onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value as SortKey }))}
-        >
-          {SORT_OPTIONS.map((value) => (
-            <option key={value} value={value}>排序：{SORT_LABEL[value]}</option>
-          ))}
-        </select>
-      </div>
-
-      {demoList.length === 0 ? (
-        <div className="empty">暂无作品</div>
+      {source === 'demo' ? (
+        <DemoCatalog {...contentProps} />
       ) : (
-        <div className="book-grid">
-          {demoList.map((book) => (
-            <BookCard key={book.id} book={book} ageBand={ageBand} onOpen={onOpenDetail} />
-          ))}
-        </div>
+        <LiveCatalog
+          key={`${contentProps.ageBand}-${attempt}`}
+          {...contentProps}
+          onRetry={retry}
+        />
       )}
     </section>
+  );
+}
+
+function LiveCatalog({ ageBand, announce, onOpenDetail, onRetry }: CatalogContentProps & { onRetry: () => void }) {
+  const [state, setState] = useState<CatalogState>({ status: 'loading' });
+
+  useEffect(() => {
+    let alive = true;
+    announce('正在加载作品');
+    void readerService.listWorks(ageBand).then(
+      (works) => {
+        if (alive) {
+          setState({ status: 'ready', works });
+          announce(works.length === 0 ? '暂无作品' : `共 ${works.length} 部作品`);
+        }
+      },
+      () => {
+        if (alive) {
+          setState({ status: 'error' });
+          announce('');
+        }
+      },
+    );
+    return () => { alive = false; };
+  }, [ageBand, announce]);
+
+  if (state.status === 'loading') {
+    return <div className="catalog-state" aria-busy="true">正在加载作品</div>;
+  }
+  if (state.status === 'error') {
+    return (
+      <div className="catalog-state">
+        <p role="alert">作品加载失败</p>
+        <button className="btn" type="button" onClick={onRetry}>重试</button>
+      </div>
+    );
+  }
+  if (state.works.length === 0) {
+    return <div className="catalog-state">暂无作品</div>;
+  }
+
+  return (
+    <ul className="catalog-list" aria-label="作品">
+      {state.works.map((work) => {
+        const blocked = BAND_RANK[gradeBand(work.grade)] > BAND_RANK[ageBand];
+        return (
+          <li key={work.workId}>
+            <button
+              className="catalog-book"
+              type="button"
+              disabled={blocked}
+              onClick={() => onOpenDetail(work.workId)}
+            >
+              <span className="catalog-book__main">
+                <span className="catalog-book__title">{work.title}</span>
+                <span className="catalog-book__author">{work.author}</span>
+              </span>
+              <span className="catalog-book__detail">
+                {blocked ? '当前年龄带暂不可读' : gradeLabel(work.grade)}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function DemoCatalog({ ageBand, announce, onOpenDetail }: CatalogContentProps) {
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const books = useMemo(() => filterBooks(BOOKS, filters), [filters]);
+
+  useEffect(() => {
+    announce(`示例书城，共 ${books.length} 部作品`);
+  }, [books.length, announce]);
+
+  return (
+    <>
+      <details className="catalog-filters">
+        <summary>筛选</summary>
+        <div className="toolbar">
+          <select
+            className="select"
+            aria-label="按年龄带筛选"
+            value={filters.age}
+            onChange={(event) => setFilters((prev) => ({ ...prev, age: event.target.value as AgeBand | 'all' }))}
+          >
+            {AGE_OPTIONS.map((value) => (
+              <option key={value} value={value}>{value === 'all' ? '全部年龄' : BAND_LABEL[value]}</option>
+            ))}
+          </select>
+          <select
+            className="select"
+            aria-label="按状态筛选"
+            value={filters.status}
+            onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value as BookState | 'all' }))}
+          >
+            {STATUS_OPTIONS.map((value) => (
+              <option key={value} value={value}>{value === 'all' ? '全部状态' : STATE_LABEL[value]}</option>
+            ))}
+          </select>
+          <select
+            className="select"
+            aria-label="按字数筛选"
+            value={filters.words}
+            onChange={(event) => setFilters((prev) => ({ ...prev, words: event.target.value as WordBucket }))}
+          >
+            {WORD_OPTIONS.map((value) => (
+              <option key={value} value={value}>{WORD_BUCKET_LABEL[value]}</option>
+            ))}
+          </select>
+          <select
+            className="select"
+            aria-label="排序方式"
+            value={filters.sort}
+            onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value as SortKey }))}
+          >
+            {SORT_OPTIONS.map((value) => (
+              <option key={value} value={value}>{SORT_LABEL[value]}</option>
+            ))}
+          </select>
+          <button className="btn" type="button" onClick={() => setFilters(DEFAULT_FILTERS)}>清除筛选</button>
+        </div>
+      </details>
+      {books.length === 0 ? (
+        <div className="catalog-state">没有符合条件的作品</div>
+      ) : (
+        <ul className="catalog-list" aria-label="示例作品">
+          {books.map((book) => (
+            <li key={book.id}><BookCard book={book} ageBand={ageBand} onOpen={onOpenDetail} /></li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

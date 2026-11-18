@@ -39,7 +39,7 @@ python libs/tools/check_dependency_cycles.py --inject "moderation->authoring.rep
 
 ## `check_dependency_cycles.py` 校验项
 
-- 扫描 `lumin-backend/src/main/java/**/*.java` 的 `package` 与显式 `import com.leyon.lumin.*`，按第 4 段归一模块（`foundation.values` 归入 `foundation`）。
+- 扫描 `lumin-backend/lumin-{domain,application,infrastructure,ai,bootstrap}/src/main/java/**/*.java` 的 `package` 与显式 `import com.leyon.lumin.*`，按第 4 段归一模块（`foundation.values` 归入 `foundation`），AI 模块允许 `ai -> foundation`。
 - 按 02 §3.1 允许列表逐边比对；`foundation → 任意业务域`、`跨模块直接 Repository 访问` 为显式禁止边。
 - 模块级有向图 DFS 环检测。
 - `--inject` 把非法边写入**内存图**（不改源码、不落盘），用于 07 §2.4 T44 的「注入必失败 / 恢复合法必通过」对照：`foundation->identity` 与 `moderation->authoring.repository` 均必须退出码非 0；移除注入重跑必须退出码 0。

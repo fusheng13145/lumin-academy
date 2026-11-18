@@ -1,14 +1,11 @@
 # lumin-backend · 启明书院后端
 
-> **本模块 = Spring Boot Web 应用 + Java 21 分层后端（同一 Maven 模块、同一根包 `com.leyon.lumin`）。**
-> **分层（2026-11-17 重构，对齐 02 §3.1/§4 与项目基线 §3.2）**：每个业务模块按
-> `api`（接入层 Controller+DTO）→ `service`（应用服务，事务边界）→ `repository`（数据访问，
-> 唯一 DB 出口）→ `domain`（领域模型与纯函数）组织；`event/config` 层随治理与事件批次落地。
-> `foundation` 为共享内核：`values/event/idempotency/cursor` 与各模块 `domain` 包保持
-> **零 Spring 依赖**（不可变 `record` + 显式枚举白名单 + 表驱动状态机，入口 `public static` 纯函数，
-> 时间由 `Clock` 注入）；`foundation/web` 与 `foundation/repository` 为基础设施适配
-> （统一信封、全局异常、TraceId、骨架认证过滤器、Mapper），属 Spring 技术层。
-> 领域包零 Spring 依赖这一点在架构测试里可复核（依赖无环单测只扫 `com.leyon.lumin.*` 模块边）。
+> **2026-11-18 模块化重构：本后端已从单 Maven 模块拆为 5 个模块，唯一可执行 Boot JAR 由 `lumin-bootstrap` 产出。**
+> **模块**：`lumin-domain`（纯领域）→ `lumin-application`（用例/端口/MyBatis 契约）→
+> `lumin-infrastructure`（Mapper 扫描/文件存储/Outbox/AI 持久化）→ `lumin-bootstrap`（Controller/启动/资源/测试）；
+> `lumin-ai` 依赖 domain/application，承载供应商、workflow、multi-agent 与长期记忆。
+> **原“单模块内按六层包分层”的描述（2026-11-17）已作为历史记录保留在文末证据表，不再代表当前结构。**
+> 详细设计见 `docs/18-后端多模块与AI模块设计（Java+Ollama）.md`。
 
 ## 离线命令
 
@@ -16,8 +13,10 @@
 
 ```text
 cd lumin-backend
-mvn test                        # 主验收命令：编译 + 全量 JUnit 回归
-mvn verify -Pcoverage           # 可选：JaCoCo 0.8.15 覆盖率报告（target/site/jacoco/）
+mvn test                        # 主验收命令：全量多模块 JUnit 回归（bootstrap 3478 + ai 3）
+mvn -pl lumin-bootstrap -am spring-boot:run   # 启动唯一可执行模块
+mvn -DskipTests package         # 产出 lumin-bootstrap/target/*.jar
+mvn verify -Pcoverage           # 可选：JaCoCo 0.8.15 覆盖率报告（各模块 target/site/jacoco/）
 ```
 
 首次构建需联网或由 IDE 下载 `spring-boot-starter-parent:4.0.9` 及其依赖；**本机已于 2026-11-15 联网完成首次下载并全量回归，
@@ -50,23 +49,47 @@ python libs/tools/check_dependency_cycles.py --inject "moderation->authoring.rep
 HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何对象模拟类库、PyYAML、任何 Node 或前端依赖。
 02 §2 的全栈版本锁定对整个 P0 有效，P0-A 只作为目录与依赖方向约束，不落地为运行时依赖。
 
-## 目录与包
+## 模块与目录
 
-| 路径 / 包 | 内容 |
+| 模块 / 路径 | 内容 |
 | --- | --- |
-| `src/main/java/com/leyon/lumin/LuminBackendApplication.java` | Spring Boot 启动类（根包） |
-| `src/main/java/com/leyon/lumin/foundation` | 共享内核：`ErrorCodes`/`BusinessTime`/`StableBuckets`/`LuminBusinessException`；`values/` 共享枚举白名单（零 Spring）；`event/` 事件信封 + Outbox 退避；`idempotency/` 幂等规则 + 适配服务；`cursor/` 游标签码；`repository/` outbox/inbox/idempotency Mapper；`web/` 统一信封/全局异常/TraceId/**骨架认证过滤器**（基础设施适配，Spring 技术层） |
-| `src/main/java/com/leyon/lumin/{module}/api` | 接入层 Controller + DTO（已落地：`catalog/api/WorkController`、`authoring/api/DraftController`，其余随各批次落地） |
-| `src/main/java/com/leyon/lumin/{module}/service` | 应用服务（编排与事务边界；已落地：`catalog/service/WorkService`、`authoring/service/DraftCommandService`） |
-| `src/main/java/com/leyon/lumin/{module}/repository` | 数据访问层（MyBatis Mapper + 行记录，唯一 DB 出口；原 `persistence` 包已按基线六层更名） |
-| `src/main/java/com/leyon/lumin/{module}/domain` | 领域模型与纯函数：identity（AgePolicy/RolePolicy）、catalog（TargetRef）、authoring（DraftContentValidator/MaterialSnapshot/SubmissionGate）、publication（VisibilityPolicy/StateMachine/WorkflowSuspension）、moderation（路由/采样/案件状态机/申诉状态机）、governance（RestrictionStateMachine）、configuration（ConfigRevisionStateMachine/GrayRolloutPolicy）、engagement（ReadingProgressValidator） |
-| `src/main/java/com/leyon/lumin/billing_reserved` | 04 §6.2 六张表的**只读**骨架模型，无 DDL / 无入口 / 无授权 |
-| `src/main/resources/db/migration/` | 版本化迁移脚本：`V1__p0b_core_schema.sql`（docs/04 → MySQL 8.4 方言 16 表） |
-| `src/test/java/com/leyon/lumin/**` | 纯函数穷举、架构无环、契约骨架、切片端点集成（MockMvc）、真实 MySQL 集成（`support/` 基类与夹具，凭据经 `LUMIN_TEST_DB_*` 注入） |
+| `lumin-domain/` | 纯领域：聚合、值对象、表驱动状态机、领域策略；零 Spring/MyBatis；唯一例外 `ConfigPayloadValidator` 使用 Jackson |
+| `lumin-application/` | 用例编排、事务边界、DTO/VO、出站端口、MyBatis Mapper 契约与 Row；`foundation/contract/ApiEnvelope` 在此 |
+| `lumin-infrastructure/` | `@MapperScan` 配置、本地对象存储、Outbox 调度、AI 持久化（`MyBatisAiRunStore`/`MyBatisAiMemoryStore` 及 5 个 Mapper） |
+| `lumin-ai/` | `AiProvider`（Ollama/DeepSeek）、`AiProviderRouter`、workflow + 4 Agent、长期记忆端口、AI 视图对象 |
+| `lumin-bootstrap/` | `LuminBackendApplication`、全部 Controller、`application.yaml`、`db/migration/V1–V7`、3478 个测试 |
+| `lumin-bootstrap/src/main/resources/db/migration/` | 版本化迁移脚本：V1 核心 16 表、V2 role_assignment、V3 治理/申诉/通知、V4 billing 骨架、V5 阅读进度、V6 审计、V7 AI 五表 |
+| `lumin-bootstrap/src/test/java/com/leyon/lumin/**` | 纯函数穷举、架构无环、契约骨架、MockMvc、真实 MySQL 集成（凭据 `LUMIN_TEST_DB_*`） |
 
-模块方向：业务域 → `foundation` 单向；唯一真实跨域边 `publication → identity`
-（`VisibilityPolicy` 复用 `AgePolicy.canRead`），在 02 §3.1 允许列表内，供 T44 校验
-（`DependencyAcyclicTest` 与 `libs/tools/check_dependency_cycles.py` 双证据）。
+模块方向：`bootstrap -> {domain, application, infrastructure, ai}`；`infrastructure -> {application, ai}`；
+`ai -> {domain, application}`；`application -> domain`；`domain` 不依赖任何框架。
+唯一真实跨业务域边 `publication -> identity` 仍在允许列表内；AI 模块允许 `ai -> foundation`（共享错误码/时间/契约）。
+`DependencyAcyclicTest` 与 `libs/tools/check_dependency_cycles.py` 同时扫描五模块，双证据。
+
+## AI 模块（2026-11-18）
+
+```text
+lumin-ai/src/main/java/com/leyon/lumin/ai/
+├── domain/      AiMode / AiRunState / AiStageType / AiCandidateState / MemoryKind / MemoryStatus ...
+├── port/        AiRunStore / AiMemoryStore（由 infrastructure 实现）
+├── provider/    AiProvider / OllamaAiProvider / DeepSeekAiProvider / AiProviderRouter
+├── config/      AiProperties / AiConfiguration（固定 2 线程 daemon 池）
+└── workflow/    AiWorkflowService / AiMemoryService / 4 Agent / PromptLibrary / AiMemoryParser
+```
+
+- 文本供应商默认 Ollama：`LUMIN_AI_PROVIDER=ollama`，`OLLAMA_MODEL=deepseek-r1:8b`。
+- 切换 DeepSeek：`LUMIN_AI_PROVIDER=deepseek` + `DEEPSEEK_API_KEY`，workflow 不变。
+- AI 只产出 `ai_candidate`，不直接写 `draft/chapter`；记忆先 `CANDIDATE`，作者确认后 `ACTIVE`。
+- 异步 API：`POST /api/v1/ai/runs`（202）→ `GET /api/v1/ai/runs/{runId}` 轮询；候选 `accept/reject` 只改状态，正文写入仍走既有草稿接口。
+- 真实联调：本地 MySQL 已应用 V7；一次 ASSISTED 运行产出 1319 字候选并进入 `WAITING_AUTHOR`，`accept` 端点验证为 `ACCEPTED`。R1 对 `CONSISTENCY`/`MEMORY_EXTRACT` 可能空输出，当前按降级策略继续，不阻断正文候选。
+- 迁移：`V7__ai_authoring.sql`（`ai_run`、`ai_run_stage`、`ai_candidate`、`memory_fact`、`memory_event`）。
+
+```bash
+curl http://127.0.0.1:8080/api/v1/ai/health
+curl -X POST http://127.0.0.1:8080/api/v1/ai/runs \
+  -H 'Content-Type: application/json' -H 'X-Demo-Subject: demo-author' \
+  -d '{"workId":"<work-id>","chapterId":"<chapter-id>","mode":"ASSISTED","instruction":"写一场雪夜对峙"}'
+```
 
 ## 时间口径
 
@@ -88,6 +111,7 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 
 | 项 | 实测结果 |
 | --- | --- |
+| **多模块重构 + AI 模块（2026-11-18）** | **3481 用例 / 0 失败 / 0 错误 / 0 跳过**（bootstrap 44 套件 3478 用例 + ai 1 套件 3 用例；本轮注入 `LUMIN_TEST_DB_PASSWORD`，61 个 MySQL 集成测试全部执行）；`mvn -DskipTests package` 产出 `lumin-bootstrap-0.0.1-SNAPSHOT.jar`（26,211,170 bytes）；Ollama `deepseek-r1:8b` 实际 `/api/chat` 返回中文；启动 JAR 后 `GET /api/v1/ai/health` 返回 `provider=ollama, model=deepseek-r1:8b, available=true`；真实 AI run 达 `WAITING_AUTHOR` 并生成 1319 字候选；架构校验扫描 257 Java / 0 非法边 / 0 环 |
 | 领域内核回归（2026-11-13，迁移至 `lumin-backend` 后） | **3322 用例 / 0 失败 / 0 跳过**；`javac --release 21` 编译 38 个主源码 + 10 个测试源码全通过，JUnit Platform 1.12.2 + Jupiter 5.12.2 直接驱动 |
 | `mvn test` / `mvn verify -Pcoverage` | ~~本机未能执行~~ **已解决（2026-11-15）**：联网缓存 `spring-boot-starter-parent:4.0.9` 后全量执行通过，现可离线复跑 |
 | P0-B 增量一回归（2026-11-16） | **3367 用例 / 0 失败 / 0 错误 / 0 跳过**（`mvn test` 全量）；`contextLoads` 修复——`application.yaml` 显式排除 `DataSourceAutoConfiguration` / `MybatisAutoConfiguration`（持久化单元落地时移除）；新增 `foundation/event`、`catalog/domain`、`authoring/domain`、`moderation/domain` 六包 15 个主类 + 9 个测试类，全部为纯函数/值对象，无 Controller / Repository / DDL |

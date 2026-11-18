@@ -1,4 +1,4 @@
-import { WORKSPACES } from '../../mocks/mock';
+import { WORKSPACES } from '../../app/navigation';
 import type { WorkspaceId } from '../../types';
 
 interface TopNavProps {

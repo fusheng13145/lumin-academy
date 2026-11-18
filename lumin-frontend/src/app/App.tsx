@@ -11,7 +11,8 @@ import { AuthorView } from '../features/author/AuthorView';
 import { ReviewView } from '../features/reviewer/ReviewView';
 import { OperatorView } from '../features/operator/OperatorView';
 import { MineView } from '../features/account/MineView';
-import { BOOKS, WORKSPACES } from '../mocks/mock';
+import { BOOKS } from '../mocks/mock';
+import { WORKSPACES } from './navigation';
 import {
   BAND_LABEL,
   bookBlockedHint,
@@ -29,6 +30,7 @@ interface ReadingState {
 export function App() {
   const [active, setActive] = useState<WorkspaceId>('catalog');
   const [view, setView] = useState<ViewId>('R01');
+  const [catalogSource, setCatalogSource] = useState<'live' | 'demo'>('live');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [reading, setReading] = useState<ReadingState | null>(null);
   const [ageBand, setAgeBand] = useState<AgeBand>('C2');
@@ -182,7 +184,13 @@ export function App() {
 
       <main id="main" className="app-main" tabIndex={-1}>
         {active === 'catalog' && view === 'R01' && (
-          <CatalogView ageBand={ageBand} announce={announce} onOpenDetail={openDetail} />
+          <CatalogView
+            source={catalogSource}
+            onSourceChange={setCatalogSource}
+            ageBand={ageBand}
+            announce={announce}
+            onOpenDetail={openDetail}
+          />
         )}
         {/* R03 全屏覆盖层之下保留 R02 书详情，使「关闭回焦」的触发按钮不被卸载。 */}
         {active === 'catalog' && view !== 'R01' && detailId && isRealWork(detailId) && (
@@ -197,7 +205,7 @@ export function App() {
         )}
         {active === 'catalog' && view !== 'R01' && detailBook && (
           <BookDetailView
-            book={detailBook}
+            state={{ status: 'ready', book: detailBook }}
             ageBand={ageBand}
             onBack={backToCatalog}
             onRead={openReader}

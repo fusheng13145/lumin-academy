@@ -3,6 +3,9 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.log
+draft_body.json
+.backup-*
 
 ### STS ###
 .apt_generated

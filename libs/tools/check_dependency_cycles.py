@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """启明书院 P0-A 依赖无环校验（T44）。
 
-扫描 lumin-backend/src/main/java 下所有 .java 的 package 与显式 import，
-按 02 §3.1 允许列表逐边比对 + DFS 环检测；支持 --inject 注入非法边做负向对照
-（只改内存图，不改源码、不落盘）。
+扫描 lumin-backend/lumin-{domain,application,infrastructure,ai,bootstrap}/src/main/java
+下所有 .java 的 package 与显式 import，按 02 §3.1 允许列表逐边比对 + DFS 环检测；
+支持 --inject 注入非法边做负向对照（只改内存图，不改源码、不落盘）。
 
 能力边界：只能验证已落地源码的显式 import 方向，不能替代运行时装配、
 反射/字符串类名/注解处理器生成的隐式依赖、异步消息耦合与 CI 最终门禁。
@@ -19,7 +19,13 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE_ROOT = ROOT / "lumin-backend" / "src" / "main" / "java"
+SOURCE_ROOTS = [
+    ROOT / "lumin-backend" / "lumin-domain" / "src" / "main" / "java",
+    ROOT / "lumin-backend" / "lumin-application" / "src" / "main" / "java",
+    ROOT / "lumin-backend" / "lumin-infrastructure" / "src" / "main" / "java",
+    ROOT / "lumin-backend" / "lumin-ai" / "src" / "main" / "java",
+    ROOT / "lumin-backend" / "lumin-bootstrap" / "src" / "main" / "java",
+]
 
 PACKAGE_RE = re.compile(r"^[ \t]*package\s+(com\.leyon\.lumin\.[A-Za-z0-9_.]+)\s*;", re.MULTILINE)
 IMPORT_RE = re.compile(r"^[ \t]*import\s+(com\.leyon\.lumin\.[A-Za-z0-9_.]+)[ \t]*;", re.MULTILINE)
@@ -36,6 +42,7 @@ ALLOWED_EDGES: dict[str, set[str]] = {
     "engagement": {"publication", "identity", "foundation"},
     "audit": {"foundation"},
     "billing_reserved": {"foundation"},
+    "ai": {"foundation"},
     "foundation": set(),
 }
 BUSINESS_MODULES = set(ALLOWED_EDGES) - {"foundation"}
@@ -52,26 +59,27 @@ def scan_sources() -> tuple[dict[str, set[str]], list[str]]:
     """返回 模块有向图 与 扫描到的源码文件相对路径列表。"""
     graph: dict[str, set[str]] = {name: set() for name in ALLOWED_EDGES}
     files: list[str] = []
-    if not SOURCE_ROOT.is_dir():
-        return graph, files
-    for source in sorted(SOURCE_ROOT.rglob("*.java")):
-        text = source.read_text(encoding="utf-8")
-        package_match = PACKAGE_RE.search(text)
-        if not package_match:
+    for source_root in SOURCE_ROOTS:
+        if not source_root.is_dir():
             continue
-        source_module = module_of(package_match.group(1))
-        if source_module not in graph:
-            graph[source_module] = set()
-        files.append(str(source.relative_to(ROOT)))
-        for imported in IMPORT_RE.findall(text):
-            target_module = module_of(imported)
-            if not target_module or target_module == source_module:
+        for source in sorted(source_root.rglob("*.java")):
+            text = source.read_text(encoding="utf-8")
+            package_match = PACKAGE_RE.search(text)
+            if not package_match:
                 continue
-            # 记录跨模块 Repository 直接访问（02 §3.2 显式禁止）
-            if "repository" in imported.split("."):
-                graph.setdefault(source_module, set()).add(target_module + ".repository")
-            else:
-                graph.setdefault(source_module, set()).add(target_module)
+            source_module = module_of(package_match.group(1))
+            if source_module not in graph:
+                graph[source_module] = set()
+            files.append(str(source.relative_to(ROOT)))
+            for imported in IMPORT_RE.findall(text):
+                target_module = module_of(imported)
+                if not target_module or target_module == source_module:
+                    continue
+                # 记录跨模块 Repository 直接访问（02 §3.2 显式禁止）
+                if "repository" in imported.split("."):
+                    graph.setdefault(source_module, set()).add(target_module + ".repository")
+                else:
+                    graph.setdefault(source_module, set()).add(target_module)
     return graph, files
 
 

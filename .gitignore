@@ -1,9 +1,13 @@
 # 构建产物（依赖版本以 lumin-frontend/package-lock.json / lumin-backend/pom.xml 为准）
 node_modules/
 dist/
+dist-mobile/
 target/
 *.class
 *.jar
+.android/
+android/app/build/
+android/build/
 
 # 覆盖率执行数据（08 §4.1：产物不入库，报告按需本地生成）
 *.exec

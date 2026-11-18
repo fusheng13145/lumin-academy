@@ -7,23 +7,26 @@ P0-A 阶段仓库。后端与前端分别收敛在 `lumin-backend/` 与 `lumin-f
 
 ```text
 lumin-academy/
-├── lumin-backend/            # 后端：Spring Boot 4.0.9 + Java 21，按基线六层分层（2026-11-17 重构）
-│   ├── pom.xml               #   单一 Maven 模块（Web/MyBatis/MySQL + JUnit 5.12.2 + 可选 JaCoCo）
+├── lumin-backend/            # 后端：Spring Boot 4.0.9 + Java 21，模块化单体（2026-11-18）
+│   ├── pom.xml               #   parent POM（pom packaging，五模块 + JUnit + 可选 JaCoCo）
 │   ├── README.md             #   分层口径、依赖清单、边界与执行证据
-│   ├── src/main/java/com/leyon/lumin/
-│   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
-│   │   ├── foundation/       #   共享内核：values(枚举白名单)/event/idempotency/cursor/repository + web(信封/全局异常/TraceId/骨架认证)
-│   │   ├── {module}/api      #   接入层 Controller + DTO（catalog/authoring 已落地，其余随批次）
-│   │   ├── {module}/service  #   应用服务（事务边界；catalog/authoring 已落地）
-│   │   ├── {module}/repository  #  数据访问层（MyBatis Mapper + 行记录，唯一 DB 出口）
-│   │   ├── {module}/domain   #   领域模型与纯函数（identity/catalog/authoring/publication/moderation/governance/configuration/engagement）
-│   │   └── billing_reserved/ #   04 §6.2 六表只读骨架
-│   ├── src/main/resources/
-│   │   ├── application.yaml  #   数据源经 DATABASE_* 环境变量注入（08 §3）
-│   │   └── db/migration/     #   版本化迁移脚本（V1：docs/04 → MySQL 8.4 方言 16 表）
-│   └── src/test/java/com/leyon/lumin/   # 3434 用例：纯函数穷举/架构无环/契约骨架/真实 MySQL 集成
+│   ├── lumin-domain/         #   纯领域：聚合/值对象/状态机/领域策略（零 Spring/MyBatis）
+│   ├── lumin-application/    #   应用层：用例编排、DTO、出站端口与 MyBatis 仓储契约
+│   ├── lumin-infrastructure/ #   基础设施：Mapper 扫描、文件存储、Outbox、AI 持久化适配
+│   ├── lumin-ai/             #   AI：供应商路由、workflow + multi-agent、长期记忆端口
+│   ├── lumin-bootstrap/      #   唯一启动模块：Controller、application.yaml、db/migration、测试
+│   │   ├── src/main/java/com/leyon/lumin/
+│   │   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
+│   │   │   └── {module}/api      #   接入层 Controller（catalog/authoring/.../ai）
+│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V7
+│   └── （旧单模块 src/ 已移除）
 ├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，feature 分层（2026-11-17 重构）
-│   ├── index.html            #   入口（lang=zh-CN，主题色 #E8453B）
+│   ├── android/              # Android 壳：Capacitor 8 + Gradle 8.14.3（2026-11-18）
+│   ├── src/mobile/           # Android 移动端页面/组件/演示服务（2026-11-18）
+│   ├── dist-mobile/          # 移动端构建产物（npm run build:mobile）
+│   ├── capacitor.config.ts   # App ID / WebView / Android 配置
+│   ├── scripts/              # Playwright 截图、Android 品牌资源生成
+│   ├── index.html            # 入口（lang=zh-CN，主题色 #F4F0E7）
 │   ├── vite.config.ts        #   dev 5173 / host 开 / 构建出 dist + sourcemap
 │   ├── eslint.config.js      #   ESLint 10 + typescript-eslint
 │   ├── src/
@@ -39,7 +42,7 @@ lumin-academy/
 │   └── README.md             #   目录职责、与后端边界、合规约束
 ├── contracts/
 │   └── p0.openapi.yaml       # P0 唯一机器契约（只读，禁止修改；校验脚本比对 SHA256）
-├── docs/                     # 01–11 设计文档（需求/概要/详细/库表/接口/原型/测试/部署/阶段规划/P0-A）
+├── docs/                     # 01–18 设计文档（需求/概要/详细/库表/接口/原型/测试/部署/阶段规划/P0-A/工作台/移动端/多模块与AI）
 ├── libs/
 │   ├── error-codes.json      # 错误码字典（14 条 = OK + 13）
 │   └── tools/                # validate_contract.py / check_dependency_cycles.py（Python3 标准库）
@@ -49,21 +52,29 @@ lumin-academy/
 └── 启明书院_项目基线.md
 ```
 
-> **结构重构（2026-11-17）**：后端对齐基线六层（api/service/repository/domain/event/config，包按领域）；前端重构为 feature 分层（app/features/components/services/mocks/types/styles）。行为与视觉不变；详见两模块 README。
+> **模块化重构（2026-11-18）**：`lumin-backend` 从单 Maven 模块拆为 `lumin-domain`、`lumin-application`、`lumin-infrastructure`、`lumin-ai`、`lumin-bootstrap` 五模块；`lumin-bootstrap` 是唯一可执行 Boot JAR，`domain` 不依赖 Spring，AI 可独立替换供应商。旧的“单模块内按六层包分层”口径已被本结构取代。
 
 ## 常用命令
 
 ```text
 # 后端（默认在 lumin-backend/ 下执行）
 cd lumin-backend
-mvn test                    # 编译 + 全量 JUnit 回归
-mvn verify -Pcoverage       # 追加 JaCoCo 0.8.15 覆盖率报告（target/site/jacoco/）
+mvn test                    # 全量多模块 JUnit 回归（bootstrap 3478 + ai 3）
+mvn -pl lumin-bootstrap -am spring-boot:run   # 启动唯一可执行模块
+mvn verify -Pcoverage       # 追加 JaCoCo 0.8.15 覆盖率报告（各模块 target/site/jacoco/）
 
 # 前端（默认在 lumin-frontend/ 下执行）
 cd lumin-frontend
 npm run dev                 # http://localhost:5173
 npm run build               # tsc -b 类型检查 + vite 生产构建
 npm run lint
+
+# Android 移动端
+npm run dev:mobile          # http://localhost:5174
+npm run build:mobile        # 输出 dist-mobile
+npx cap sync android
+cd android
+.\gradlew.bat assembleDebug
 
 # 只读静态校验（在仓库根目录执行）
 python libs/tools/validate_contract.py
@@ -74,7 +85,29 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 后端首次构建需联网或由 IDE 下载 `spring-boot-starter-parent:4.0.9` 及其依赖；本机 `~/.m2` 只缓存到
 4.0.6 / 4.1.x，离线 `mvn -o` 会在父 POM 解析阶段失败，缓存就绪后即可完全离线。
 
-## 本次整理记录（2026-11-13）
+## Android 移动端（2026-11-18）
+
+- 技术路线：**Java 21 + Spring Boot 4.0.9 后端 + React 19 + TypeScript + Capacitor 8 Android 壳**；iOS 仅在 `capacitor.config.ts` 与设计文档中预留，不实现。
+- 当前范围：读者 + 作者 + 账号；审核/运营保留 Web 工作台。
+- 设计文档：`docs/17-Android移动端实施设计（Java+React+Capacitor）.md`；产品/页面/三模式补充见 `docs/16`，作者工作台见 `docs/15`。
+- APK：`lumin-frontend/android/app/build/outputs/apk/debug/app-debug.apk`；debug 包名 `com.leyon.lumin`，minSdk 24，targetSdk 36。
+- Android 工具链：SDK 36 + build-tools 36.0.0 + AGP 8.13.0 + Gradle wrapper 8.14.3；中文项目路径已用 `android.overridePathCheck=true` 放行，Maven 依赖优先走阿里云镜像。
+- 移动端构建与 Web 构建互不影响：`npm run build:mobile` 输出 `dist-mobile`，`npm run build` 输出 `dist`。
+- 演示边界：移动端当前使用本地原创书目/作者/AI 演示数据，不调用真实 LLM、图像模型或 Java API；替换方式见 `docs/17` §11 与 `src/mobile/services/`。
+
+## 后端模块与 AI（2026-11-18）
+
+- 模块边界：`lumin-domain`（零 Spring/MyBatis）→ `lumin-application`（用例、DTO、出站端口与 MyBatis 仓储契约）→ `lumin-infrastructure`（Mapper 扫描/文件存储/Outbox/AI 持久化）→ `lumin-bootstrap`（唯一 Boot 启动与 Controller）。`lumin-ai` 依赖 domain/application，不被 infrastructure 反向依赖。
+- 构建产物：仅 `lumin-bootstrap` 打可执行 Boot JAR；其余模块为普通 jar；`mvn test` 由父 POM 统一执行。
+- AI 供应商：`lumin.ai.provider=ollama`（默认，`deepseek-r1:8b`，`http://127.0.0.1:11434`）；切换 DeepSeek 官方 API 只改 `LUMIN_AI_PROVIDER=deepseek` + `DEEPSEEK_API_KEY`，workflow 与 Agent 不变。
+- AI 端点：`GET /api/v1/ai/health`、`POST /api/v1/ai/runs`（异步 202）、`GET /api/v1/ai/runs/{runId}`、`POST /api/v1/ai/runs/{runId}/candidates/{candidateId}/accept|reject`、`GET /api/v1/ai/memory/{workId}`、`POST /api/v1/ai/memory/{workId}/facts/{factId}/confirm`。
+- 运行原则：AI 只产出 `ai_candidate`，不直接改写 `draft/chapter`；长期记忆抽取先落 `memory_fact(status=CANDIDATE)`，作者确认后 `ACTIVE`。
+- 数据库：`V7__ai_authoring.sql` 新增 `ai_run`、`ai_run_stage`、`ai_candidate`、`memory_fact`、`memory_event` 五表。
+- 设计文档：`docs/18-后端多模块与AI模块设计（Java+Ollama）.md`。
+
+## 本次整理记录（2026-11-13，历史记录）
+
+> 以下路径/命令为 2026-11-13 时点口径，已被 2026-11-18 五模块结构取代，仅作历史留痕。
 
 | 项 | 整理前 | 整理后 |
 | --- | --- | --- |
@@ -116,4 +149,4 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 - 契约 `contracts/p0.openapi.yaml` 只读；校验脚本前后比对 SHA256 证明未被修改。
 - P0-A 只落地领域层纯函数：无 Controller / Service / Repository 实现、无 DDL、无交易入口、无供应商 SDK。
 - 前端当前使用 `src/data/mock.ts` 合成夹具，不发起网络请求；服务端类型应从契约生成，不在前端手写业务判定。
-- 未做浏览器验收、真机验收与接口联调；单测通过只代表纯函数在合成夹具下行为正确。
+- 未做浏览器验收、真机验收与接口联调；单测通过只代表纯函数在合成夹具下行为正确。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
