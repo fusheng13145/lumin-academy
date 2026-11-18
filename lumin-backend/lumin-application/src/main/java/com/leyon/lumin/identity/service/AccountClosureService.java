@@ -36,15 +36,18 @@ public class AccountClosureService {
     private final AccountClosureMapper closureMapper;
     private final LegalHoldPort legalHoldPort;
     private final AuditRecorder auditRecorder;
+    private final AuthSessionService authSessionService;
 
     public AccountClosureService(UserProfileMapper profileMapper,
                                  AccountClosureMapper closureMapper,
                                  LegalHoldPort legalHoldPort,
-                                 AuditRecorder auditRecorder) {
+                                 AuditRecorder auditRecorder,
+                                 AuthSessionService authSessionService) {
         this.profileMapper = profileMapper;
         this.closureMapper = closureMapper;
         this.legalHoldPort = legalHoldPort;
         this.auditRecorder = auditRecorder;
+        this.authSessionService = authSessionService;
     }
 
     /** 注销申请（本人）：立即公开匿名 + 建立推进行；有 ACTIVE 保全则 HELD。 */
@@ -59,6 +62,8 @@ public class AccountClosureService {
         }
         // 立即公开匿名：昵称匿名 + CLOSED + closed_at（内部关联 6 个月后匿名化）
         profileMapper.applyClosure(subject, PUBLIC_ANONYMOUS_NICKNAME, now, subject);
+        // 撤销会话（T36：注销撤销会话；UGC-002 会话层联动）
+        int revokedSessions = authSessionService.revokeAllFor(subject);
         boolean held = legalHoldPort.hasActive("USER", subject);
         String holdId = held ? legalHoldPort.activeHoldId("USER", subject) : null;
         AccountClosureRow row = new AccountClosureRow(UUID.randomUUID().toString(),
@@ -67,7 +72,8 @@ public class AccountClosureService {
         closureMapper.insert(row);
         auditRecorder.record(new AuditRecorder.AuditEntry(subject, "AUTHOR",
                 "account.closed", "user_profile", subject,
-                held ? "注销（法律保全 HELD，内部匿名化暂缓）" : "注销（公开关联立即断开）",
+                (held ? "注销（法律保全 HELD，内部匿名化暂缓）" : "注销（公开关联立即断开）")
+                        + "，撤销会话 " + revokedSessions,
                 traceId(), now.toInstant(ZoneOffset.UTC)));
         return row;
     }

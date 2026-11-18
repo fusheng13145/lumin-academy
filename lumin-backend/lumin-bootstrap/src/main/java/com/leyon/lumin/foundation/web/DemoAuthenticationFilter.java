@@ -12,11 +12,13 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * 骨架身份替身过滤器（**临时实现，如实登记**）：OIDC Authorization Code + PKCE 接入
- * （05 §2）之前的开发骨架。替身集合为**有界枚举**（固定 UUID，测试夹具据此建档），
- * 请求经可选头 `X-Lumin-Demo-Subject`（取值为替身名）选择，**不接受任意自报 ID、
- * 不接受 X-User-Id 等真实身份头**（05 §2 语义不变）；未指定时默认作者替身。
- * 真实身份接入落地时本过滤器整体移除。
+ * 身份过滤器（UGC-002 一阶段）：持有令牌优先——`Authorization: Bearer` 经
+ * {@link com.leyon.lumin.identity.service.AuthSessionService} 服务端权威解析
+ * （缺失/伪造/过期/撤销一律 401/A0001）；`lumin.auth.mode=session` 时演示身份头
+ * 被忽略（生产无法使用演示头的结构性闸门），`demo` 模式（开发/测试骨架）保留
+ * 有界替身头 `X-Lumin-Demo-Subject`（不接受任意自报 ID、不接受 X-User-Id 等
+ * 真实身份头）。OIDC Authorization Code + PKCE 为签发端的后续替换（UGC-002
+ * 后续阶段），解析/撤销语义不变。
  */
 @Component
 public class DemoAuthenticationFilter extends OncePerRequestFilter {
@@ -90,9 +92,53 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             Map.entry(ADMIN, "ADMIN"),
             Map.entry(AUDITOR, "AUDITOR"));
 
+    private final com.leyon.lumin.identity.service.AuthSessionService sessionService;
+    private final tools.jackson.databind.ObjectMapper objectMapper;
+    private final String authMode;
+
+    public DemoAuthenticationFilter(
+            com.leyon.lumin.identity.service.AuthSessionService sessionService,
+            tools.jackson.databind.ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Value("${lumin.auth.mode:demo}")
+            String authMode) {
+        this.sessionService = sessionService;
+        this.objectMapper = objectMapper;
+        this.authMode = authMode;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
+        // 登录/登出端点豁免：签发入口自身不要求已有会话；登出幂等——
+        // 已撤销令牌的重复登出由服务层幂等处理（不重复产生副作用）
+        if ("/api/v1/auth/sessions".equals(request.getRequestURI())
+                || "/api/v1/auth/sessions/revocations".equals(request.getRequestURI())) {
+            if ("POST".equals(request.getMethod())) {
+                chain.doFilter(request, response);
+                return;
+            }
+        }
+        // UGC-002 一阶段：持有令牌优先（两种模式一致，服务端权威——不存原文、可撤销）
+        String bearer = bearerOf(request.getHeader("Authorization"));
+        if (bearer != null) {
+            com.leyon.lumin.identity.repository.AuthSessionRow session =
+                    sessionService.resolve(bearer);
+            if (session == null) {
+                writeAuthRequired(response);
+                return;
+            }
+            request.setAttribute(ATTRIBUTE_SUBJECT, session.subject());
+            request.setAttribute(ATTRIBUTE_STUB_NAME, session.stubName());
+            request.setAttribute(ATTRIBUTE_ROLE, session.roleContext());
+            chain.doFilter(request, response);
+            return;
+        }
+        // `lumin.auth.mode=session`：演示身份头被忽略——生产无法使用演示头（结构性闸门）
+        if ("session".equals(authMode)) {
+            writeAuthRequired(response);
+            return;
+        }
+        // demo 模式（开发/测试骨架）：有界替身头选择主体；未指定默认作者替身
         String requested = request.getHeader("X-Lumin-Demo-Subject");
         String subject = requested == null ? STUB_SUBJECT
                 : STUB_SUBJECTS.getOrDefault(requested, STUB_SUBJECT);
@@ -102,6 +148,23 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
         request.setAttribute(ATTRIBUTE_STUB_NAME, stubName);
         request.setAttribute(ATTRIBUTE_ROLE, STUB_ROLES.get(stubName));
         chain.doFilter(request, response);
+    }
+
+    /** 从 Authorization 头提取持有令牌（非 Bearer 形态返回 null）。 */
+    private static String bearerOf(String authorization) {
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return null;
+        }
+        return authorization.substring("Bearer ".length()).trim();
+    }
+
+    /** 401 信封（过滤器层直接写出——早于 DispatcherServlet，异常解析器不覆盖）。 */
+    private void writeAuthRequired(HttpServletResponse response) throws IOException {
+        response.setStatus(com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A0001.httpStatus());
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(objectMapper.writeValueAsString(
+                com.leyon.lumin.foundation.contract.ApiEnvelope.error(
+                        com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A0001)));
     }
 
     public static final String ATTRIBUTE_STUB_NAME = "lumin.stubName";
