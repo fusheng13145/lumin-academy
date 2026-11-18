@@ -22,7 +22,7 @@ public final class ConfigPayloadValidator {
 
     public static final int MIN_AUTO_CONFIDENCE_BP = 9000;
     public static final int MIN_SAMPLE_RATE_BP = 100;
-    public static final int DEFAULT_AUTO_CONFIDENCE_BP = 9900;
+    public static final int DEFAULT_AUTO_CONFIDENCE_BP = 9800;
     public static final int DEFAULT_SAMPLE_RATE_BP = 500;
 
     /** 各键允许的字段白名单（类型化提案）。 */

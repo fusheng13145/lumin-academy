@@ -52,6 +52,7 @@ public class MachineReportService {
     private final PublicationWorkflowPort publicationWorkflowPort;
     private final OutboxAppender outboxAppender;
     private final AutoSampleGate autoSampleGate;
+    private final com.leyon.lumin.foundation.port.ReviewRoutingConfigPort routingConfigPort;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
     private final boolean calibrationValid;
@@ -63,6 +64,7 @@ public class MachineReportService {
                                 OutboxAppender outboxAppender,
                                 AutoSampleGate autoSampleGate, AuditRecorder auditRecorder,
                                 ObjectMapper objectMapper,
+                                com.leyon.lumin.foundation.port.ReviewRoutingConfigPort routingConfigPort,
                                 @Value("${lumin.review.calibration-valid:false}")
                                 boolean calibrationValid) {
         this.caseMapper = caseMapper;
@@ -72,6 +74,7 @@ public class MachineReportService {
         this.publicationWorkflowPort = publicationWorkflowPort;
         this.outboxAppender = outboxAppender;
         this.autoSampleGate = autoSampleGate;
+        this.routingConfigPort = routingConfigPort;
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
         this.calibrationValid = calibrationValid;
@@ -120,11 +123,15 @@ public class MachineReportService {
         reportMapper.insert(row);
 
         // N4 路由：authorAgeBand 取自权威源数据链（版本→作品→作者档案；不由报告携带）
+        int confidenceThresholdBp = routingConfigPort
+                .resolveForCase(UUID.fromString(reviewCase.id())).minAutoConfidenceBp();
         RoutingDecision routing = ReviewRoutingPolicy.route(new ReviewRoutingPolicy.RoutingInput(
                 true, calibrationValid,
                 AgeBand.valueOf(version.authorAgeBand()), CaseSource.SUBMISSION,
                 report.risk(), report.riskFlags(), report.confidence(),
-                report.suggestedDecision()));
+                report.suggestedDecision(), confidenceThresholdBp),
+                confidenceThresholdBp);
+
 
         String workflowState;
         if (routing.outcome() == RoutingOutcome.AUTO_ACCEPT

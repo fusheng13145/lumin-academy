@@ -24,8 +24,10 @@ import java.util.Set;
  */
 public final class ReviewRoutingPolicy {
 
-    /** LOW 自动放行置信度阈值（03 §5.3：confidence ≥ 0.98）。 */
-    public static final BigDecimal AUTO_CONFIDENCE_THRESHOLD = new BigDecimal("0.98");
+    /** LOW 自动放行置信度阈值（03 §5.3：confidence ≥ 0.98 → 9800bp；UGC-008 起由配置覆盖）。 */
+    public static final int AUTO_CONFIDENCE_THRESHOLD_BASIS_POINTS = 9800;
+    /** 旧口径常量（保留既有引用）。 */
+    public static final java.math.BigDecimal AUTO_CONFIDENCE_THRESHOLD = new BigDecimal("0.98");
 
     /** 路由结论（03 §5.1 N4 输出：AUTO_ACCEPT / AUTO_REVISE / HUMAN / HOLD）。 */
     public enum RoutingOutcome {
@@ -35,11 +37,13 @@ public final class ReviewRoutingPolicy {
         HOLD
     }
 
-    /** 路由输入：全部取自权威记录与已通过契约校验的机审报告（INV-07 / INV-08）。 */
+    /** 路由输入：全部取自权威记录与已通过契约校验的机审报告（INV-07 / INV-08）；
+     *  置信阈值（bp）由 REVIEW_ROUTING 配置解析注入（UGC-008 配置驱动路由）。 */
     public record RoutingInput(boolean machineReviewComplete, boolean calibrationValid,
                                AgeBand authorAgeBand, CaseSource source, RiskLevel risk,
                                Set<RiskFlag> riskFlags, BigDecimal confidence,
-                               ReviewDecision suggestedDecision) {
+                               ReviewDecision suggestedDecision,
+                               int autoConfidenceThresholdBp) {
     }
 
     /** 路由结论：outcome + 命中规则标识（供裁决记录与审计定位）。 */
@@ -66,7 +70,13 @@ public final class ReviewRoutingPolicy {
     private ReviewRoutingPolicy() {
     }
 
+    /** 默认阈值路由（9800bp = 0.98，03 §5.3 原始口径；保留供既有调用与测试）。 */
     public static RoutingDecision route(RoutingInput input) {
+        return route(input, AUTO_CONFIDENCE_THRESHOLD_BASIS_POINTS);
+    }
+
+    /** 配置驱动路由（UGC-008）：置信阈值由 REVIEW_ROUTING ACTIVE 修订解析（bp）。 */
+    public static RoutingDecision route(RoutingInput input, int autoConfidenceThresholdBp) {
         // ① 证据缺失：机审未完成（INV-08：机审未完成不得发布）或权威年龄缺失
         if (input == null || !input.machineReviewComplete()) {
             return new RoutingDecision(RoutingOutcome.HOLD, HOLD_MACHINE_REVIEW_INCOMPLETE);
@@ -111,7 +121,8 @@ public final class ReviewRoutingPolicy {
         if (input.risk() != RiskLevel.LOW) {
             return new RoutingDecision(RoutingOutcome.HUMAN, HUMAN_UNROUTED);
         }
-        if (input.confidence().compareTo(AUTO_CONFIDENCE_THRESHOLD) < 0) {
+        if (input.confidence().movePointRight(4).intValue()
+                < autoConfidenceThresholdBp) {
             return new RoutingDecision(RoutingOutcome.HUMAN, HUMAN_LOW_CONFIDENCE);
         }
         if (!input.calibrationValid()) {

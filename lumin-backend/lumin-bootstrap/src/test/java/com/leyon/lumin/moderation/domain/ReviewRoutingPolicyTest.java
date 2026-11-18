@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Set;
 
+import static com.leyon.lumin.moderation.domain.ReviewRoutingPolicy.AUTO_CONFIDENCE_THRESHOLD_BASIS_POINTS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -28,7 +29,8 @@ class ReviewRoutingPolicyTest {
                                       boolean machineReviewComplete, boolean calibrationValid) {
         return new RoutingInput(machineReviewComplete, calibrationValid, authorAgeBand,
                 source, risk, flags,
-                confidence == null ? null : new BigDecimal(confidence), suggested);
+                confidence == null ? null : new BigDecimal(confidence), suggested,
+                AUTO_CONFIDENCE_THRESHOLD_BASIS_POINTS);
     }
 
     private static RoutingInput base() {
