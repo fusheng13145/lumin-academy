@@ -27,10 +27,13 @@ public class LegalHoldService implements LegalHoldPort {
 
     private final LegalHoldMapper legalHoldMapper;
     private final AuditRecorder auditRecorder;
+    private final com.leyon.lumin.foundation.crypto.FieldCipher fieldCipher;
 
-    public LegalHoldService(LegalHoldMapper legalHoldMapper, AuditRecorder auditRecorder) {
+    public LegalHoldService(LegalHoldMapper legalHoldMapper, AuditRecorder auditRecorder,
+                            com.leyon.lumin.foundation.crypto.FieldCipher fieldCipher) {
         this.legalHoldMapper = legalHoldMapper;
         this.auditRecorder = auditRecorder;
+        this.fieldCipher = fieldCipher;
     }
 
     /** 立保全（ADMIN；USER/WORK/CASE 主体）。 */
@@ -50,7 +53,8 @@ public class LegalHoldService implements LegalHoldPort {
             throw new LuminBusinessException(ErrorCode.B2001);
         }
         LegalHoldRow row = new LegalHoldRow(UUID.randomUUID().toString(), subjectType,
-                subjectId, ("hold-basis:" + reason).getBytes(StandardCharsets.UTF_8), "ACTIVE",
+                subjectId, fieldCipher.encrypt("hold-basis:" + reason,
+                "legal_hold.basis_ref_cipher"), "ACTIVE",
                 null, subject, reason, null, now, now, subject, subject, 1L);
         legalHoldMapper.insert(row);
         auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,

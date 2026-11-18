@@ -30,6 +30,9 @@ lumin:
   cursor:
     # UGC-009 游标签名密钥：生产必须经 Secret Manager 注入（缺省仅本地开发占位）
     key: ${LUMIN_CURSOR_KEY:lumin-cursor-dev-key}
+  crypto:
+    # UGC-007 字段加密密钥（AES-256-GCM）：生产必须经 Secret Manager 注入（LUMIN_CRYPTO_KEY）
+    key: ${LUMIN_CRYPTO_KEY:lumin-crypto-dev-key}
   review:
     # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
     calibration-valid: false
