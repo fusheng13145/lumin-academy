@@ -68,8 +68,11 @@ public final class TestDatabase {
             } catch (IOException e) {
                 throw new IllegalStateException("迁移脚本目录解析失败：" + MIGRATION_DIR, e);
             }
+            // 按数值版本序（V1 → V2 → … → V10+）：文件名字典序会把 V10/V11 排在
+            // V1 之前（'0' < '_'）——外键引用未建表即失败（增量三十四教训登记）
             java.util.Arrays.sort(scripts, java.util.Comparator.comparing(
-                    org.springframework.core.io.Resource::getFilename));
+                    org.springframework.core.io.Resource::getFilename,
+                    TestDatabase::byMigrationVersion));
             for (org.springframework.core.io.Resource script : scripts) {
                 ScriptUtils.executeSqlScript(connection,
                         new EncodedResource(script, StandardCharsets.UTF_8));
@@ -82,5 +85,40 @@ public final class TestDatabase {
     /** 供测试类直接建业务级连接（会话时区强制 UTC）。 */
     public static Connection newConnection() throws SQLException {
         return DriverManager.getConnection(DB_URL, username(), password());
+    }
+
+    /** 迁移文件名按数值版本序比较（V2 < V10；同版本按文件名）。 */
+    static int byMigrationVersion(String left, String right) {
+        long l = leadingVersion(left);
+        long r = leadingVersion(right);
+        if (l != r) {
+            return Long.compare(l, r);
+        }
+        return left.compareTo(right);
+    }
+
+    /** 提取文件名前导数值（V10__x.sql → 10；无前导数字 → 0）。 */
+    private static long leadingVersion(String filename) {
+        String name = filename;
+        int slash = name.lastIndexOf('/');
+        if (slash >= 0) {
+            name = name.substring(slash + 1);
+        }
+        int vStart = 1; // 'V' 之后
+        if (!name.startsWith("V") || name.length() <= vStart) {
+            return 0;
+        }
+        int end = vStart;
+        while (end < name.length() && Character.isDigit(name.charAt(end))) {
+            end++;
+        }
+        if (end == vStart) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(name.substring(vStart, end));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

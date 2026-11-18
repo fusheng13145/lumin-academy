@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BAND_LABEL } from '../../lib/demoPolicy';
 import { Icon } from '../../components/icons/Icon';
 import { notificationService, type NotificationItem } from '../../services/notificationService';
+import { bookshelfService, type BookshelfItem, type ReadingHistoryItem } from '../../services/bookshelfService';
 import type { AgeBand } from '../../types';
 
 interface MineViewProps {
@@ -62,6 +63,13 @@ export function MineView({
         </h2>
         <NotificationList />
       </div>
+
+      <div className="card setting-block">
+        <h2 className="setting-block__title">
+          <Icon name="catalog" size={18} /> 书架与历史
+        </h2>
+        <BookshelfList />
+      </div>
     </section>
   );
 }
@@ -104,5 +112,83 @@ function NotificationList() {
         </li>
       ))}
     </ul>
+  );
+}
+
+function BookshelfList() {
+  const [bookmarks, setBookmarks] = useState<BookshelfItem[] | null>(null);
+  const [history, setHistory] = useState<ReadingHistoryItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const [b, h] = await Promise.all([
+          bookshelfService.listBookmarks(),
+          bookshelfService.listReadingHistory(),
+        ]);
+        if (alive) {
+          setBookmarks(b);
+          setHistory(h);
+        }
+      } catch (e) {
+        if (alive) {
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const remove = async (workId: string): Promise<void> => {
+    try {
+      await bookshelfService.removeBookmark(workId);
+      setBookmarks((prev) => (prev ?? []).filter((item) => item.workId !== workId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '移除失败');
+    }
+  };
+
+  if (error) {
+    return <p className="muted-note">{error}</p>;
+  }
+  const bookmarksEmpty = bookmarks !== null && bookmarks.length === 0;
+  const historyEmpty = history !== null && history.length === 0;
+  return (
+    <div>
+      {bookmarksEmpty ? <p className="muted-note">书架空空如也</p> : null}
+      {bookmarks === null ? null : (
+        <ul className="notice-list">
+          {bookmarks.map((item) => (
+            <li key={item.workId} className="notice notice--info">
+              <span className={'badge ' + (item.readable ? 'badge--info' : 'badge--removed')}>
+                {item.readable ? '可读' : '不可读'}
+              </span>
+              <p>《{item.title || item.workId}》 {item.author}</p>
+              <button className="btn btn--sm" type="button"
+                onClick={() => void remove(item.workId)}>
+                移出书架
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {historyEmpty ? null : (
+        <ul className="notice-list" style={{ marginTop: 'var(--sp-4)' }}>
+          {history === null ? null : history.map((item) => (
+            <li key={item.chapterId} className="notice notice--info">
+              <span className="badge badge--neutral">
+                {item.readable ? `第 ${item.sequenceNo} 章 · ${item.positionBasisPoints / 100}%` : '不可读'}
+              </span>
+              <p>{item.workTitle} · {item.chapterTitle || '第一章'}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+      {bookmarksEmpty && historyEmpty ? <p className="muted-note">暂无阅读历史</p> : null}
+    </div>
   );
 }
