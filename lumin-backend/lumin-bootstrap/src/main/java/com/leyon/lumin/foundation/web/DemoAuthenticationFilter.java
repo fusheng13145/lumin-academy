@@ -93,17 +93,27 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             Map.entry(AUDITOR, "AUDITOR"));
 
     private final com.leyon.lumin.identity.service.AuthSessionService sessionService;
+    private final com.leyon.lumin.identity.repository.RoleGrantMapper roleGrantMapper;
     private final tools.jackson.databind.ObjectMapper objectMapper;
     private final String authMode;
 
     public DemoAuthenticationFilter(
             com.leyon.lumin.identity.service.AuthSessionService sessionService,
+            com.leyon.lumin.identity.repository.RoleGrantMapper roleGrantMapper,
             tools.jackson.databind.ObjectMapper objectMapper,
             @org.springframework.beans.factory.annotation.Value("${lumin.auth.mode:demo}")
             String authMode) {
         this.sessionService = sessionService;
+        this.roleGrantMapper = roleGrantMapper;
         this.objectMapper = objectMapper;
         this.authMode = authMode;
+    }
+
+    /** 有效角色解析（UGC-004）：已授予角色优先于替身基础角色（服务端权威，不信客户端）。 */
+    private String effectiveRole(String subject, String baseRole) {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
+        var grants = roleGrantMapper.findActiveBySubject(subject, now);
+        return grants.isEmpty() ? baseRole : grants.get(0).role();
     }
 
     @Override
@@ -129,7 +139,8 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             }
             request.setAttribute(ATTRIBUTE_SUBJECT, session.subject());
             request.setAttribute(ATTRIBUTE_STUB_NAME, session.stubName());
-            request.setAttribute(ATTRIBUTE_ROLE, session.roleContext());
+            request.setAttribute(ATTRIBUTE_ROLE,
+                    effectiveRole(session.subject(), session.roleContext()));
             chain.doFilter(request, response);
             return;
         }
@@ -146,7 +157,7 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
                 : STUB_SUBJECTS.containsKey(requested) ? requested : AUTHOR;
         request.setAttribute(ATTRIBUTE_SUBJECT, subject);
         request.setAttribute(ATTRIBUTE_STUB_NAME, stubName);
-        request.setAttribute(ATTRIBUTE_ROLE, STUB_ROLES.get(stubName));
+        request.setAttribute(ATTRIBUTE_ROLE, effectiveRole(subject, STUB_ROLES.get(stubName)));
         chain.doFilter(request, response);
     }
 

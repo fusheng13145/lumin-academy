@@ -64,13 +64,23 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                     1, ?, ?, ?, ?)
                 """, userId, oidcSubject, MySqlFixtures.BUSINESS_TIME, MySqlFixtures.BUSINESS_TIME,
                 MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM);
+        String grantId = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT IGNORE INTO role_grant (id, target_user_id, role, scope_type,
+                    scope_id, expires_at, reason, state, requested_by, reviewed_by,
+                    reviewed_at, created_at, updated_at, created_by, updated_by, lock_version)
+                VALUES (?, ?, 'REVIEWER_L1', 'GLOBAL', NULL, NULL, '测试夹具授予',
+                    'APPROVED', 'system', 'system', ?, ?, ?, ?, 'system', 1)
+                """, grantId, userId, MySqlFixtures.BUSINESS_TIME,
+                MySqlFixtures.BUSINESS_TIME, MySqlFixtures.BUSINESS_TIME,
+                MySqlFixtures.BUSINESS_TIME);
         jdbc.update("""
                 INSERT IGNORE INTO role_assignment (id, user_id, role, scope_type, grant_id,
                     created_at, updated_at, created_by, updated_by)
                 VALUES (?, ?, 'REVIEWER_L1', 'GLOBAL', ?, ?, ?, ?, ?)
-                """, UUID.randomUUID().toString(), userId,
-                UUID.randomUUID().toString(), MySqlFixtures.BUSINESS_TIME,
-                MySqlFixtures.BUSINESS_TIME, MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM);
+                """, UUID.randomUUID().toString(), userId, grantId,
+                MySqlFixtures.BUSINESS_TIME, MySqlFixtures.BUSINESS_TIME,
+                MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM);
     }
 
     private static String uuidKey() {
