@@ -33,4 +33,14 @@ public interface UserProfileMapper {
                           @Param("subject") String subject,
                           @Param("operator") String operator,
                           @Param("now") java.time.LocalDateTime now);
+
+    /** 数据主体更正权（UGC-006 CORRECT：公开昵称为唯一可更正公开字段）。 */
+    @Update("""
+            UPDATE user_profile SET nickname = #{nickname}, updated_at = #{now},
+                updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id}
+            """)
+    int applyCorrection(@Param("id") String id, @Param("nickname") String nickname,
+                        @Param("operator") String operator,
+                        @Param("now") java.time.LocalDateTime now);
 }
