@@ -18,7 +18,7 @@ lumin-academy/
 │   │   ├── src/main/java/com/leyon/lumin/
 │   │   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
 │   │   │   └── {module}/api      #   接入层 Controller（catalog/authoring/.../ai）
-│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V7
+│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V10
 │   └── （旧单模块 src/ 已移除）
 ├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，纵向 feature + 共享层 + 展示壳（见 docs/19）
 │   ├── android/              # Android 壳：Capacitor 8 + Gradle 8.14.3（2026-11-18）
