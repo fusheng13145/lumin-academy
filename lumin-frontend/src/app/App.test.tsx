@@ -23,7 +23,7 @@ beforeEach(() => {
   fetchMock.mockImplementation(async (input) => {
     const path = String(input);
     if (path.includes('/me/works') || path.includes('/me/drafts')
-      || path.includes('/me/publication-workflows')) {
+      || path.includes('/me/publication-workflows') || path.includes('/review-cases')) {
       return envelope({ items: [], nextCursor: null });
     }
     return envelope([]);

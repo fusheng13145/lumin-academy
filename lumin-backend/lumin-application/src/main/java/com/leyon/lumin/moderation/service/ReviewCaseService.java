@@ -3,12 +3,16 @@ package com.leyon.lumin.moderation.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.event.OutboxAppender;
 import com.leyon.lumin.foundation.event.OutboxEventRow;
+import com.leyon.lumin.foundation.port.ContentMaterialPort;
 import com.leyon.lumin.foundation.values.ReviewDecision;
 import com.leyon.lumin.foundation.values.ReviewCaseEvent;
 import com.leyon.lumin.foundation.values.ReviewCaseState;
+import com.leyon.lumin.moderation.api.dto.CaseDetailView;
 import com.leyon.lumin.moderation.api.dto.CaseView;
+import com.leyon.lumin.moderation.api.dto.DecisionItemView;
 import com.leyon.lumin.moderation.api.dto.DecisionRequest;
 import com.leyon.lumin.moderation.domain.ReviewCaseStateMachine;
 import com.leyon.lumin.moderation.domain.ReviewCaseStateMachine.TransitionResult;
@@ -16,13 +20,18 @@ import com.leyon.lumin.moderation.repository.ReviewCaseMapper;
 import com.leyon.lumin.moderation.repository.ReviewCaseRow;
 import com.leyon.lumin.moderation.repository.ReviewDecisionMapper;
 import com.leyon.lumin.moderation.repository.ReviewDecisionRow;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -38,30 +47,76 @@ import java.util.UUID;
 @Service
 public class ReviewCaseService {
 
-    /** 领取租约（03 §2.4：15 分钟）。 */
+    /** 领取租约（03 §2.4：15 分钟）；队列读取角色。 */
     private static final long LEASE_MINUTES = 15;
+    private static final Set<String> QUEUE_READER_ROLES =
+            Set.of("REVIEWER_L1", "REVIEWER_L2", "LEGAL");
 
     private final ReviewCaseMapper caseMapper;
     private final ReviewDecisionMapper decisionMapper;
     private final OutboxAppender outboxAppender;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
+    private final ContentMaterialPort contentMaterialPort;
+    private final String cursorKey;
 
     public ReviewCaseService(ReviewCaseMapper caseMapper,
                              ReviewDecisionMapper decisionMapper,
                              OutboxAppender outboxAppender,
-                             AuditRecorder auditRecorder, ObjectMapper objectMapper) {
+                             AuditRecorder auditRecorder, ObjectMapper objectMapper,
+                             ContentMaterialPort contentMaterialPort,
+                             @Value("${lumin.cursor.key}") String cursorKey) {
         this.caseMapper = caseMapper;
         this.decisionMapper = decisionMapper;
         this.outboxAppender = outboxAppender;
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
+        this.contentMaterialPort = contentMaterialPort;
+        this.cursorKey = cursorKey;
     }
 
-    /** 队列列表（不含正文；priority/completion_due_at/id 排序）。 */
+    public record Page(List<CaseDetailView> items, String nextCursor) {
+    }
+
+    /** 队列列表（契约 CasePage：priority/completion_due_at/id 签名游标）。 */
     @Transactional(readOnly = true)
-    public List<CaseView> listQueued() {
-        return caseMapper.listQueued(100).stream().map(this::toView).toList();
+    public Page listCases(String subject, String role, String cursorToken, Integer limitParam) {
+        if (!QUEUE_READER_ROLES.contains(role)) {
+            throw new LuminBusinessException(ErrorCode.A2001);
+        }
+        requireLimit(limitParam);
+        int limit = CursorCodec.resolveLimit(limitParam);
+        String filterDigest = CursorCodec.filterDigest("list=review-cases;viewer=" + subject
+                + ";role=" + role);
+        int cursorRank = 0;
+        LocalDateTime cursorDue = LocalDateTime.of(1970, 1, 1, 0, 0);
+        UUID cursorId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            CursorCodec.DecodedCursor decoded = CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(StandardCharsets.UTF_8), Instant.now(), filterDigest);
+            requireCursor(decoded, subject);
+            String[] sortKey = decoded.payload().sortKeyValue().split("\\|", 2);
+            if (sortKey.length != 2) {
+                throw new LuminBusinessException(ErrorCode.P1001);
+            }
+            cursorRank = Integer.parseInt(sortKey[0]);
+            cursorDue = LocalDateTime.parse(sortKey[1]);
+            cursorId = decoded.payload().lastId();
+        }
+        List<ReviewCaseRow> rows = caseMapper.listQueued(cursorRank, cursorDue,
+                cursorId.toString(), limit + 1);
+        boolean hasNext = rows.size() > limit;
+        List<ReviewCaseRow> pageRows = hasNext ? rows.subList(0, limit) : rows;
+        List<CaseDetailView> items = pageRows.stream().map(this::toDetail).toList();
+        String nextCursor = null;
+        if (hasNext) {
+            ReviewCaseRow last = pageRows.get(pageRows.size() - 1);
+            nextCursor = CursorCodec.encode(new CursorCodec.Payload(
+                    priorityRank(last.priority()) + "|" + last.completionDueAt(),
+                    UUID.fromString(last.id()), filterDigest, UUID.fromString(subject),
+                    Instant.now()), cursorKey.getBytes(StandardCharsets.UTF_8));
+        }
+        return new Page(items, nextCursor);
     }
 
     /** 领取（T20 状态面）：QUEUED/WAITING_SECOND → CLAIMED，租约 15 分钟；
@@ -202,6 +257,63 @@ public class ReviewCaseService {
         try {
             return com.leyon.lumin.foundation.values.Grade.valueOf(grade);
         } catch (IllegalArgumentException e) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+    }
+
+    private CaseDetailView toDetail(ReviewCaseRow row) {
+        String authorAgeBand = "C4";
+        if (row.versionId() != null) {
+            ContentMaterialPort.MaterialRef material =
+                    contentMaterialPort.findVersionMaterial(row.versionId());
+            if (material != null && material.authorAgeBand() != null) {
+                authorAgeBand = material.authorAgeBand();
+            }
+        }
+        List<DecisionItemView> decisions = decisionMapper.findByCase(row.id()).stream()
+                .map(this::toDecision)
+                .toList();
+        return new CaseDetailView(row.id(), row.workId(), row.versionId(), row.state(),
+                row.risk(), row.priority(), authorAgeBand, row.completionDueAt(),
+                row.leaseExpiresAt(), row.lockVersion(), decisions);
+    }
+
+    private DecisionItemView toDecision(ReviewDecisionRow row) {
+        return new DecisionItemView(row.id(), row.actorId(), row.decision(), row.grade(),
+                row.reasonCode(), row.reason(), parseEvidence(row.evidenceRefs()),
+                row.createdAt());
+    }
+
+    private List<String> parseEvidence(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() { });
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private int priorityRank(String priority) {
+        return switch (priority) {
+            case "P0" -> 1;
+            case "P1" -> 2;
+            case "P2" -> 3;
+            case "P3" -> 4;
+            default -> 5;
+        };
+    }
+
+    private void requireLimit(Integer limitParam) {
+        if (CursorCodec.validateLimit(limitParam) != ErrorCode.OK) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+    }
+
+    private void requireCursor(CursorCodec.DecodedCursor decoded, String subject) {
+        if (decoded.code() != ErrorCode.OK
+                || !decoded.payload().subjectId().toString().equals(subject)) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
     }

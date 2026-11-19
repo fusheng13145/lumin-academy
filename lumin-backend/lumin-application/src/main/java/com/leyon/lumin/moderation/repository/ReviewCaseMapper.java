@@ -70,12 +70,19 @@ public interface ReviewCaseMapper {
                               @Param("operator") String operator,
                               @Param("now") java.time.LocalDateTime now);
 
-    /** 队列列表（03 §2.4：priority/completion_due_at/id 排序；不含正文）。 */
+    /** 队列列表（03 §2.4：priority/completion_due_at/id 排序；不含正文；签名游标）。 */
     @Select("""
             SELECT * FROM review_case
             WHERE state IN ('QUEUED','WAITING_SECOND') AND deleted_at IS NULL
+              AND (FIELD(priority,'P0','P1','P2','P3') > #{cursorRank}
+                   OR (FIELD(priority,'P0','P1','P2','P3') = #{cursorRank}
+                       AND (completion_due_at > #{cursorDue}
+                            OR (completion_due_at = #{cursorDue} AND id > #{cursorId}))))
             ORDER BY FIELD(priority,'P0','P1','P2','P3'), completion_due_at, id
             LIMIT #{limit}
             """)
-    java.util.List<ReviewCaseRow> listQueued(@Param("limit") int limit);
+    java.util.List<ReviewCaseRow> listQueued(@Param("cursorRank") int cursorRank,
+                                             @Param("cursorDue") java.time.LocalDateTime cursorDue,
+                                             @Param("cursorId") String cursorId,
+                                             @Param("limit") int limit);
 }

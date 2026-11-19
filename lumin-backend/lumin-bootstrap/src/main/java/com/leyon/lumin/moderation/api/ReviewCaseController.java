@@ -3,7 +3,6 @@ package com.leyon.lumin.moderation.api;
 import com.leyon.lumin.foundation.contract.ApiEnvelope;
 import com.leyon.lumin.foundation.web.DemoAuthenticationFilter;
 import com.leyon.lumin.foundation.web.IdempotentExecutor;
-import com.leyon.lumin.moderation.api.dto.CaseView;
 import com.leyon.lumin.moderation.api.dto.DecisionRequest;
 import com.leyon.lumin.moderation.service.ReviewCaseQueryService;
 import com.leyon.lumin.moderation.service.ReviewCaseService;
@@ -16,9 +15,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,9 +42,12 @@ public class ReviewCaseController {
     }
 
     @GetMapping
-    public ApiEnvelope list() {
-        List<CaseView> cases = reviewCaseService.listQueued();
-        return ApiEnvelope.ok(cases);
+    public ApiEnvelope list(
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_ROLE) String reviewerRole,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer limit) {
+        return ApiEnvelope.ok(reviewCaseService.listCases(subject, reviewerRole, cursor, limit));
     }
 
     /** 案件详情（脱敏元数据 + 完整裁决；越权与不存在统一 404）。 */

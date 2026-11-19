@@ -46,6 +46,7 @@ class ModerationReadApiTest {
     private static final String ROLE = "REVIEWER_L2";
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 11, 19, 11, 0);
 
+    private final ReviewCaseService reviewCaseService = mock(ReviewCaseService.class);
     private final ReviewCaseQueryService reviewCaseQueryService = mock(ReviewCaseQueryService.class);
     private final RestrictionQueryService restrictionQueryService = mock(RestrictionQueryService.class);
     private final AppealQueryService appealQueryService = mock(AppealQueryService.class);
@@ -56,7 +57,7 @@ class ModerationReadApiTest {
     void setUp() {
         IdempotentExecutor executor = mock(IdempotentExecutor.class);
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new ReviewCaseController(mock(ReviewCaseService.class),
+                        new ReviewCaseController(reviewCaseService,
                                 reviewCaseQueryService, executor),
                         new RestrictionController(mock(RestrictionService.class),
                                 restrictionQueryService, executor),
@@ -65,6 +66,26 @@ class ModerationReadApiTest {
                         new CategoryController(categoryService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void caseQueueReturnsContractPageWithDecisions() throws Exception {
+        when(reviewCaseService.listCases(SUBJECT, ROLE, null, 10))
+                .thenReturn(new ReviewCaseService.Page(
+                        List.of(new CaseDetailView("case-1", "work-1", "version-1", "QUEUED",
+                                "LOW", "P2", "C2", NOW.plusHours(20), null, 2L,
+                                List.of(new DecisionItemView("decision-1", "reviewer-1",
+                                        "HIDE", "L1", "COMMUNITY_VIOLATION", "违规",
+                                        List.of("a:b"), NOW)))),
+                        "next-case"));
+
+        mockMvc.perform(get("/api/v1/review-cases").param("limit", "10").with(identity()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.items[0].id").value("case-1"))
+                .andExpect(jsonPath("$.data.items[0].authorAgeBand").value("C2"))
+                .andExpect(jsonPath("$.data.items[0].decisions[0].decision").value("HIDE"))
+                .andExpect(jsonPath("$.data.nextCursor").value("next-case"));
     }
 
     @Test
