@@ -31,9 +31,13 @@ public class ReviewCasePortAdapter implements ReviewCasePort {
     private static final long P2_COMPLETION_HOURS = 24;
 
     private final ReviewCaseMapper reviewCaseMapper;
+    private final com.leyon.lumin.foundation.port.PublishedVersionPort publishedVersionPort;
 
-    public ReviewCasePortAdapter(ReviewCaseMapper reviewCaseMapper) {
+    public ReviewCasePortAdapter(ReviewCaseMapper reviewCaseMapper,
+                                 com.leyon.lumin.foundation.port.PublishedVersionPort
+                                         publishedVersionPort) {
         this.reviewCaseMapper = reviewCaseMapper;
+        this.publishedVersionPort = publishedVersionPort;
     }
 
     @Override
@@ -43,7 +47,10 @@ public class ReviewCasePortAdapter implements ReviewCasePort {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        ReviewCaseRow row = new ReviewCaseRow(UUID.randomUUID().toString(), null, null,
+        String versionId = request.chapterId() == null
+                ? publishedVersionPort.findPublishedVersionId("WORK", request.workId())
+                : publishedVersionPort.findPublishedVersionId("CHAPTER", request.chapterId());
+        ReviewCaseRow row = new ReviewCaseRow(UUID.randomUUID().toString(), versionId, null,
                 request.workId(), request.chapterId(), "REPORT", "LOW", "P2", "QUEUED",
                 DEFAULT_QUEUE_ID, 1, null, null,
                 now.plusHours(P2_RESPONSE_HOURS), now.plusHours(P2_COMPLETION_HOURS),
