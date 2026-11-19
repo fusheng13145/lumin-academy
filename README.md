@@ -18,7 +18,7 @@ lumin-academy/
 │   │   ├── src/main/java/com/leyon/lumin/
 │   │   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
 │   │   │   └── {module}/api      #   接入层 Controller（catalog/authoring/.../ai）
-│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V14（15 个脚本，V7 重号待并）
+│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V15（16 个脚本，V7 重号待并）
 │   └── （旧单模块 src/ 已移除）
 ├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，纵向 feature + 共享层 + 展示壳（见 docs/19）
 │   ├── android/              # Android 壳：Capacitor 8 + Gradle 8.14.3（2026-11-18）
@@ -150,6 +150,6 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 ## 阶段边界
 
 - 契约 `contracts/p0.openapi.yaml` 只读；校验脚本前后比对 SHA256 证明未被修改。
-- **2026-11-19 更新**：P0-B/C 已落地 Controller / Service / Repository / V1–V14 DDL；`docs/22` 对账为契约 63 operationId、路由实现 **63/63**、缺失 **0**、契约外 20。P0-A「只落地领域层纯函数」仅代表 2026-11-15 时点。
+- **2026-11-19 更新**：P0-B/C 已落地 Controller / Service / Repository / V1–V15 DDL；`docs/22` 对账为契约 63 operationId、路由实现 **63/63**、缺失 **0**、契约外 20。P0-A「只落地领域层纯函数」仅代表 2026-11-15 时点。
 - 前端书城/作者/审核/运营/账号已接真实 API，但仍保留 `src/mocks` 合成夹具与移动端本地演示路径；服务端类型应从契约生成，不在前端手写业务判定。
-- 未做浏览器全旅程验收、真机验收与生产接口联调；**3584** 个后端测试通过只代表当前工作区自动化证据（增量四十新增 15 个审核/治理读取与服务用例及 6 个 HTTP 接入层用例，增量四十一新增 `getDraft` 2 个服务层用例与 1 个 HTTP 用例，增量四十二新增作者读取面 4 个 HTTP 用例，增量四十三新增过期限制 2 个单测与 1 个集成用例，增量四十四新增作者列表分页 4 个服务层与 2 个 HTTP 用例，增量四十五新增审核队列分页 2 个服务层与 1 个 HTTP 用例，增量四十六新增审核写回执 2 个服务层用例，增量四十七新增限制写回执 1 个服务层用例，增量四十八新增限制提案必填拒绝 1 个服务层用例，增量四十九新增审核队列裁决批量分组 1 个服务层用例，增量五十新增审核队列年龄带批量读取 1 个服务层用例，增量五十一新增举报建案冻结版本 2 个服务层用例，未配置 `lumin_test` 时集成用例跳过）。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
+- 未做浏览器全旅程验收、真机验收与生产接口联调；**3587** 个后端测试通过只代表当前工作区自动化证据（增量四十新增 15 个审核/治理读取与服务用例及 6 个 HTTP 接入层用例，增量四十一新增 `getDraft` 2 个服务层用例与 1 个 HTTP 用例，增量四十二新增作者读取面 4 个 HTTP 用例，增量四十三新增过期限制 2 个单测与 1 个集成用例，增量四十四新增作者列表分页 4 个服务层与 2 个 HTTP 用例，增量四十五新增审核队列分页 2 个服务层与 1 个 HTTP 用例，增量四十六新增审核写回执 2 个服务层用例，增量四十七新增限制写回执 1 个服务层用例，增量四十八新增限制提案必填拒绝 1 个服务层用例，增量四十九新增审核队列裁决批量分组 1 个服务层用例，增量五十新增审核队列年龄带批量读取 1 个服务层用例，增量五十一新增举报建案冻结版本 2 个服务层用例，增量五十三新增限制到期状态机 1 个与扫描 2 个用例，未配置 `lumin_test` 时集成用例跳过）。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
