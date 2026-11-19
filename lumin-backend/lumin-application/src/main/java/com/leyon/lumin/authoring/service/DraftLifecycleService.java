@@ -123,6 +123,42 @@ public class DraftLifecycleService {
                 row.materialSha256(), row.policyVersion(), authorAgeBand);
     }
 
+    /**
+     * 批量版本材料核验数据（审核队列页一次组装，避免逐版本 3 连查 N+1，增量五十）。
+     * 版本不存在的条目不出现在结果中；作品缺失时 authorAgeBand 为 null；作者档案缺失沿用
+     * 单条语义按 404/B2004 处理。
+     */
+    public List<ContentMaterialPort.MaterialRef> findVersionMaterials(List<String> versionIds) {
+        if (versionIds == null || versionIds.isEmpty()) {
+            return List.of();
+        }
+        List<String> ids = versionIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<ContentVersionRow> rows = contentVersionMapper.findByIds(ids);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        java.util.Map<String, WorkService.WorkSummary> works = workService.getWorkSummaries(
+                rows.stream().map(ContentVersionRow::workId).distinct().toList());
+        java.util.Map<String, ProfileService.ProfileSummary> profiles = profileService.findProfiles(
+                works.values().stream().map(WorkService.WorkSummary::authorId).distinct().toList());
+        return rows.stream().map(row -> {
+            WorkService.WorkSummary work = works.get(row.workId());
+            String authorAgeBand = null;
+            if (work != null) {
+                ProfileService.ProfileSummary profile = profiles.get(work.authorId());
+                if (profile == null) {
+                    throw new LuminBusinessException(ErrorCode.B2004);
+                }
+                authorAgeBand = profile.effectiveAgeBand();
+            }
+            return new ContentMaterialPort.MaterialRef(row.id(), row.workId(), row.chapterId(),
+                    row.targetType(), row.materialSha256(), row.policyVersion(), authorAgeBand);
+        }).toList();
+    }
+
     /** 不可变版本的可读材料：CHAPTER 取提交时已冻结的草稿正文；WORK 取标题+简介。 */
     public ContentMaterialPort.ReviewMaterial findReviewMaterial(String versionId) {
         ContentVersionRow row = versionId == null ? null

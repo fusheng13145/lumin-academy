@@ -13,6 +13,15 @@ public interface UserProfileMapper {
     @Select("SELECT * FROM user_profile WHERE id = #{id} AND deleted_at IS NULL")
     UserProfileRow findById(@Param("id") String id);
 
+    /** 队列页作者年龄带批量读取，避免逐作者 N+1（增量五十）。 */
+    @Select("""
+            <script>
+            SELECT * FROM user_profile WHERE deleted_at IS NULL AND id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    java.util.List<UserProfileRow> findByIds(@Param("ids") java.util.List<String> ids);
+
     /** 首次建档（05 §3.1 createProfile）：未核验有效层由服务层从严写 C4。 */
     @Insert("""
             INSERT INTO user_profile (id, oidc_issuer, oidc_subject, nickname,

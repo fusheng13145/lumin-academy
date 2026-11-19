@@ -22,6 +22,15 @@ public interface WorkMapper {
     @Select("SELECT * FROM work WHERE id = #{id} AND deleted_at IS NULL")
     WorkRow findById(@Param("id") String id);
 
+    /** 队列页作者年龄带批量组装，避免逐作品 N+1（增量五十）。 */
+    @Select("""
+            <script>
+            SELECT * FROM work WHERE deleted_at IS NULL AND id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    java.util.List<WorkRow> findByIds(@Param("ids") java.util.List<String> ids);
+
     /**
      * 原子取章节序号（03 §4.2：同作品新增章节序号使用唯一约束；完结/下架/终止
      * 作品禁止新章——business_state 白名单兜底；乐观锁 lock_version 兜底并发）。

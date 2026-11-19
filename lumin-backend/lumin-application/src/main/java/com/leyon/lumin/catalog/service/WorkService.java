@@ -168,6 +168,18 @@ public class WorkService {
                 row.copyrightStatus(), row.businessState(), row.lockVersion());
     }
 
+    /** 批量摘要读取（审核队列年龄带组装用；缺失作品不出现在 Map 中）。 */
+    public java.util.Map<String, WorkSummary> getWorkSummaries(List<String> workIds) {
+        if (workIds == null || workIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return workMapper.findByIds(workIds.stream().filter(java.util.Objects::nonNull)
+                        .distinct().toList()).stream()
+                .collect(java.util.stream.Collectors.toMap(WorkRow::id,
+                        row -> new WorkSummary(row.id(), row.authorId(),
+                                row.copyrightStatus(), row.businessState(), row.lockVersion())));
+    }
+
     /**
      * 新增章节（05 §3.2 createChapter）：If-Match 匹配作品 lock_version，原子取号；
      * 完结/下架/终止作品禁止新章（B2001），并发取号由乐观锁 + U(work_id,sequence_no) 兜底。

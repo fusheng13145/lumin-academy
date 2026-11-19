@@ -32,6 +32,16 @@ public interface ContentVersionMapper {
     @Select("SELECT * FROM content_version WHERE id = #{id}")
     ContentVersionRow findById(@Param("id") String id);
 
+    /** 队列页批量读取版本材料行，避免逐版本 N+1（增量五十）。 */
+    @Select("""
+            <script>
+            SELECT * FROM content_version
+            WHERE id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </script>
+            """)
+    java.util.List<ContentVersionRow> findByIds(@Param("ids") java.util.List<String> ids);
+
     /** 同目标下一修订号（04 §5.2：rev_key + revision_no 唯一；<=> 为 NULL 安全比较）。 */
     @Select("""
             SELECT COALESCE(MAX(revision_no), 0) + 1 FROM content_version

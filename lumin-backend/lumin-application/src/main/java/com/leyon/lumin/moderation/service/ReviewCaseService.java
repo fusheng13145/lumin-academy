@@ -112,8 +112,19 @@ public class ReviewCaseService {
                 : decisionMapper.findByCaseIds(pageRows.stream().map(ReviewCaseRow::id).toList())
                         .stream().collect(java.util.stream.Collectors.groupingBy(
                                 ReviewDecisionRow::caseId));
+        List<String> materialVersionIds = pageRows.stream()
+                .map(ReviewCaseRow::versionId).filter(java.util.Objects::nonNull).distinct().toList();
+        java.util.Map<String, String> ageBandByVersion = materialVersionIds.isEmpty()
+                ? java.util.Map.of()
+                : contentMaterialPort.findVersionMaterials(materialVersionIds).stream()
+                        .filter(material -> material.authorAgeBand() != null)
+                        .collect(java.util.stream.Collectors.toMap(
+                                ContentMaterialPort.MaterialRef::versionId,
+                                ContentMaterialPort.MaterialRef::authorAgeBand));
         List<CaseDetailView> items = pageRows.stream()
-                .map(row -> toDetail(row, decisionsByCase.getOrDefault(row.id(), List.of())))
+                .map(row -> toDetail(row, decisionsByCase.getOrDefault(row.id(), List.of()),
+                        row.versionId() == null ? "C4"
+                                : ageBandByVersion.getOrDefault(row.versionId(), "C4")))
                 .toList();
         String nextCursor = null;
         if (hasNext) {
@@ -270,15 +281,8 @@ public class ReviewCaseService {
         }
     }
 
-    private CaseDetailView toDetail(ReviewCaseRow row, List<ReviewDecisionRow> decisionRows) {
-        String authorAgeBand = "C4";
-        if (row.versionId() != null) {
-            ContentMaterialPort.MaterialRef material =
-                    contentMaterialPort.findVersionMaterial(row.versionId());
-            if (material != null && material.authorAgeBand() != null) {
-                authorAgeBand = material.authorAgeBand();
-            }
-        }
+    private CaseDetailView toDetail(ReviewCaseRow row, List<ReviewDecisionRow> decisionRows,
+                                    String authorAgeBand) {
         List<DecisionItemView> decisions = decisionRows.stream()
                 .map(this::toDecision)
                 .toList();

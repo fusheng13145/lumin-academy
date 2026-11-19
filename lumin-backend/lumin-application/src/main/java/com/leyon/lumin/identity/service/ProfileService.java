@@ -157,6 +157,18 @@ public class ProfileService {
         return new ProfileSummary(row.id(), row.effectiveAgeBand(), row.accountStatus());
     }
 
+    /** 批量档案读取（审核队列年龄带组装用；缺失主体不出现在 Map 中，由调用方判缺失）。 */
+    public java.util.Map<String, ProfileSummary> findProfiles(List<String> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        return userProfileMapper.findByIds(userIds.stream().filter(java.util.Objects::nonNull)
+                        .distinct().toList()).stream()
+                .collect(java.util.stream.Collectors.toMap(UserProfileRow::id,
+                        row -> new ProfileSummary(row.id(), row.effectiveAgeBand(),
+                                row.accountStatus())));
+    }
+
     /** 读者书城展示用作者昵称（PUBLIC 级字段；缺失返回 null）。 */
     public String findNickname(String userId) {
         UserProfileRow row = userId == null ? null : userProfileMapper.findById(userId);

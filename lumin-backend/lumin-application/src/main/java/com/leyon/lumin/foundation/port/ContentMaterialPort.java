@@ -11,6 +11,9 @@ public interface ContentMaterialPort {
     /** 版本材料摘要；版本不存在返回 null。 */
     MaterialRef findVersionMaterial(String versionId);
 
+    /** 批量版本材料摘要（审核队列年龄带组装用；不存在的版本不返回，增量五十）。 */
+    java.util.List<MaterialRef> findVersionMaterials(java.util.List<String> versionIds);
+
     /** 不可变版本的可读审核材料（标题 + 正文/简介）；版本不存在返回 null。 */
     ReviewMaterial findReviewMaterial(String versionId);
 

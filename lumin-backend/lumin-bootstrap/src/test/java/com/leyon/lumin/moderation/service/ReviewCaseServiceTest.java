@@ -122,6 +122,33 @@ class ReviewCaseServiceTest {
         assertEquals(ErrorCode.P1001, cursorError.code());
     }
 
+    @Test
+    void listCasesReadsAuthorAgeBandsInOneBatch() {
+        LocalDateTime due = LocalDateTime.of(2026, 11, 19, 12, 0);
+        String firstId = "00000000-0000-4000-8000-0000000000c1";
+        String secondId = "00000000-0000-4000-8000-0000000000c2";
+        String firstVersion = "11111111-1111-4111-8111-111111111111";
+        String secondVersion = "22222222-2222-4222-8222-222222222222";
+        when(caseMapper.listQueued(eq(0), any(LocalDateTime.class), anyString(), eq(3)))
+                .thenReturn(List.of(row(firstId, "P1", due, firstVersion),
+                        row(secondId, "P2", due, secondVersion)));
+        when(decisionMapper.findByCaseIds(anyList())).thenReturn(List.of());
+        when(contentMaterialPort.findVersionMaterials(anyList())).thenReturn(List.of(
+                material(firstVersion, "C2"), material(secondVersion, "C3")));
+
+        ReviewCaseService.Page page = service.listCases(SUBJECT, ROLE, null, 2);
+
+        assertEquals("C2", page.items().get(0).authorAgeBand());
+        assertEquals("C3", page.items().get(1).authorAgeBand());
+        verify(contentMaterialPort, times(1)).findVersionMaterials(anyList());
+        verify(contentMaterialPort, org.mockito.Mockito.never()).findVersionMaterial(anyString());
+    }
+
+    private ContentMaterialPort.MaterialRef material(String versionId, String ageBand) {
+        return new ContentMaterialPort.MaterialRef(versionId, "work-1", null, "WORK",
+                "sha", 1L, ageBand);
+    }
+
     private ReviewDecisionRow decision(String id, String caseId) {
         return new ReviewDecisionRow(id, caseId, SUBJECT, "HUMAN", "PASS", "G",
                 "OK_1001", "合规", "[]", 1, 1L, LocalDateTime.now(),
@@ -129,7 +156,11 @@ class ReviewCaseServiceTest {
     }
 
     private ReviewCaseRow row(String id, String priority, LocalDateTime due) {
-        return new ReviewCaseRow(id, null, null, "work-1", null, "SUBMISSION",
+        return row(id, priority, due, null);
+    }
+
+    private ReviewCaseRow row(String id, String priority, LocalDateTime due, String versionId) {
+        return new ReviewCaseRow(id, versionId, null, "work-1", null, "SUBMISSION",
                 "LOW", priority, "QUEUED", "queue-1", 1, null, null, due, due,
                 1L, due, due, SUBJECT, SUBJECT, 2L, null);
     }

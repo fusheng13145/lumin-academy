@@ -23,6 +23,12 @@ public class ContentMaterialAdapter implements ContentMaterialPort {
     }
 
     @Override
+    public java.util.List<ContentMaterialPort.MaterialRef> findVersionMaterials(
+            java.util.List<String> versionIds) {
+        return draftLifecycleService.findVersionMaterials(versionIds);
+    }
+
+    @Override
     public ContentMaterialPort.ReviewMaterial findReviewMaterial(String versionId) {
         return draftLifecycleService.findReviewMaterial(versionId);
     }
