@@ -33,7 +33,13 @@ class RestrictionStateMachineTest {
                             || (state == RestrictionState.ACTIVE
                             && event == RestrictionEvent.REVOKE
                             && (kind == RestrictionKind.TEMPORARY
-                            || kind == RestrictionKind.GUARDIAN_REVOKED));
+                            || kind == RestrictionKind.GUARDIAN_REVOKED))
+                            || (state == RestrictionState.ACTIVE
+                            && event == RestrictionEvent.EXPIRE
+                            && kind == RestrictionKind.TEMPORARY)
+                            || (state == RestrictionState.EXPIRED
+                            && event == RestrictionEvent.REVOKE
+                            && kind == RestrictionKind.TEMPORARY);
                     assertEquals(legal, result.accepted(),
                             state + "+" + event + "+" + kind);
                     assertTrue(result.auditRequired());
@@ -45,6 +51,8 @@ class RestrictionStateMachineTest {
                                         ? RestrictionState.ACTIVE
                                         : event == RestrictionEvent.REJECT
                                         ? RestrictionState.REJECTED
+                                        : event == RestrictionEvent.EXPIRE
+                                        ? RestrictionState.EXPIRED
                                         : RestrictionState.REVOKED,
                                 result.targetState());
                         assertTrue(!result.ruleId().isBlank());
@@ -56,8 +64,29 @@ class RestrictionStateMachineTest {
                 }
             }
         }
-        // 合法迁移：PENDING+ACTIVATE×4 + PENDING+REJECT×4 + ACTIVE+REVOKE×2 = 10
-        assertEquals(10, legalCount);
+        // 合法迁移：PENDING+ACTIVATE×4 + PENDING+REJECT×4 + ACTIVE+REVOKE×2
+        // + ACTIVE+EXPIRE×1 + EXPIRED+REVOKE×1 = 12
+        assertEquals(12, legalCount);
+    }
+
+    @Test
+    void onlyTemporaryRestrictionsCanExpireAndStillBeRevokedAfterExpiry() {
+        for (RestrictionKind kind : List.of(RestrictionKind.FINAL_VIOLATION,
+                RestrictionKind.CONTRACT_TERMINATED, RestrictionKind.GUARDIAN_REVOKED)) {
+            assertEquals(ErrorCode.B2001, RestrictionStateMachine.transit(
+                    RestrictionState.ACTIVE, RestrictionEvent.EXPIRE, kind).code(), kind.name());
+        }
+        TransitionResult expired = RestrictionStateMachine.transit(
+                RestrictionState.ACTIVE, RestrictionEvent.EXPIRE, RestrictionKind.TEMPORARY);
+        assertEquals(RestrictionState.EXPIRED, expired.targetState());
+        assertEquals("RESTRICTION_EXPIRED", expired.ruleId());
+
+        TransitionResult revoked = RestrictionStateMachine.transit(
+                RestrictionState.EXPIRED, RestrictionEvent.REVOKE, RestrictionKind.TEMPORARY);
+        assertEquals(RestrictionState.REVOKED, revoked.targetState());
+        assertEquals(ErrorCode.B2001, RestrictionStateMachine.transit(
+                RestrictionState.EXPIRED, RestrictionEvent.REVOKE,
+                RestrictionKind.GUARDIAN_REVOKED).code());
     }
 
     @Test

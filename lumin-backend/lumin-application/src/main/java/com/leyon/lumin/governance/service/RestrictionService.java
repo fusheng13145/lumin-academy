@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,6 +28,9 @@ import java.util.UUID;
  */
 @Service
 public class RestrictionService {
+
+    /** 单次到期扫描上限（调度器分批推进，避免长事务）。 */
+    private static final int EXPIRY_SCAN_LIMIT = 100;
 
     private final RestrictionMapper restrictionMapper;
     private final AuditRecorder auditRecorder;
@@ -142,16 +146,46 @@ public class RestrictionService {
                 transition.targetState().name(), row.lockVersion() + 1);
     }
 
-    /** 临时措施改判解除（ACTIVE→REVOKED；终局/解约被状态机拒绝）。 */
+    /**
+     * 临时措施到期扫描（03 §2.4 / T25）：ACTIVE TEMPORARY 且 expiresAt 已到 →
+     * 持久化 EXPIRED，进入复核告警。只退出生效集合，**不**调用发布恢复——
+     * 到期不得自动公开，恢复仍需人工复核解除。
+     */
     @Transactional
-    public ReceiptView revokeRestriction(String reviewer, String restrictionId) {
-        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+    public int expireDueTemporary(LocalDateTime now) {
+        List<RestrictionRow> due = restrictionMapper.findDueTemporary(now, EXPIRY_SCAN_LIMIT);
+        int expired = 0;
+        for (RestrictionRow row : due) {
+            TransitionResult transition = RestrictionStateMachine.transit(
+                    RestrictionState.ACTIVE, com.leyon.lumin.foundation.values.RestrictionEvent.EXPIRE,
+                    RestrictionKind.valueOf(row.kind()));
+            if (!transition.accepted()) {
+                continue;
+            }
+            if (restrictionMapper.expire(row.id(), now, row.lockVersion()) == 0) {
+                // 并发复核已改态/锁版本变化：跳过，下一轮重新判定
+                continue;
+            }
+            expired++;
+            auditRecorder.recordTransition(new AuditRecorder.AuditEntry("system", "SYSTEM",
+                    "restriction.expired", "restriction", row.id(),
+                    "临时措施到期进入复核告警（不自动公开）", traceId(),
+                    now.toInstant(ZoneOffset.UTC)),
+                    java.util.Map.of("restrictionState", row.state()),
+                    java.util.Map.of("restrictionState", RestrictionState.EXPIRED.name()));
+        }
+        return expired;
+    }
+
+    /** 临时措施改判解除（ACTIVE/EXPIRED→REVOKED；终局/解约被状态机拒绝）。 */
+    @Transactional
+    public ReceiptView revokeRestriction(String reviewer, String restrictionId) {        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         RestrictionRow row = restrictionMapper.findById(restrictionId);
         if (row == null) {
             throw new LuminBusinessException(ErrorCode.B2004);
         }
         TransitionResult transition = RestrictionStateMachine.transit(
-                RestrictionState.ACTIVE,
+                RestrictionState.valueOf(row.state()),
                 com.leyon.lumin.foundation.values.RestrictionEvent.REVOKE,
                 RestrictionKind.valueOf(row.kind()));
         if (!transition.accepted()) {
@@ -159,7 +193,7 @@ public class RestrictionService {
             throw new LuminBusinessException(ErrorCode.B2001);
         }
         int rows = restrictionMapper.transitionState(restrictionId, "REVOKED", reviewer,
-                now, "ACTIVE", "system", now, row.lockVersion());
+                now, row.state(), "system", now, row.lockVersion());
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
@@ -171,7 +205,7 @@ public class RestrictionService {
         auditRecorder.recordTransition(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction.revoked", "restriction", restrictionId,
                 "临时措施独立复核改判解除", traceId(), now.toInstant(ZoneOffset.UTC)),
-                java.util.Map.of("restrictionState", "ACTIVE"),
+                java.util.Map.of("restrictionState", row.state()),
                 java.util.Map.of("restrictionState", "REVOKED"));
         return new ReceiptView(restrictionId, "RESTRICTION", "REVOKED", row.lockVersion() + 1);
     }

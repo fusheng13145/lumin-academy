@@ -6,6 +6,8 @@ public enum RestrictionEvent {
     ACTIVATE,
     /** 临时措施独立复核改判解除：ACTIVE→REVOKED（终局违规/合同终止禁止） */
     REVOKE,
+    /** 临时措施到期（SYSTEM 扫描）：ACTIVE→EXPIRED；不自动公开。 */
+    EXPIRE,
     /** 申请驳回：PENDING→REJECTED */
     REJECT
 }

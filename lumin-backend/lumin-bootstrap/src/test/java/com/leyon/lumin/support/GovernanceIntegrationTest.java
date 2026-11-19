@@ -54,6 +54,8 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
     private com.leyon.lumin.foundation.event.OutboxDispatcher dispatcher;
     @Autowired
     private ActiveRestrictionsPort activeRestrictionsPort;
+    @Autowired
+    private com.leyon.lumin.governance.service.RestrictionService restrictionService;
 
     private static Path storageDir;
 
@@ -342,6 +344,13 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                 """, expiredId, workId, UUID.randomUUID().toString(), L2A, L1A, L2A, L2A);
 
         assertThat(activeRestrictionsPort.activeKinds("WORK", workId, null)).isEmpty();
+
+        // 到期扫描持久化 EXPIRED：进入复核告警，不自动恢复公开
+        restrictionService.expireDueTemporary(java.time.LocalDateTime.now(
+                java.time.ZoneOffset.UTC));
+        assertThat(jdbc.queryForObject(
+                "SELECT state FROM restriction WHERE id = ?", String.class, expiredId))
+                .isEqualTo("EXPIRED");
 
         String activeId = UUID.randomUUID().toString();
         jdbc.update("""

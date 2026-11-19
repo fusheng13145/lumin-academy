@@ -11,10 +11,12 @@ import com.leyon.lumin.foundation.values.RestrictionState;
  * <p>合法迁移：PENDING→ACTIVE（临时、终局及解约提案均生效，审批资格属服务层）、
  * PENDING→REJECTED、ACTIVE→REVOKED（仅临时改判：TEMPORARY / GUARDIAN_REVOKED；
  * FINAL_VIOLATION 与 CONTRACT_TERMINATED 禁止 REVOKED——不可恢复传播，B2005
- * 服务层语义对应此处 B2001 拒绝）。未列组合一律 B2001 + 审计。
+ * 服务层语义对应此处 B2001 拒绝）、ACTIVE→EXPIRED（仅 TEMPORARY 到期，
+ * SYSTEM 扫描持久化）、EXPIRED→REVOKED（到期后人工复核解除，仍仅 TEMPORARY）。
+ * 未列组合一律 B2001 + 审计。
  *
  * <p>生效限制优先于任何发布指针（INV-03）；expiresAt 到期进入复核告警、
- * 不自动公开（03 §2.4），定时扫描属服务层。
+ * 不自动公开（03 §2.4）：到期迁移只退出生效集合，不调用发布恢复。
  */
 public final class RestrictionStateMachine {
 
@@ -39,7 +41,17 @@ public final class RestrictionStateMachine {
                 case REJECT -> accept(RestrictionState.REJECTED, "RESTRICTION_REJECTED");
                 default -> reject(current);
             };
-            case ACTIVE -> event == RestrictionEvent.REVOKE && revocable(kind)
+            case ACTIVE -> switch (event) {
+                case REVOKE -> revocable(kind)
+                        ? accept(RestrictionState.REVOKED, "RESTRICTION_REVOKED")
+                        : reject(current);
+                case EXPIRE -> kind == RestrictionKind.TEMPORARY
+                        ? accept(RestrictionState.EXPIRED, "RESTRICTION_EXPIRED")
+                        : reject(current);
+                default -> reject(current);
+            };
+            case EXPIRED -> event == RestrictionEvent.REVOKE
+                    && kind == RestrictionKind.TEMPORARY
                     ? accept(RestrictionState.REVOKED, "RESTRICTION_REVOKED")
                     : reject(current);
             case REVOKED, REJECTED -> reject(current);

@@ -37,6 +37,11 @@ lumin:
     # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
     calibration-valid: false
     sample-seed: ${LUMIN_REVIEW_SAMPLE_SEED:lumin-review-seed-dev}
+  restriction:
+    expiry-scan:
+      # 临时措施到期持久化 EXPIRED：只退出生效集合，不自动公开
+      enabled: ${LUMIN_RESTRICTION_EXPIRY_SCAN_ENABLED:true}
+      interval-ms: ${LUMIN_RESTRICTION_EXPIRY_SCAN_INTERVAL_MS:300000}
   storage:
     dir: ${LUMIN_STORAGE_DIR:${user.home}/.lumin-storage}
   # AI 供应商：本地 Ollama（默认 deepseek-r1:8b）；后续切换 DeepSeek 官方 API 只改这里。

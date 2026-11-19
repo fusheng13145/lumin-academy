@@ -65,6 +65,27 @@ public interface RestrictionMapper {
                                              @Param("chapterId") String chapterId,
                                              @Param("now") java.time.LocalDateTime now);
 
+    /** 到期临时措施（SYSTEM 扫描：进入复核告警，不自动公开）。 */
+    @Select("""
+            SELECT * FROM restriction
+            WHERE state = 'ACTIVE' AND kind = 'TEMPORARY' AND deleted_at IS NULL
+              AND expires_at <= #{now}
+            ORDER BY expires_at, id
+            LIMIT #{limit}
+            """)
+    java.util.List<RestrictionRow> findDueTemporary(@Param("now") java.time.LocalDateTime now,
+                                                    @Param("limit") int limit);
+
+    /** 到期持久化（仅 ACTIVE 临时措施；状态守卫 + 乐观锁兜底并发复核）。 */
+    @Update("""
+            UPDATE restriction SET state = 'EXPIRED', updated_at = #{now},
+                updated_by = 'system', lock_version = lock_version + 1
+            WHERE id = #{id} AND state = 'ACTIVE' AND kind = 'TEMPORARY'
+                AND expires_at <= #{now} AND lock_version = #{expectedLockVersion}
+            """)
+    int expire(@Param("id") String id, @Param("now") java.time.LocalDateTime now,
+               @Param("expectedLockVersion") long expectedLockVersion);
+
     /** 状态迁移持久化（RestrictionStateMachine 裁决后调用；REVOKED 记 revoked_at）。 */
     @Update("""
             UPDATE restriction SET state = #{state}, reviewed_by = #{reviewer},

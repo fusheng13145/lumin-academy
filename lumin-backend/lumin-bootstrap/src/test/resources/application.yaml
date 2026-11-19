@@ -21,3 +21,7 @@ lumin:
   review:
     calibration-valid: false
     sample-seed: lumin-review-seed-test
+  restriction:
+    expiry-scan:
+      # 集成测试直调 RestrictionService#expireDueTemporary，关闭后台调度避免不确定性
+      enabled: false
