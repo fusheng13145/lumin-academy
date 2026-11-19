@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 
 import com.leyon.lumin.foundation.values.RestrictionKind;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -22,10 +24,11 @@ public class ActiveRestrictionsAdapter implements ActiveRestrictionsPort {
     /** ACTIVE 限制种类集合（父作品限制覆盖全部章节，INV-03）。 */
     @Override
     public Set<RestrictionKind> activeKinds(String targetType, String workId, String chapterId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Set<RestrictionKind> kinds = new HashSet<>();
         for (String kind : "CHAPTER".equals(targetType)
-                ? restrictionMapper.selectActiveKinds(workId, chapterId)
-                : restrictionMapper.selectActiveKinds(workId, null)) {
+                ? restrictionMapper.selectActiveKinds(workId, chapterId, now)
+                : restrictionMapper.selectActiveKinds(workId, null, now)) {
             kinds.add(RestrictionKind.valueOf(kind));
         }
         return kinds;

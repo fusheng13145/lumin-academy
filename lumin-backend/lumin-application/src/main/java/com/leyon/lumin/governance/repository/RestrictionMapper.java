@@ -57,11 +57,13 @@ public interface RestrictionMapper {
     @Select("""
             SELECT DISTINCT kind FROM restriction
             WHERE state = 'ACTIVE' AND deleted_at IS NULL
+              AND (expires_at IS NULL OR expires_at > #{now})
               AND ((target_scope = 'WORK' AND work_id = #{workId})
                    OR (target_scope = 'CHAPTER' AND chapter_id = #{chapterId}))
             """)
     java.util.List<String> selectActiveKinds(@Param("workId") String workId,
-                                             @Param("chapterId") String chapterId);
+                                             @Param("chapterId") String chapterId,
+                                             @Param("now") java.time.LocalDateTime now);
 
     /** 状态迁移持久化（RestrictionStateMachine 裁决后调用；REVOKED 记 revoked_at）。 */
     @Update("""

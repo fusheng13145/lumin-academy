@@ -1,5 +1,7 @@
 package com.leyon.lumin.support;
 
+import com.leyon.lumin.foundation.port.ActiveRestrictionsPort;
+import com.leyon.lumin.foundation.values.RestrictionKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,8 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
     private JdbcTemplate jdbc;
     @Autowired
     private com.leyon.lumin.foundation.event.OutboxDispatcher dispatcher;
+    @Autowired
+    private ActiveRestrictionsPort activeRestrictionsPort;
 
     private static Path storageDir;
 
@@ -322,6 +326,35 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.state").value("REVOKED"));
         mockMvc.perform(get("/api/v1/works/" + workId)).andExpect(status().isOk());
+    }
+
+    @Test
+    void expiredTemporaryRestrictionIsNotActive() throws Exception {
+        String workId = publishedWork();
+        String expiredId = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT INTO restriction (id, work_id, chapter_id, kind, state, reason, case_id,
+                    requested_by, reviewed_by, effective_at, expires_at, created_at, updated_at,
+                    created_by, updated_by, lock_version)
+                VALUES (?, ?, NULL, 'TEMPORARY', 'ACTIVE', '已到期临时措施', ?, ?, ?,
+                    DATE_SUB(NOW(6), INTERVAL 2 DAY), DATE_SUB(NOW(6), INTERVAL 1 MINUTE),
+                    NOW(6), NOW(6), ?, ?, 1)
+                """, expiredId, workId, UUID.randomUUID().toString(), L2A, L1A, L2A, L2A);
+
+        assertThat(activeRestrictionsPort.activeKinds("WORK", workId, null)).isEmpty();
+
+        String activeId = UUID.randomUUID().toString();
+        jdbc.update("""
+                INSERT INTO restriction (id, work_id, chapter_id, kind, state, reason, case_id,
+                    requested_by, reviewed_by, effective_at, expires_at, created_at, updated_at,
+                    created_by, updated_by, lock_version)
+                VALUES (?, ?, NULL, 'TEMPORARY', 'ACTIVE', '未到期临时措施', ?, ?, ?,
+                    DATE_SUB(NOW(6), INTERVAL 1 DAY), DATE_ADD(NOW(6), INTERVAL 1 DAY),
+                    NOW(6), NOW(6), ?, ?, 1)
+                """, activeId, workId, UUID.randomUUID().toString(), L2A, L1A, L2A, L2A);
+
+        assertThat(activeRestrictionsPort.activeKinds("WORK", workId, null))
+                .containsExactly(RestrictionKind.TEMPORARY);
     }
 
     @Test
