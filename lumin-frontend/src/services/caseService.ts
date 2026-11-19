@@ -15,6 +15,14 @@ export interface DecisionView {
   decidedAt: string;
 }
 
+/** 写回执（契约 Receipt：领取/裁决只返回同步语义，不冒充终态视图）。 */
+export interface CaseReceipt {
+  id: string;
+  resourceType: 'CASE';
+  state: string;
+  revision: number;
+}
+
 export interface ReviewCase {
   id: string;
   workId: string;
@@ -44,8 +52,8 @@ export async function listCases(): Promise<ReviewCase[]> {
   return envelope.data.items;
 }
 
-export async function claimCase(caseId: string, ifMatch: string): Promise<ReviewCase> {
-  const envelope = await request<ReviewCase>({
+export async function claimCase(caseId: string, ifMatch: string): Promise<CaseReceipt> {
+  const envelope = await request<CaseReceipt>({
     method: 'POST',
     path: `/review-cases/${caseId}/claims`,
     ifMatch,
@@ -60,8 +68,8 @@ export async function decideCase(
   caseId: string,
   ifMatch: string,
   body: { decision: string; grade?: string; reasonCode: string; reason: string },
-): Promise<ReviewCase> {
-  const envelope = await request<ReviewCase>({
+): Promise<CaseReceipt> {
+  const envelope = await request<CaseReceipt>({
     method: 'POST',
     path: `/review-cases/${caseId}/decisions`,
     ifMatch,

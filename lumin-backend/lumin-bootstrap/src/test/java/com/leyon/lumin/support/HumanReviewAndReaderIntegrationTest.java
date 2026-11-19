@@ -159,7 +159,9 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                         .header("If-Match", "\"1\"")
                         .contentType("application/json").content("{}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.state").value("CLAIMED"));
+                .andExpect(jsonPath("$.data.resourceType").value("CASE"))
+                .andExpect(jsonPath("$.data.state").value("CLAIMED"))
+                .andExpect(jsonPath("$.data.revision").value(2));
         assertThat(jdbc.queryForObject(
                 "SELECT assignee_id FROM review_case WHERE id = ?", String.class, caseId))
                 .isEqualTo(com.leyon.lumin.foundation.web.DemoAuthenticationFilter.REVIEWER_L1A_SUBJECT);
@@ -173,7 +175,9 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                                 {"decision":"PASS","grade":"G","reasonCode":"OK_1001",
                                  "reason":"内容合规","evidenceRefs":["ev:1"]}""" ))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.state").value("DECIDED"));
+                .andExpect(jsonPath("$.data.resourceType").value("CASE"))
+                .andExpect(jsonPath("$.data.state").value("DECIDED"))
+                .andExpect(jsonPath("$.data.revision").value(3));
         dispatcher.deliverPending();
         assertThat(jdbc.queryForObject(
                 "SELECT state FROM content_version WHERE id = ?", String.class, versionId))

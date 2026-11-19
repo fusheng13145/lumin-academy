@@ -10,8 +10,8 @@ import com.leyon.lumin.foundation.port.ContentMaterialPort;
 import com.leyon.lumin.foundation.values.ReviewDecision;
 import com.leyon.lumin.foundation.values.ReviewCaseEvent;
 import com.leyon.lumin.foundation.values.ReviewCaseState;
+import com.leyon.lumin.foundation.web.ReceiptView;
 import com.leyon.lumin.moderation.api.dto.CaseDetailView;
-import com.leyon.lumin.moderation.api.dto.CaseView;
 import com.leyon.lumin.moderation.api.dto.DecisionItemView;
 import com.leyon.lumin.moderation.api.dto.DecisionRequest;
 import com.leyon.lumin.moderation.domain.ReviewCaseStateMachine;
@@ -122,7 +122,7 @@ public class ReviewCaseService {
     /** 领取（T20 状态面）：QUEUED/WAITING_SECOND → CLAIMED，租约 15 分钟；
      *  阶段 3 仲裁需 REVIEWER_L2A 替身且未参与原裁决（03 §2.4）。 */
     @Transactional
-    public CaseView claim(String subject, String stubRole, String caseId, String ifMatch) {
+    public ReceiptView claim(String subject, String stubRole, String caseId, String ifMatch) {
         long expectedLock = com.leyon.lumin.foundation.web.IfMatch.requireValid(ifMatch);
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         ReviewCaseRow row = caseMapper.findByIdForUpdate(caseId);
@@ -157,14 +157,15 @@ public class ReviewCaseService {
         auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,
                 "review_case.claimed", "review_case", caseId,
                 "领取案件（租约 15 分钟）", traceId(), now.toInstant(ZoneOffset.UTC)));
-        return toView(caseMapper.findById(caseId));
+        return new ReceiptView(caseId, "CASE", transition.targetState().name(),
+                expectedLock + 1);
     }
 
     /** 裁决（T21 状态面）：HIGH 首审 → WAITING_SECOND；ESCALATE → 阶段 3；
      *  最终裁决 DECIDED → 经端口驱动发布/驳回（HIDE/REMOVE/BAN 为治理语义，登记）。 */
     @Transactional
-    public CaseView decide(String subject, String stubRole, String caseId, String ifMatch,
-                           DecisionRequest request) {
+    public ReceiptView decide(String subject, String stubRole, String caseId, String ifMatch,
+                              DecisionRequest request) {
         long expectedLock = com.leyon.lumin.foundation.web.IfMatch.requireValid(ifMatch);
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         ReviewDecision decision = parseDecision(request);
@@ -228,7 +229,8 @@ public class ReviewCaseService {
         auditRecorder.record(new AuditRecorder.AuditEntry(subject, stubRole,
                 "review_case.decided", "review_case", caseId,
                 "裁决：" + decision.name(), traceId(), now.toInstant(ZoneOffset.UTC)));
-        return toView(caseMapper.findById(caseId));
+        return new ReceiptView(caseId, "CASE", transition.targetState().name(),
+                expectedLock + 1);
     }
 
     private ReviewDecision parseDecision(DecisionRequest request) {
@@ -316,12 +318,6 @@ public class ReviewCaseService {
                 || !decoded.payload().subjectId().toString().equals(subject)) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
-    }
-
-    private CaseView toView(ReviewCaseRow row) {
-        return new CaseView(row.id(), row.workId(), row.chapterId(), row.state(),
-                row.risk(), row.priority(), row.reviewStage(), row.assigneeId(),
-                row.responseDueAt(), row.completionDueAt(), row.lockVersion());
     }
 
     private String toJsonList(List<String> values) {
