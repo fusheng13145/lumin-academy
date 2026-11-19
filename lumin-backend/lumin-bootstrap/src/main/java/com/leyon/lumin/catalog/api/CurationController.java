@@ -83,6 +83,31 @@ public class CurationController {
         return ApiEnvelope.ok(Map.of("id", row.id(), "state", row.state()));
     }
 
+    /** 精选单列表（OPERATOR/ADMIN；state 可选过滤；提案时间倒序；上限 50）。 */
+    @GetMapping("/curation-items")
+    public ApiEnvelope list(
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_ROLE) String stubRole,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            String state) {
+        List<CurationItemRow> rows = curationService.list(stubRole, state);
+        return ApiEnvelope.ok(rows.stream()
+                .map(row -> {
+                    Map<String, Object> view = new LinkedHashMap<>();
+                    view.put("id", row.id());
+                    view.put("ruleVersion", row.ruleVersion());
+                    view.put("workId", row.workId());
+                    view.put("exposureReason", row.exposureReason());
+                    view.put("note", row.note() == null ? "" : row.note());
+                    view.put("state", row.state());
+                    view.put("positionRank", row.positionRank());
+                    view.put("proposedBy", row.proposedBy());
+                    view.put("reviewedBy", row.reviewedBy() == null ? "" : row.reviewedBy());
+                    view.put("createdAt", row.createdAt().toInstant(ZoneOffset.UTC).toString());
+                    return view;
+                })
+                .toList());
+    }
+
     /** 读者精选位（可见性同源过滤；每项 exposureReason + intervention=true）。 */
     @GetMapping("/works/featured")
     public ApiEnvelope featured(

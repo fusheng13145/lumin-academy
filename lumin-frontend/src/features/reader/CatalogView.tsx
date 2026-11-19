@@ -3,6 +3,7 @@ import type { AgeBand, BookState, FilterState, SortKey, WordBucket } from '../..
 import { BOOKS } from '../../mocks/mock';
 import { readerService } from '../../services/readerService';
 import type { FeaturedItemDto, WorkListItemDto } from '../../services/readerService';
+import { EXPOSURE_LABEL } from '../../services/curationService';
 import { gradeBand, gradeLabel } from '../../lib/realBook';
 import { BookCard } from './components/BookCard';
 import {
@@ -307,12 +308,6 @@ function dedupeWorks(existing: WorkListItemDto[], incoming: WorkListItemDto[]): 
   return [...existing, ...incoming.filter((work) => !seen.has(work.workId))];
 }
 
-/** 曝光原因字典标签（运营干预显式化，UGC-039）。 */
-const EXPOSURE_LABEL: Record<string, string> = {
-  FEATURED: '推荐位',
-  EDITOR_PICK: '编辑推荐',
-  CATEGORY_SPOTLIGHT: '分类聚焦',
-};
 
 function DemoCatalog({ ageBand, announce, onOpenDetail }: CatalogContentProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);

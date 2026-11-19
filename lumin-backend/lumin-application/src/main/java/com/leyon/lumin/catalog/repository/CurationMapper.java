@@ -76,6 +76,23 @@ public interface CurationMapper {
     List<FeaturedListItem> listActive(@org.apache.ibatis.annotations.Param("bandVar") String bandVar,
                                       @org.apache.ibatis.annotations.Param("limit") int limit);
 
+    /**
+     * 精选单列表（运营工作台；state 可选过滤；提案时间倒序）。
+     * SELECT * 列序与 CurationItemRow 字段序一致。
+     */
+    @org.apache.ibatis.annotations.Select("""
+            <script>
+            SELECT * FROM curation_item
+            <if test="state != null and state != ''">
+                WHERE state = #{state}
+            </if>
+            ORDER BY created_at DESC, id
+            LIMIT #{limit}
+            </script>
+            """)
+    List<CurationItemRow> listByState(@org.apache.ibatis.annotations.Param("state") String state,
+                                      @org.apache.ibatis.annotations.Param("limit") int limit);
+
     /** 分类历史（不另建表：content_version 不可变版本链即历史）。 */
     @org.apache.ibatis.annotations.Select("""
             SELECT cv.id AS versionId, cv.revision_no AS revisionNo,

@@ -73,6 +73,7 @@ describe('OperatorView 可信看板（UGC-040）', () => {
     fetchMock.mockImplementation(async (input) => {
       const url = String(input);
       if (url === '/api/v1/config-revisions') return envelope([]);
+      if (url === '/api/v1/curation-items') return envelope([]);
       if (url.startsWith('/api/v1/metrics')) {
         return new Response(JSON.stringify({
           code: 'D2001', message: '依赖不可用', data: null, traceId: 'm',

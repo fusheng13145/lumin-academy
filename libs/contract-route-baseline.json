@@ -2,10 +2,10 @@
   "contract_sha256": "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 97,
+  "controller_routes": 98,
   "implemented_count": 63,
   "missing_count": 0,
-  "extra_count": 34,
+  "extra_count": 35,
   "implemented": [
     {
       "operationId": "createProfile",
@@ -442,6 +442,11 @@
       "method": "DELETE",
       "path": "/api/v1/curation-items/{id}",
       "handler": "CurationController#retire"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/curation-items",
+      "handler": "CurationController#list"
     },
     {
       "method": "GET",

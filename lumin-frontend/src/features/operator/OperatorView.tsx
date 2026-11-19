@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { configService, type ConfigRevisionDto } from '../../services/configService';
+import { curationService, EXPOSURE_LABEL, EXPOSURE_REASONS,
+  type CurationItemDto } from '../../services/curationService';
 import { metricsService, type ReadingMetricsDto, type RetentionMetricsDto,
   type SupplyMetricsDto } from '../../services/metricsService';
 
@@ -175,8 +177,171 @@ export function OperatorView() {
         </ul>
       )}
 
+      <CurationBoard />
       <MetricsBoard />
     </section>
+  );
+}
+
+// 运营精选工作台（UGC-039 二阶段）：提案（OPERATOR 身份）→ 独立审批/撤位
+// （ADMIN 身份）→ 书城精选位即时生效。曝光原因字典化、干预显式化。
+function CurationBoard() {
+  const [items, setItems] = useState<CurationItemDto[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [workId, setWorkId] = useState('');
+  const [reason, setReason] = useState<string>('FEATURED');
+  const [note, setNote] = useState('');
+
+  const reload = useCallback(async (): Promise<void> => {
+    try {
+      setItems(await curationService.listCurationItems());
+      setError(null);
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : '加载失败');
+    }
+  }, []);
+
+  // 挂载加载内联异步（effect 体内同步 setState 触发级联规则）
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await curationService.listCurationItems();
+        if (alive) {
+          setItems(list);
+          setError(null);
+        }
+      } catch (e) {
+        if (alive) {
+          setItems([]);
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const propose = async (): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      await curationService.proposeCurationItem(workId.trim(), reason, note.trim());
+      setWorkId('');
+      setNote('');
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '提案失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const review = async (id: string, decision: 'APPROVE' | 'REJECT'): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      await curationService.reviewCurationItem(id, decision);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '审批失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const retire = async (id: string): Promise<void> => {
+    setBusy(true);
+    setError(null);
+    try {
+      await curationService.retireCurationItem(id);
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '撤位失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card setting-block" aria-label="运营精选">
+      <h2 className="setting-block__title">运营精选（曝光干预 · 显式标注）</h2>
+      <div className="toolbar">
+        <input
+          className="input"
+          aria-label="作品 ID"
+          placeholder="已发布作品的 ID"
+          value={workId}
+          onChange={(e) => setWorkId(e.target.value)}
+        />
+        <select className="select" aria-label="曝光原因" value={reason}
+          onChange={(e) => setReason(e.target.value)}>
+          {EXPOSURE_REASONS.map((key) => (
+            <option key={key} value={key}>{EXPOSURE_LABEL[key]}</option>
+          ))}
+        </select>
+        <input
+          className="input"
+          aria-label="运营备注"
+          placeholder="备注（可选，不向读者展示）"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <button
+          className="btn btn--primary"
+          type="button"
+          disabled={busy || workId.trim() === ''}
+          onClick={() => void propose()}
+        >
+          提交精选提案
+        </button>
+      </div>
+
+      {error && <p className="muted-note" role="alert">{error}</p>}
+
+      {items === null ? null : items.length === 0 ? (
+        <div className="empty">暂无精选提案</div>
+      ) : (
+        <ul className="draft-list">
+          {items.map((item) => (
+            <li key={item.id} className="draft-item card">
+              <div className="draft-item__main">
+                <h3>
+                  {`${item.workId.slice(0, 8)}… · ${EXPOSURE_LABEL[item.exposureReason]
+                    ?? item.exposureReason} · ${item.state}`}
+                </h3>
+                <p className="draft-item__meta">
+                  规则版本 r{item.ruleVersion} · 提案 {item.proposedBy.slice(0, 8)}…
+                  {item.reviewedBy !== '' ? ` · 审批 ${item.reviewedBy.slice(0, 8)}…` : ''}
+                  {item.note !== '' ? ` · 备注：${item.note}` : ''}
+                </p>
+              </div>
+              <div className="btn-row">
+                {item.state === 'PENDING' && (
+                  <>
+                    <button className="btn btn--soft" type="button" disabled={busy}
+                      onClick={() => void review(item.id, 'APPROVE')}>
+                      审批生效
+                    </button>
+                    <button className="btn btn--soft" type="button" disabled={busy}
+                      onClick={() => void review(item.id, 'REJECT')}>
+                      驳回
+                    </button>
+                  </>
+                )}
+                {item.state === 'ACTIVE' && (
+                  <button className="btn btn--soft" type="button" disabled={busy}
+                    onClick={() => void retire(item.id)}>
+                    撤位
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

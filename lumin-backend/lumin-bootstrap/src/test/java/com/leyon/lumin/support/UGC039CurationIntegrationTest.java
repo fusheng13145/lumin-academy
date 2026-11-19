@@ -291,4 +291,46 @@ class UGC039CurationIntegrationTest extends MySqlIntegrationBase {
                         .value(MySqlFixtures.CATEGORY_LITERATURE))
                 .andExpect(jsonPath("$.data[0].versionState").value("APPROVED"));
     }
+
+    @Test
+    void curationListFiltersByStateAndGatesRoles() throws Exception {
+        String workA = publishWork("列表甲", "G");
+        String workB = publishWork("列表乙", "G");
+        String idA = propose(OPERATOR, workA, "FEATURED");
+        String idB = propose(OPERATOR, workB, "EDITOR_PICK");
+        approve(ADMIN, idA).andExpect(status().isOk());
+
+        // 读者无权
+        mockMvc.perform(get("/api/v1/curation-items")
+                        .header("X-Lumin-Demo-Subject", READER_C3))
+                .andExpect(status().isForbidden());
+        // 非法 state → 400
+        mockMvc.perform(get("/api/v1/curation-items")
+                        .param("state", "WEIRD")
+                        .header("X-Lumin-Demo-Subject", OPERATOR))
+                .andExpect(status().isBadRequest());
+        // 全量 2 条，提案时间倒序（乙新在前）
+        mockMvc.perform(get("/api/v1/curation-items")
+                        .header("X-Lumin-Demo-Subject", OPERATOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].workId").value(workB))
+                .andExpect(jsonPath("$.data[0].state").value("PENDING"))
+                .andExpect(jsonPath("$.data[1].workId").value(workA))
+                .andExpect(jsonPath("$.data[1].state").value("ACTIVE"));
+        // state=ACTIVE 过滤 → 仅甲
+        mockMvc.perform(get("/api/v1/curation-items")
+                        .param("state", "ACTIVE")
+                        .header("X-Lumin-Demo-Subject", OPERATOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].workId").value(workA));
+        // state=PENDING 过滤 → 仅乙
+        mockMvc.perform(get("/api/v1/curation-items")
+                        .param("state", "PENDING")
+                        .header("X-Lumin-Demo-Subject", OPERATOR))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].workId").value(workB));
+    }
 }

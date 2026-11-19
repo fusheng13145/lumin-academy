@@ -36,6 +36,8 @@ public class CurationService {
     private static final Set<String> CURATION_OPERATORS = Set.of("OPERATOR");
     private static final Set<String> CURATION_APPROVERS = Set.of("ADMIN");
     private static final Set<String> CATEGORY_HISTORY_READERS = Set.of("OPERATOR", "ADMIN");
+    private static final Set<String> EXPOSURE_STATES =
+            Set.of("PENDING", "ACTIVE", "REJECTED", "RETIRED");
 
     private final CurationMapper curationMapper;
     private final ProfileBandPort profileBandPort;
@@ -134,6 +136,20 @@ public class CurationService {
         String band = profileBandPort.effectiveAgeBand(subject);
         String bandVar = normalizedBandVar(band);
         return curationMapper.listActive(bandVar, 20);
+    }
+
+    /**
+     * 精选单列表（OPERATOR/ADMIN；state 可选过滤——非法值 400；提案时间倒序）。
+     * 工作台一阶段展示上限 50 条（分页随控制台深化批次）。
+     */
+    @Transactional(readOnly = true)
+    public List<CurationItemRow> list(String stubRole, String state) {
+        requireRole(stubRole, Set.of("OPERATOR", "ADMIN"));
+        if (state != null && !state.isBlank() && !EXPOSURE_STATES.contains(state)) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        return curationMapper.listByState(
+                state == null || state.isBlank() ? null : state, 50);
     }
 
     /** 分类历史（OPERATOR/ADMIN；版本不可变链，category 随版本）。 */
