@@ -152,4 +152,4 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 - 契约 `contracts/p0.openapi.yaml` 只读；校验脚本前后比对 SHA256 证明未被修改。
 - **2026-11-19 更新**：P0-B/C 已落地 Controller / Service / Repository / V1–V14 DDL；`docs/22` 对账为契约 63 operationId、路由实现 **63/63**、缺失 **0**、契约外 20。P0-A「只落地领域层纯函数」仅代表 2026-11-15 时点。
 - 前端书城/作者/审核/运营/账号已接真实 API，但仍保留 `src/mocks` 合成夹具与移动端本地演示路径；服务端类型应从契约生成，不在前端手写业务判定。
-- 未做浏览器全旅程验收、真机验收与生产接口联调；**3560** 个后端测试通过只代表当前工作区自动化证据（增量四十新增 15 个审核/治理读取与服务用例及 6 个 HTTP 接入层用例，增量四十一新增 `getDraft` 2 个服务层用例与 1 个 HTTP 用例，未配置 `lumin_test` 时集成用例跳过）。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
+- 未做浏览器全旅程验收、真机验收与生产接口联调；**3564** 个后端测试通过只代表当前工作区自动化证据（增量四十新增 15 个审核/治理读取与服务用例及 6 个 HTTP 接入层用例，增量四十一新增 `getDraft` 2 个服务层用例与 1 个 HTTP 用例，增量四十二新增作者读取面 4 个 HTTP 用例，未配置 `lumin_test` 时集成用例跳过）。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
