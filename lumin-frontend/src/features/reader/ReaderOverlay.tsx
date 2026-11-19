@@ -20,6 +20,8 @@ interface ReaderOverlayProps {
   realTitle?: string | null;
   /** 真实数据路径：正文拉取失败提示。 */
   realError?: string | null;
+  /** 真实数据路径：正文在途（弱网/慢加载）——强制真实路径的加载态，演示夹具不冒充正文。 */
+  realLoading?: boolean;
   /** 真实数据路径：滚动位置回调（万分比 0–10000；UGC-016 进度保存链）。 */
   onScrollRatio?: (positionBasisPoints: number) => void;
   /** 真实数据路径：同版本恢复位置（null = 不恢复；版本不同不跨版本套用）。 */
@@ -71,6 +73,7 @@ export function ReaderOverlay({
   realBody = null,
   realTitle = null,
   realError = null,
+  realLoading = false,
   onScrollRatio,
   initialScrollRatio = null,
 }: ReaderOverlayProps) {
@@ -108,7 +111,7 @@ export function ReaderOverlay({
   const idx = Math.min(Math.max(chapterIdx, 0), book.chapters.length - 1);
   const chapter = book.chapters[idx];
   const marginPx = margin === 0 ? '8%' : margin === 1 ? '12%' : '18%';
-  const isReal = realBody !== null || realError !== null;
+  const isReal = realBody !== null || realError !== null || realLoading;
   const paragraphs = isReal
     ? (realBody ?? '').split(/\n+/).map((text) => text.trim()).filter((text) => text !== '')
     : [

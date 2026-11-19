@@ -244,6 +244,7 @@ export function RealReaderOverlay({
       realBody={content?.body ?? null}
       realTitle={content?.title ?? null}
       realError={error}
+      realLoading={content === null}
       onScrollRatio={handleScrollRatio}
       initialScrollRatio={initialScrollRatio}
     />
