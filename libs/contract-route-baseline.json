@@ -2,11 +2,23 @@
   "contract_sha256": "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 61,
-  "implemented_count": 41,
-  "missing_count": 22,
+  "controller_routes": 63,
+  "implemented_count": 43,
+  "missing_count": 20,
   "extra_count": 20,
   "implemented": [
+    {
+      "operationId": "createProfile",
+      "method": "POST",
+      "path": "/api/v1/profiles",
+      "handler": "ProfileController#createProfile"
+    },
+    {
+      "operationId": "getMe",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "handler": "ProfileController#me"
+    },
     {
       "operationId": "requestRoleGrant",
       "method": "POST",
@@ -255,18 +267,6 @@
     }
   ],
   "missing": [
-    {
-      "operationId": "createProfile",
-      "method": "POST",
-      "path": "/api/v1/profiles",
-      "handler": ""
-    },
-    {
-      "operationId": "getMe",
-      "method": "GET",
-      "path": "/api/v1/me",
-      "handler": ""
-    },
     {
       "operationId": "verifyAge",
       "method": "POST",

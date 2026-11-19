@@ -35,4 +35,13 @@ public interface RoleAssignmentMapper {
             """)
     List<RoleGrantRow> findActiveBindings(@Param("userId") String userId,
                                           @Param("now") LocalDateTime now);
+
+    /** 有效角色码（/me 的 roles 权威来源；去重、稳定排序）。 */
+    @Select("""
+            SELECT DISTINCT role FROM role_assignment WHERE user_id = #{userId}
+                AND deleted_at IS NULL AND (expires_at IS NULL OR expires_at > #{now})
+            ORDER BY role
+            """)
+    List<String> findActiveRoleCodes(@Param("userId") String userId,
+                                     @Param("now") LocalDateTime now);
 }

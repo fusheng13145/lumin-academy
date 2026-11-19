@@ -1,5 +1,6 @@
 package com.leyon.lumin.identity.repository;
 
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -11,6 +12,20 @@ public interface UserProfileMapper {
 
     @Select("SELECT * FROM user_profile WHERE id = #{id} AND deleted_at IS NULL")
     UserProfileRow findById(@Param("id") String id);
+
+    /** 首次建档（05 §3.1 createProfile）：未核验有效层由服务层从严写 C4。 */
+    @Insert("""
+            INSERT INTO user_profile (id, oidc_issuer, oidc_subject, nickname,
+                birth_date_cipher, declared_age_band, verified_age_band,
+                effective_age_band, age_verified_at, account_status, policy_revision,
+                created_at, updated_at, created_by, updated_by, lock_version)
+            VALUES (#{row.id}, #{row.oidcIssuer}, #{row.oidcSubject}, #{row.nickname},
+                #{row.birthDateCipher}, #{row.declaredAgeBand}, #{row.verifiedAgeBand},
+                #{row.effectiveAgeBand}, #{row.ageVerifiedAt}, #{row.accountStatus},
+                #{row.policyRevision}, #{now}, #{now}, #{row.createdBy}, #{row.updatedBy}, 1)
+            """)
+    int insertProfile(@Param("row") UserProfileRow row,
+                      @Param("now") java.time.LocalDateTime now);
 
     /** 注销立即公开匿名：昵称匿名 + CLOSED + closed_at（乐观锁兜底并发）。 */
     @Update("""

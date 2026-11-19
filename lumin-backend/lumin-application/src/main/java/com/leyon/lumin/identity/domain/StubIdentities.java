@@ -17,6 +17,7 @@ public final class StubIdentities {
     public static final String READER_C2 = "READER_C2";
     public static final String READER_C3 = "READER_C3";
     public static final String READER_C4 = "READER_C4";
+    public static final String NEWCOMER = "NEWCOMER";
     public static final String OPERATOR = "OPERATOR";
     public static final String ADMIN = "ADMIN";
     public static final String AUDITOR = "AUDITOR";
@@ -43,6 +44,8 @@ public final class StubIdentities {
             UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d004").toString();
     public static final String READER_C4_SUBJECT =
             UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d005").toString();
+    public static final String NEWCOMER_SUBJECT =
+            UUID.fromString("6f8f8f8f-0000-4000-8000-00000000d006").toString();
 
     /** 替身名称 → 主体 UUID（仅集合内成员可用）。 */
     public static final Map<String, String> SUBJECTS = Map.ofEntries(
@@ -54,6 +57,7 @@ public final class StubIdentities {
             Map.entry(READER_C2, READER_C2_SUBJECT),
             Map.entry(READER_C3, READER_C3_SUBJECT),
             Map.entry(READER_C4, READER_C4_SUBJECT),
+            Map.entry(NEWCOMER, NEWCOMER_SUBJECT),
             Map.entry(OPERATOR, OPERATOR_SUBJECT),
             Map.entry(ADMIN, ADMIN_SUBJECT),
             Map.entry(AUDITOR, AUDITOR_SUBJECT));
@@ -68,6 +72,7 @@ public final class StubIdentities {
             Map.entry(READER_C2, "READER"),
             Map.entry(READER_C3, "READER"),
             Map.entry(READER_C4, "READER"),
+            Map.entry(NEWCOMER, "READER"),
             Map.entry(OPERATOR, "OPERATOR"),
             Map.entry(ADMIN, "ADMIN"),
             Map.entry(AUDITOR, "AUDITOR"));
