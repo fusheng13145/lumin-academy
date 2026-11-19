@@ -2,10 +2,10 @@
   "contract_sha256": "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 88,
+  "controller_routes": 89,
   "implemented_count": 63,
   "missing_count": 0,
-  "extra_count": 25,
+  "extra_count": 26,
   "implemented": [
     {
       "operationId": "createProfile",
@@ -512,6 +512,11 @@
       "method": "GET",
       "path": "/api/v1/me/closure",
       "handler": "ClosureController#status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/works/search",
+      "handler": "ReaderController#searchWorks"
     }
   ]
 }

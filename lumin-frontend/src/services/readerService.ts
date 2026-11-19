@@ -151,6 +151,37 @@ export async function saveProgress(
   return envelope.data;
 }
 
+/** 元数据搜索结果（UGC-038：nextCursor 经 X-Lumin-Next-Cursor 响应头）。 */
+export interface SearchWorksResult {
+  items: WorkListItemDto[];
+  nextCursor: string | null;
+}
+
+/**
+ * 元数据搜索（05 §2 游标口径；UGC-038 一阶段）：q 匹配标题/作者昵称。
+ * 空结果 200 空数组；依赖不可用走 ApiError（调用方分开呈现）。
+ */
+export async function searchWorks(
+    q: string,
+    band?: AgeBand | null,
+    cursor?: string | null,
+): Promise<SearchWorksResult> {
+  const params = new URLSearchParams({ q });
+  if (cursor) {
+    params.set('cursor', cursor);
+  }
+  const envelope = await request<WorkListItemDto[]>({
+    method: 'GET',
+    path: `/works/search?${params.toString()}`,
+    headers: readerHeaders(band),
+    captureHeaders: ['X-Lumin-Next-Cursor'],
+  });
+  return {
+    items: envelope.data,
+    nextCursor: envelope.headers?.['X-Lumin-Next-Cursor'] ?? null,
+  };
+}
+
 export const readerService = {
   listWorks,
   getWork,
@@ -158,4 +189,5 @@ export const readerService = {
   readChapter,
   getProgress,
   saveProgress,
+  searchWorks,
 };

@@ -34,9 +34,13 @@ export interface RequestOptions {
   body?: unknown;
   signal?: AbortSignal;
   headers?: Record<string, string>;
+  /** 需要透传的响应头（如 X-Lumin-Next-Cursor）——挂在返回值 headers 属性。 */
+  captureHeaders?: string[];
 }
 
-export async function request<T>(options: RequestOptions): Promise<ApiEnvelope<T>> {
+export async function request<T>(
+    options: RequestOptions,
+): Promise<ApiEnvelope<T> & { headers?: Record<string, string> }> {
   const headers = new Headers({ 'Content-Type': 'application/json' });
   if (options.headers) {
     for (const [k, v] of Object.entries(options.headers)) {
@@ -55,9 +59,21 @@ export async function request<T>(options: RequestOptions): Promise<ApiEnvelope<T
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   });
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  const payload = (await response.json()) as ApiEnvelope<T> & {
+    headers?: Record<string, string>;
+  };
   if (!response.ok || payload.code !== 'OK') {
     throw new ApiError(payload.code, payload.message, payload.traceId, response.status);
+  }
+  if (options.captureHeaders && options.captureHeaders.length > 0) {
+    const captured: Record<string, string> = {};
+    for (const name of options.captureHeaders) {
+      const value = response.headers.get(name);
+      if (value !== null) {
+        captured[name] = value;
+      }
+    }
+    payload.headers = captured;
   }
   return payload;
 }

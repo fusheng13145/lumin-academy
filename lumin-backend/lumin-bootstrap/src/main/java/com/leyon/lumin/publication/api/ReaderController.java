@@ -42,6 +42,31 @@ public class ReaderController {
         return ApiEnvelope.ok(page.items());
     }
 
+    /** 元数据搜索（UGC-038 一阶段：标题/作者、分类、标签至少一个条件；
+     *  可见性与 /works 同源；签名字游标同口径；空结果 200 空数组与不可用分开）。 */
+    @GetMapping("/works/search")
+    public ApiEnvelope searchWorks(
+            @org.springframework.web.bind.annotation.RequestAttribute(
+                    com.leyon.lumin.foundation.web.DemoAuthenticationFilter.ATTRIBUTE_SUBJECT)
+            java.lang.String subject,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.String q,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.String categoryId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.String tag,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.String cursor,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            java.lang.Integer limit,
+            jakarta.servlet.http.HttpServletResponse response) {
+        var page = readerService.searchWorks(subject, q, categoryId, tag, cursor, limit);
+        if (page.nextCursor() != null) {
+            response.setHeader("X-Lumin-Next-Cursor", page.nextCursor());
+        }
+        return ApiEnvelope.ok(page.items());
+    }
+
     /** 作品详情：三态裁决通过返回最新公开元数据，未授权统一 404。 */
     @GetMapping("/works/{id}")
     public ApiEnvelope getWork(

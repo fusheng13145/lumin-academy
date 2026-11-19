@@ -7,8 +7,7 @@ import com.leyon.lumin.engagement.repository.SubscriptionRow;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
-import com.leyon.lumin.identity.repository.UserProfileMapper;
-import com.leyon.lumin.identity.repository.UserProfileRow;
+import com.leyon.lumin.foundation.port.ProfileBandPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,14 +34,14 @@ public class SubscriptionService {
     }
 
     private final SubscriptionMapper subscriptionMapper;
-    private final UserProfileMapper userProfileMapper;
+    private final ProfileBandPort profileBandPort;
     private final AuditRecorder auditRecorder;
 
     public SubscriptionService(SubscriptionMapper subscriptionMapper,
-                               UserProfileMapper userProfileMapper,
+                               ProfileBandPort profileBandPort,
                                AuditRecorder auditRecorder) {
         this.subscriptionMapper = subscriptionMapper;
-        this.userProfileMapper = userProfileMapper;
+        this.profileBandPort = profileBandPort;
         this.auditRecorder = auditRecorder;
     }
 
@@ -119,10 +118,9 @@ public class SubscriptionService {
         return subscriptionMapper.listByUser(subject, 100);
     }
 
-    /** 已核实成年判定（user_profile.effective_age_band；档案缺失按未成年 fail-closed）。 */
+    /** 已核实成年判定（经 ProfileBandPort 读取生效年龄带；档案缺失按未成年 fail-closed）。 */
     private boolean isVerifiedAdult(String subject) {
-        UserProfileRow profile = userProfileMapper.findById(subject);
-        return profile != null && SubscriptionPolicy.isVerifiedAdult(profile.effectiveAgeBand());
+        return SubscriptionPolicy.isVerifiedAdult(profileBandPort.effectiveAgeBand(subject));
     }
 
     private static String traceId() {

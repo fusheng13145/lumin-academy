@@ -93,6 +93,48 @@ public interface PublicationPointerMapper {
                                                  @Param("cursorId") String cursorId,
                                                  @Param("limit") int limit);
 
+    /**
+     * 元数据搜索（UGC-038 一阶段：直查权威表——专用索引/增量维护随 UGC-030
+     * 基础设施批次）。可见性与 listVisibleWorks 同源 SQL（等级带 + 业务态 +
+     * 指针）；q 经 LOCATE 匹配标题/作者昵称（免 LIKE 转义，ci 口径）；
+     * tag 经 JSON_CONTAINS 精确匹配；同 keyset 排序跨页无漏重。
+     */
+    @Select("""
+            <script>
+            SELECT p.published_at, p.id AS pointerId,
+                   cv.id AS versionId, w.id AS workId, cv.title,
+                   COALESCE(u.nickname, '') AS author, cv.grade, cv.chapter_id AS chapterId
+            FROM publication_pointer p
+            JOIN work w ON w.id = p.target_id AND p.target_type = 'WORK'
+                AND w.business_state IN ('ACTIVE','COMPLETED') AND w.deleted_at IS NULL
+            JOIN content_version cv ON cv.id = p.version_id AND cv.state = 'APPROVED'
+            LEFT JOIN user_profile u ON u.id = w.author_id AND u.deleted_at IS NULL
+            WHERE (cv.grade IN ('G','PG_12')
+                OR (cv.grade = 'PG_16' AND #{bandVar} IN ('C2','C3')))
+              <if test="q != null and q != ''">
+                AND (LOCATE(#{q}, cv.title) > 0
+                    OR (u.nickname IS NOT NULL AND LOCATE(#{q}, u.nickname) > 0))
+              </if>
+              <if test="categoryId != null and categoryId != ''">
+                AND cv.category_id = #{categoryId}
+              </if>
+              <if test="tag != null and tag != ''">
+                AND JSON_CONTAINS(cv.tags, JSON_QUOTE(#{tag}))
+              </if>
+              AND (#{cursorAt} IS NULL
+                OR (p.published_at, p.id) &lt; (#{cursorAt}, #{cursorId}))
+            ORDER BY p.published_at DESC, p.id
+            LIMIT #{limit}
+            </script>
+            """)
+    java.util.List<WorkFeedRow> searchVisibleWorks(@Param("bandVar") String bandVar,
+                                                   @Param("q") String q,
+                                                   @Param("categoryId") String categoryId,
+                                                   @Param("tag") String tag,
+                                                   @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                                   @Param("cursorId") String cursorId,
+                                                   @Param("limit") int limit);
+
     /** 已发布章节目录（读者 listChapters：SQL 等价过滤——指针即已发布事实）。 */
     @Select("""
             SELECT c.id, c.sequence_no, c.business_state

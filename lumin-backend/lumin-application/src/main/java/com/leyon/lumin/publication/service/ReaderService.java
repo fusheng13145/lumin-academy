@@ -170,6 +170,83 @@ public class ReaderService {
         return new WorksPage(items, nextCursor);
     }
 
+    /**
+     * 元数据搜索（UGC-038 一阶段；05 §2 游标口径）：标题/作者昵称（LOCATE
+     * ci 匹配，免 LIKE 转义）、分类、标签三类条件至少一个（空条件走 /works
+     * 列表——搜索与浏览分开）；授权过滤 SQL 与 listVisibleWorks 同源；游标
+     * 绑定主体 + 含检索条件的过滤摘要（跨查询不可重放）；q ≤100 字符、
+     * tag ≤50、categoryId 必须为 UUID。空结果 200 空数组（与依赖不可用 D2xx
+     * 分开——服务不可用走全局兜底 503）。
+     */
+    public WorksPage searchWorks(String subject, String q, String categoryId, String tag,
+                                 String cursorToken, Integer limitParam) {
+        boolean hasQuery = q != null && !q.isBlank();
+        boolean hasCategory = categoryId != null && !categoryId.isBlank();
+        boolean hasTag = tag != null && !tag.isBlank();
+        if (!hasQuery && !hasCategory && !hasTag) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        if ((hasQuery && q.trim().length() > 100)
+                || (hasTag && tag.trim().length() > 50)
+                || (hasCategory && !categoryId.trim()
+                        .matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}"
+                                + "-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        ErrorCode limitCheck = com.leyon.lumin.foundation.cursor.CursorCodec
+                .validateLimit(limitParam);
+        if (limitCheck != ErrorCode.OK) {
+            throw new LuminBusinessException(limitCheck);
+        }
+        int limit = com.leyon.lumin.foundation.cursor.CursorCodec.resolveLimit(limitParam);
+        String query = hasQuery ? q.trim() : null;
+        String category = hasCategory ? categoryId.trim() : null;
+        String tagNorm = hasTag ? tag.trim() : null;
+        ProfileSummary requester = profileService.requireProfile(subject);
+        AgeBand band = AgeBand.valueOf(requester.effectiveAgeBand());
+        String bandVar = (band == AgeBand.C4 ? AgeBand.C1 : band).name();
+        String filterDigest = com.leyon.lumin.foundation.cursor.CursorCodec
+                .filterDigest("list=search;band=" + bandVar
+                        + ";q=" + (query == null ? "" : query)
+                        + ";cat=" + (category == null ? "" : category)
+                        + ";tag=" + (tagNorm == null ? "" : tagNorm));
+        java.time.LocalDateTime now = java.time.LocalDateTime.now(ZoneOffset.UTC);
+        java.time.LocalDateTime cursorAt = null;
+        String cursorId = null;
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            var decoded = com.leyon.lumin.foundation.cursor.CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    java.time.Instant.now(), filterDigest);
+            if (decoded.code() != ErrorCode.OK) {
+                throw new LuminBusinessException(decoded.code());
+            }
+            if (!decoded.payload().subjectId().toString().equals(subject)) {
+                throw new LuminBusinessException(ErrorCode.P1001);
+            }
+            cursorAt = java.time.LocalDateTime.parse(decoded.payload().sortKeyValue());
+            cursorId = decoded.payload().lastId().toString();
+        }
+        var rows = pointerMapper.searchVisibleWorks(bandVar, query, category, tagNorm,
+                cursorAt, cursorId, limit + 1);
+        boolean hasMore = rows.size() > limit;
+        var page = rows.subList(0, Math.min(rows.size(), limit));
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            var last = page.get(page.size() - 1);
+            nextCursor = com.leyon.lumin.foundation.cursor.CursorCodec.encode(
+                    new com.leyon.lumin.foundation.cursor.CursorCodec.Payload(
+                            last.publishedAt().toString(), UUID.fromString(last.pointerId()),
+                            filterDigest, UUID.fromString(subject),
+                            now.toInstant(ZoneOffset.UTC)),
+                    cursorKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+        var items = page.stream()
+                .map(row -> new WorkListItem(row.versionId(), row.workId(), row.title(),
+                        row.author(), row.grade(), row.chapterId()))
+                .toList();
+        return new WorksPage(items, nextCursor);
+    }
+
     /** 读者可见的章节目录（05 §3.4 listChapters：SQL 等价过滤，sequenceNo 排序）。 */
     public java.util.List<ChapterEntry> listChapters(String subject, String workId) {
         decide(subject, TargetType.WORK, workId);

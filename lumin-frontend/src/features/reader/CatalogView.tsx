@@ -40,7 +40,7 @@ const DEFAULT_FILTERS: FilterState = {
 type CatalogState =
   | { status: 'loading' }
   | { status: 'error' }
-  | { status: 'ready'; works: WorkListItemDto[] };
+  | { status: 'ready'; works: WorkListItemDto[]; nextCursor: string | null };
 
 export function CatalogView({ source, onSourceChange, ...contentProps }: CatalogViewProps) {
   const [attempt, setAttempt] = useState(0);
@@ -77,16 +77,86 @@ export function CatalogView({ source, onSourceChange, ...contentProps }: Catalog
 }
 
 function LiveCatalog({ ageBand, announce, onOpenDetail, onRetry }: CatalogContentProps & { onRetry: () => void }) {
-  const [state, setState] = useState<CatalogState>({ status: 'loading' });
+  const [searchInput, setSearchInput] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null);
 
+  return (
+    <div>
+      <form
+        className="catalog-search"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const trimmed = searchInput.trim();
+          setSubmittedQuery(trimmed === '' ? null : trimmed);
+        }}
+      >
+        <input
+          className="input"
+          type="search"
+          aria-label="搜索作品"
+          placeholder="搜索标题或作者"
+          value={searchInput}
+          maxLength={100}
+          onChange={(event) => setSearchInput(event.target.value)}
+        />
+        <button className="btn" type="submit">搜索</button>
+        {submittedQuery !== null ? (
+          <button
+            className="btn btn--ghost"
+            type="button"
+            onClick={() => { setSearchInput(''); setSubmittedQuery(null); }}
+          >
+            清除搜索
+          </button>
+        ) : null}
+      </form>
+      {/* key 重挂载：查询/账号变化即回到 loading（重试经父级 attempt 整体重挂载），
+          避免 effect 内同步 setState */}
+      <LiveCatalogContent
+        key={submittedQuery ?? 'browse'}
+        submittedQuery={submittedQuery}
+        ageBand={ageBand}
+        announce={announce}
+        onOpenDetail={onOpenDetail}
+        onRetry={onRetry}
+      />
+    </div>
+  );
+}
+
+function LiveCatalogContent({ submittedQuery, ageBand, announce, onOpenDetail, onRetry }: CatalogContentProps & { submittedQuery: string | null; onRetry: () => void }) {
+  const [state, setState] = useState<CatalogState>({ status: 'loading' });
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // 浏览（无关键词）或搜索（UGC-038）：空结果与不可用分开呈现——
+  // 搜索无命中是「没有找到相关作品」，请求失败是「搜索加载失败」。
   useEffect(() => {
     let alive = true;
-    announce('正在加载作品');
-    void readerService.listWorks(ageBand).then(
-      (works) => {
+    if (submittedQuery === null) {
+      announce('正在加载作品');
+      void readerService.listWorks(ageBand).then(
+        (works) => {
+          if (alive) {
+            setState({ status: 'ready', works, nextCursor: null });
+            announce(works.length === 0 ? '暂无作品' : `共 ${works.length} 部作品`);
+          }
+        },
+        () => {
+          if (alive) {
+            setState({ status: 'error' });
+            announce('');
+          }
+        },
+      );
+      return () => { alive = false; };
+    }
+    announce('正在搜索');
+    void readerService.searchWorks(submittedQuery, ageBand).then(
+      (result) => {
         if (alive) {
-          setState({ status: 'ready', works });
-          announce(works.length === 0 ? '暂无作品' : `共 ${works.length} 部作品`);
+          setState({ status: 'ready', works: result.items, nextCursor: result.nextCursor });
+          announce(result.items.length === 0 ? '没有找到相关作品' : `找到 ${result.items.length} 部作品`);
         }
       },
       () => {
@@ -97,48 +167,90 @@ function LiveCatalog({ ageBand, announce, onOpenDetail, onRetry }: CatalogConten
       },
     );
     return () => { alive = false; };
-  }, [ageBand, announce]);
+  }, [ageBand, submittedQuery, announce]);
+
+  const loadMore = () => {
+    if (submittedQuery === null || state.status !== 'ready'
+        || state.nextCursor === null || loadingMore) {
+      return;
+    }
+    const cursor = state.nextCursor;
+    setLoadingMore(true);
+    void readerService.searchWorks(submittedQuery, ageBand, cursor).then(
+      (result) => {
+        setLoadingMore(false);
+        setState((previous) => previous.status === 'ready'
+          ? { status: 'ready', works: dedupeWorks(previous.works, result.items),
+              nextCursor: result.nextCursor }
+          : previous);
+      },
+      () => {
+        setLoadingMore(false);
+        announce('加载更多失败，可稍后重试');
+      },
+    );
+  };
 
   if (state.status === 'loading') {
-    return <div className="catalog-state" aria-busy="true">正在加载作品</div>;
+    return <div className="catalog-state" aria-busy="true">
+      {submittedQuery === null ? '正在加载作品' : '正在搜索'}
+    </div>;
   }
   if (state.status === 'error') {
     return (
       <div className="catalog-state">
-        <p role="alert">作品加载失败</p>
+        <p role="alert">{submittedQuery === null ? '作品加载失败' : '搜索加载失败'}</p>
         <button className="btn" type="button" onClick={onRetry}>重试</button>
       </div>
     );
   }
-  if (state.works.length === 0) {
-    return <div className="catalog-state">暂无作品</div>;
-  }
 
   return (
-    <ul className="catalog-list" aria-label="作品">
-      {state.works.map((work) => {
-        const blocked = BAND_RANK[gradeBand(work.grade)] > BAND_RANK[ageBand];
-        return (
-          <li key={work.workId}>
-            <button
-              className="catalog-book"
-              type="button"
-              disabled={blocked}
-              onClick={() => onOpenDetail(work.workId)}
-            >
-              <span className="catalog-book__main">
-                <span className="catalog-book__title">{work.title}</span>
-                <span className="catalog-book__author">{work.author}</span>
-              </span>
-              <span className="catalog-book__detail">
-                {blocked ? '当前年龄带暂不可读' : gradeLabel(work.grade)}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+    <div>
+      {state.works.length === 0 ? (
+        <div className="catalog-state">
+          {submittedQuery === null ? '暂无作品' : `没有找到与「${submittedQuery}」相关的作品`}
+        </div>
+      ) : (
+        <ul className="catalog-list" aria-label={submittedQuery === null ? '作品' : '搜索结果'}>
+          {state.works.map((work) => {
+            const blocked = BAND_RANK[gradeBand(work.grade)] > BAND_RANK[ageBand];
+            return (
+              <li key={work.workId}>
+                <button
+                  className="catalog-book"
+                  type="button"
+                  disabled={blocked}
+                  onClick={() => onOpenDetail(work.workId)}
+                >
+                  <span className="catalog-book__main">
+                    <span className="catalog-book__title">{work.title}</span>
+                    <span className="catalog-book__author">{work.author}</span>
+                  </span>
+                  <span className="catalog-book__detail">
+                    {blocked ? '当前年龄带暂不可读' : gradeLabel(work.grade)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {submittedQuery !== null && state.nextCursor !== null ? (
+        <div className="catalog-state">
+          <button className="btn" type="button" disabled={loadingMore} onClick={loadMore}>
+            {loadingMore ? '正在加载' : '加载更多'}
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
+}
+
+/** 搜索分页去重合并（已有条目按 workId 保留，新页条目追加在后）。 */
+function dedupeWorks(existing: WorkListItemDto[], incoming: WorkListItemDto[]): WorkListItemDto[] {
+  const seen = new Set(existing.map((work) => work.workId));
+  return [...existing, ...incoming.filter((work) => !seen.has(work.workId))];
 }
 
 function DemoCatalog({ ageBand, announce, onOpenDetail }: CatalogContentProps) {
