@@ -6,6 +6,8 @@ import com.leyon.lumin.foundation.crypto.FieldCipher;
 import com.leyon.lumin.foundation.values.AgeBand;
 import com.leyon.lumin.foundation.values.RoleCode;
 import com.leyon.lumin.identity.domain.AgePolicy;
+import com.leyon.lumin.identity.repository.AgeVerificationMapper;
+import com.leyon.lumin.identity.repository.AgeVerificationRow;
 import com.leyon.lumin.identity.repository.RoleAssignmentMapper;
 import com.leyon.lumin.identity.repository.UserProfileMapper;
 import com.leyon.lumin.identity.repository.UserProfileRow;
@@ -41,13 +43,16 @@ public class ProfileService {
 
     private final UserProfileMapper userProfileMapper;
     private final RoleAssignmentMapper roleAssignmentMapper;
+    private final AgeVerificationMapper ageVerificationMapper;
     private final FieldCipher fieldCipher;
 
     public ProfileService(UserProfileMapper userProfileMapper,
                           RoleAssignmentMapper roleAssignmentMapper,
+                          AgeVerificationMapper ageVerificationMapper,
                           FieldCipher fieldCipher) {
         this.userProfileMapper = userProfileMapper;
         this.roleAssignmentMapper = roleAssignmentMapper;
+        this.ageVerificationMapper = ageVerificationMapper;
         this.fieldCipher = fieldCipher;
     }
 
@@ -130,7 +135,15 @@ public class ProfileService {
         } else if (baseRole != null && RoleCode.valueOfOrNull(baseRole) != null) {
             roles.add(baseRole);
         }
-        return new MeView(row.id(), row.nickname(), row.effectiveAgeBand(),
+        // 核验到期即失效：已核验过但无当前有效记录时，读取口径从严回落 C4
+        String effective = row.effectiveAgeBand();
+        if (row.verifiedAgeBand() != null) {
+            AgeVerificationRow valid = ageVerificationMapper.findLatestValid(subject, now);
+            if (valid == null) {
+                effective = AgeBand.C4.name();
+            }
+        }
+        return new MeView(row.id(), row.nickname(), effective,
                 List.copyOf(roles), row.accountStatus(),
                 row.lockVersion() == null ? 1L : row.lockVersion());
     }

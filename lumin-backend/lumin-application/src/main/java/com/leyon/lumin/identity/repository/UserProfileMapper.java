@@ -49,6 +49,43 @@ public interface UserProfileMapper {
                           @Param("operator") String operator,
                           @Param("now") java.time.LocalDateTime now);
 
+    /** 年龄核验成功：写已核验/有效层与核验时间，策略版本前进（INV-07 只认权威记录）。 */
+    @Update("""
+            UPDATE user_profile SET verified_age_band = #{verifiedBand},
+                effective_age_band = #{effectiveBand}, age_verified_at = #{verifiedAt},
+                policy_revision = policy_revision + 1, updated_at = #{now},
+                updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id} AND deleted_at IS NULL
+            """)
+    int applyAgeVerification(@Param("id") String id,
+                             @Param("verifiedBand") String verifiedBand,
+                             @Param("effectiveBand") String effectiveBand,
+                             @Param("verifiedAt") java.time.LocalDateTime verifiedAt,
+                             @Param("now") java.time.LocalDateTime now,
+                             @Param("operator") String operator);
+
+    /** 监护撤销立即降级：仅未成年（C0/C1/C2）落 C4，成年已核验不受影响。 */
+    @Update("""
+            UPDATE user_profile SET effective_age_band = 'C4', updated_at = #{now},
+                updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id} AND deleted_at IS NULL
+                AND verified_age_band IN ('C0','C1','C2')
+            """)
+    int downgradeAfterConsentRevocation(@Param("id") String id,
+                                        @Param("now") java.time.LocalDateTime now,
+                                        @Param("operator") String operator);
+
+    /** 有效监护同意恢复未成年有效层：仅回填已核验层，未核验仍维持 C4。 */
+    @Update("""
+            UPDATE user_profile SET effective_age_band = verified_age_band,
+                updated_at = #{now}, updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id} AND deleted_at IS NULL
+                AND verified_age_band IN ('C0','C1','C2')
+            """)
+    int restoreAfterConsent(@Param("id") String id,
+                            @Param("now") java.time.LocalDateTime now,
+                            @Param("operator") String operator);
+
     /** 数据主体更正权（UGC-006 CORRECT：公开昵称为唯一可更正公开字段）。 */
     @Update("""
             UPDATE user_profile SET nickname = #{nickname}, updated_at = #{now},
