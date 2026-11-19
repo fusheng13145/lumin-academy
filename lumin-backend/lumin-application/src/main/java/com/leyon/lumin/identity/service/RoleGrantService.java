@@ -3,18 +3,15 @@ package com.leyon.lumin.identity.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.audit.ProposalReviewStore;
 import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.values.RoleCode;
 import com.leyon.lumin.identity.domain.RolePolicy;
-import com.leyon.lumin.identity.repository.ProposalReviewMapper;
-import com.leyon.lumin.identity.repository.ProposalReviewRow;
 import com.leyon.lumin.identity.repository.RoleAssignmentMapper;
 import com.leyon.lumin.identity.repository.RoleGrantMapper;
 import com.leyon.lumin.identity.repository.RoleGrantRow;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -43,24 +40,21 @@ public class RoleGrantService {
     private static final int REVIEW_REASON_MAX = 1000;
 
     private final RoleGrantMapper grantMapper;
-    private final ProposalReviewMapper reviewMapper;
+    private final ProposalReviewStore reviewStore;
     private final RoleAssignmentMapper assignmentMapper;
     private final AuditRecorder auditRecorder;
-    private final ObjectMapper objectMapper;
     private final String cursorKey;
 
     public RoleGrantService(RoleGrantMapper grantMapper,
-                            ProposalReviewMapper reviewMapper,
+                            ProposalReviewStore reviewStore,
                             RoleAssignmentMapper assignmentMapper,
                             AuditRecorder auditRecorder,
-                            ObjectMapper objectMapper,
                             @org.springframework.beans.factory.annotation.Value(
                                     "${lumin.cursor.key}") String cursorKey) {
         this.grantMapper = grantMapper;
-        this.reviewMapper = reviewMapper;
+        this.reviewStore = reviewStore;
         this.assignmentMapper = assignmentMapper;
         this.auditRecorder = auditRecorder;
-        this.objectMapper = objectMapper;
         this.cursorKey = cursorKey;
     }
 
@@ -159,10 +153,8 @@ public class RoleGrantService {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
         // 契约 reviews：request 域按 ROLE_GRANT 追加记录；reviewedRevision 为被审版本
-        reviewMapper.insert(new ProposalReviewRow(UUID.randomUUID().toString(),
-                "ROLE_GRANT", grantId, reviewer, approve ? "APPROVE" : "REJECT",
-                normalizedReason, toEvidenceJson(normalizedEvidence), row.lockVersion(),
-                now, now, now, reviewer, reviewer, 1L));
+        reviewStore.append("ROLE_GRANT", grantId, reviewer, approve ? "APPROVE" : "REJECT",
+                normalizedReason, normalizedEvidence, row.lockVersion(), now);
         if (approve) {
             // 绑定 role_assignment（grant_id 外键；到期授予仅登记历史，不产生有效角色）
             assignmentMapper.insertActive(UUID.randomUUID().toString(),
@@ -249,11 +241,10 @@ public class RoleGrantService {
                 && !row.expiresAt().isAfter(now)) {
             state = "EXPIRED";
         }
-        List<ReviewView> reviews = reviewMapper.listByResource("ROLE_GRANT", row.id())
+        List<ReviewView> reviews = reviewStore.listByResource("ROLE_GRANT", row.id())
                 .stream()
                 .map(r -> new ReviewView(r.id(), r.actorId(), r.action(), r.reason(),
-                        fromEvidenceJson(r.evidenceRefsJson()),
-                        r.reviewedRevision() == null ? 1L : r.reviewedRevision(),
+                        r.evidenceRefs(), r.reviewedRevision(),
                         r.eventAt().toString()))
                 .toList();
         return new RoleGrantView(row.id(), row.requestedBy(), row.createdAt().toString(),
@@ -285,26 +276,6 @@ public class RoleGrantService {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
         return value;
-    }
-
-    private String toEvidenceJson(List<String> evidenceRefs) {
-        try {
-            return objectMapper.writeValueAsString(evidenceRefs);
-        } catch (tools.jackson.core.JacksonException e) {
-            throw new IllegalStateException("角色审批证据序列化失败", e);
-        }
-    }
-
-    private List<String> fromEvidenceJson(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {
-            });
-        } catch (tools.jackson.core.JacksonException e) {
-            throw new IllegalStateException("角色审批证据反序列化失败", e);
-        }
     }
 
     /** 目标主体当前已授予角色（APPROVED 且未过期——到期授予不参与互斥与授权）。 */

@@ -24,6 +24,35 @@ public interface RestrictionMapper {
     @Select("SELECT * FROM restriction WHERE id = #{id} AND deleted_at IS NULL")
     RestrictionRow findById(@Param("id") String id);
 
+    /** 可见限制列表（05 §3.3 listRestrictions）：先授权过滤再分页。 */
+    @Select("""
+            <script>
+            SELECT r.* FROM restriction r
+            WHERE r.deleted_at IS NULL
+            <choose>
+              <when test="queueViewer">
+                AND 1 = 1
+              </when>
+              <otherwise>
+                AND (r.requested_by = #{subject}
+                     OR EXISTS (SELECT 1 FROM work w
+                                WHERE w.id = r.work_id AND w.deleted_at IS NULL
+                                  AND w.author_id = #{subject}))
+              </otherwise>
+            </choose>
+            <if test="cursorAt != null">
+              AND (r.created_at, r.id) &lt; (#{cursorAt,jdbcType=TIMESTAMP}, #{cursorId,jdbcType=VARCHAR})
+            </if>
+            ORDER BY r.created_at DESC, r.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    java.util.List<RestrictionRow> listVisible(@Param("subject") String subject,
+                                               @Param("queueViewer") boolean queueViewer,
+                                               @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                               @Param("cursorId") String cursorId,
+                                               @Param("limit") int limit);
+
     /** 目标当前生效限制（含父作品覆盖全部章节，INV-03）。 */
     @Select("""
             SELECT DISTINCT kind FROM restriction

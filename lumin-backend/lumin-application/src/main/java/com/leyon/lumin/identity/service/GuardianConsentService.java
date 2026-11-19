@@ -2,13 +2,12 @@ package com.leyon.lumin.identity.service;
 
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
+import com.leyon.lumin.foundation.audit.ProposalReviewStore;
 import com.leyon.lumin.foundation.crypto.FieldCipher;
 import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.identity.port.GuardianVerificationPort;
 import com.leyon.lumin.identity.repository.GuardianConsentMapper;
 import com.leyon.lumin.identity.repository.GuardianConsentRow;
-import com.leyon.lumin.identity.repository.ProposalReviewMapper;
-import com.leyon.lumin.identity.repository.ProposalReviewRow;
 import com.leyon.lumin.identity.repository.RoleAssignmentMapper;
 import com.leyon.lumin.identity.repository.UserProfileMapper;
 import com.leyon.lumin.identity.repository.UserProfileRow;
@@ -16,9 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.JacksonException;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -47,29 +43,26 @@ public class GuardianConsentService {
     private static final String RESOURCE_TYPE = "CONSENT";
 
     private final GuardianConsentMapper consentMapper;
-    private final ProposalReviewMapper reviewMapper;
+    private final ProposalReviewStore reviewStore;
     private final RoleAssignmentMapper assignmentMapper;
     private final UserProfileMapper profileMapper;
     private final GuardianVerificationPort verificationPort;
     private final FieldCipher fieldCipher;
-    private final ObjectMapper objectMapper;
     private final String cursorKey;
 
     public GuardianConsentService(GuardianConsentMapper consentMapper,
-                                  ProposalReviewMapper reviewMapper,
+                                  ProposalReviewStore reviewStore,
                                   RoleAssignmentMapper assignmentMapper,
                                   UserProfileMapper profileMapper,
                                   GuardianVerificationPort verificationPort,
                                   FieldCipher fieldCipher,
-                                  ObjectMapper objectMapper,
                                   @Value("${lumin.cursor.key}") String cursorKey) {
         this.consentMapper = consentMapper;
-        this.reviewMapper = reviewMapper;
+        this.reviewStore = reviewStore;
         this.assignmentMapper = assignmentMapper;
         this.profileMapper = profileMapper;
         this.verificationPort = verificationPort;
         this.fieldCipher = fieldCipher;
-        this.objectMapper = objectMapper;
         this.cursorKey = cursorKey;
     }
 
@@ -238,11 +231,10 @@ public class GuardianConsentService {
         } catch (IllegalStateException e) {
             throw new LuminBusinessException(ErrorCode.D2001);
         }
-        List<ReviewView> reviews = reviewMapper.listByResource(RESOURCE_TYPE, row.id())
+        List<ReviewView> reviews = reviewStore.listByResource(RESOURCE_TYPE, row.id())
                 .stream()
                 .map(r -> new ReviewView(r.id(), r.actorId(), r.action(), r.reason(),
-                        fromEvidenceJson(r.evidenceRefsJson()),
-                        r.reviewedRevision() == null ? 1L : r.reviewedRevision(),
+                        r.evidenceRefs(), r.reviewedRevision(),
                         r.eventAt() == null ? null : r.eventAt().toString()))
                 .toList();
         return new ConsentView(row.id(), row.guardianId(), row.grantedAt().toString(),
@@ -253,12 +245,8 @@ public class GuardianConsentService {
 
     private void appendReview(String consentId, String actor, String action, String reason,
                               String evidenceId, long reviewedRevision, LocalDateTime now) {
-        List<String> evidence = List.of("guardian_consent:" + evidenceId);
-        String evidenceJson = toEvidenceJson(evidence);
-        ProposalReviewRow row = new ProposalReviewRow(UUID.randomUUID().toString(),
-                RESOURCE_TYPE, consentId, actor, action, reason, evidenceJson,
-                reviewedRevision, now, now, now, actor, actor, 1L);
-        reviewMapper.insert(row);
+        reviewStore.append(RESOURCE_TYPE, consentId, actor, action, reason,
+                List.of("guardian_consent:" + evidenceId), reviewedRevision, now);
     }
 
     private void requireGuardian(String subject, String stubRole, LocalDateTime now) {
@@ -315,32 +303,11 @@ public class GuardianConsentService {
         return normalized;
     }
 
-    private static String sha256(String value) {
-        try {
+    private static String sha256(String value) {        try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(value.getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("JDK 缺少 SHA-256 实现", e);
-        }
-    }
-
-    private String toEvidenceJson(List<String> evidenceRefs) {
-        try {
-            return objectMapper.writeValueAsString(evidenceRefs);
-        } catch (JacksonException e) {
-            throw new IllegalStateException("监护证据序列化失败", e);
-        }
-    }
-
-    private List<String> fromEvidenceJson(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {
-            });
-        } catch (JacksonException e) {
-            throw new IllegalStateException("监护证据反序列化失败", e);
         }
     }
 }

@@ -3,6 +3,7 @@ package com.leyon.lumin.governance.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.audit.ProposalReviewStore;
 import com.leyon.lumin.governance.domain.RestrictionStateMachine;
 import com.leyon.lumin.governance.domain.RestrictionStateMachine.TransitionResult;
 import com.leyon.lumin.foundation.values.RestrictionKind;
@@ -28,13 +29,16 @@ public class RestrictionService {
 
     private final RestrictionMapper restrictionMapper;
     private final AuditRecorder auditRecorder;
+    private final ProposalReviewStore reviewStore;
     private final com.leyon.lumin.foundation.port.PublicationGatePort publicationGatePort;
 
     public RestrictionService(RestrictionMapper restrictionMapper,
                               AuditRecorder auditRecorder,
+                              ProposalReviewStore reviewStore,
                               com.leyon.lumin.foundation.port.PublicationGatePort publicationGatePort) {
         this.restrictionMapper = restrictionMapper;
         this.auditRecorder = auditRecorder;
+        this.reviewStore = reviewStore;
         this.publicationGatePort = publicationGatePort;
     }
 
@@ -42,6 +46,14 @@ public class RestrictionService {
     @Transactional
     public String requestRestriction(String requester, String workId, String chapterId,
                                      String kind, String reason, LocalDateTime expiresAt) {
+        return requestRestriction(requester, workId, chapterId, kind, reason, expiresAt, null);
+    }
+
+    /** 契约 requestRestriction：caseId 绑定原案件；缺失时保留骨架合成值。 */
+    @Transactional
+    public String requestRestriction(String requester, String workId, String chapterId,
+                                     String kind, String reason, LocalDateTime expiresAt,
+                                     String caseId) {
         if (reason == null || reason.isBlank()) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
@@ -61,7 +73,8 @@ public class RestrictionService {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
         RestrictionRow row = new RestrictionRow(UUID.randomUUID().toString(), workId,
-                chapterId, kind, "PENDING", reason, UUID.randomUUID().toString(),
+                chapterId, kind, "PENDING", reason, caseId == null
+                        ? UUID.randomUUID().toString() : caseId,
                 requester, null, null, expiresAt, null, null, now, now, requester,
                 requester, 1L);
         restrictionMapper.insert(row);
@@ -75,6 +88,15 @@ public class RestrictionService {
     @Transactional
     public String reviewRestriction(String reviewer, String restrictionId, boolean activate,
                                     String ifMatchExpectedLock) {
+        return reviewRestriction(reviewer, restrictionId, activate, null, null,
+                ifMatchExpectedLock);
+    }
+
+    /** 契约 reviewRestriction：审批理由与证据追加到 proposal_review，不覆写历史。 */
+    @Transactional
+    public String reviewRestriction(String reviewer, String restrictionId, boolean activate,
+                                    String reason, java.util.List<String> evidenceRefs,
+                                    String ifMatchExpectedLock) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         RestrictionRow row = restrictionId == null ? null
                 : restrictionMapper.findById(restrictionId);
@@ -85,6 +107,8 @@ public class RestrictionService {
             // 03 §2.4/§6：提案人与复核人不同（防自我裁决）
             throw new LuminBusinessException(ErrorCode.A2001);
         }
+        String normalizedReason = normalizeReason(reason,
+                activate ? "独立复核生效" : "独立复核驳回");
         long expectedLock = com.leyon.lumin.foundation.web.IfMatch.requireValid(ifMatchExpectedLock);
         if (expectedLock != row.lockVersion()) {
             throw new LuminBusinessException(ErrorCode.B2002);
@@ -103,13 +127,16 @@ public class RestrictionService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+        reviewStore.append("RESTRICTION", restrictionId, reviewer,
+                activate ? "APPROVE" : "REJECT", normalizedReason,
+                evidenceList(evidenceRefs, restrictionId), row.lockVersion(), now);
         if (activate) {
             // 03 §2.1 生效下架：SYSTEM 执行已核验治理措施（业务态 → REMOVED，保存前态）
             publicationGatePort.takedown(targetScope(row), row.workId(), row.chapterId());
         }
         auditRecorder.recordTransition(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
                 "restriction." + (activate ? "activated" : "rejected"),
-                "restriction", restrictionId, row.reason(),
+                "restriction", restrictionId, normalizedReason,
                 traceId(), now.toInstant(ZoneOffset.UTC)),
                 java.util.Map.of("restrictionState", row.state()),
                 java.util.Map.of("restrictionState", transition.targetState().name()));
@@ -137,6 +164,9 @@ public class RestrictionService {
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+        reviewStore.append("RESTRICTION", restrictionId, reviewer, "REVOKE",
+                "临时措施独立复核改判解除", evidenceList(null, restrictionId),
+                row.lockVersion(), now);
         // 改判恢复：仅当所有生效限制均解除且指针在时恢复记录的前态（03 §2.1）
         publicationGatePort.restore(targetScope(row), row.workId(), row.chapterId());
         auditRecorder.recordTransition(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L2",
@@ -155,6 +185,22 @@ public class RestrictionService {
     private String requesterRole(String requester) {
         // 骨架口径：替身身份角色由接入层判定，审计 role_context 以提案行为记录
         return "OPERATOR";
+    }
+
+    private static String normalizeReason(String reason, String fallback) {
+        String value = reason == null || reason.isBlank() ? fallback : reason.trim();
+        if (value.length() > 1000) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        return value;
+    }
+
+    /** 证据为空时绑定资源本身；契约要求 evidenceRefs 至少 1 项、字符集受限。 */
+    private static java.util.List<String> evidenceList(java.util.List<String> evidenceRefs,
+                                                       String restrictionId) {
+        return evidenceRefs == null || evidenceRefs.isEmpty()
+                ? java.util.List.of("restriction:" + restrictionId)
+                : evidenceRefs;
     }
 
     private static String traceId() {

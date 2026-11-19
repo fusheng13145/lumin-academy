@@ -5,6 +5,7 @@ import com.leyon.lumin.foundation.web.DemoAuthenticationFilter;
 import com.leyon.lumin.foundation.web.IdempotentExecutor;
 import com.leyon.lumin.moderation.api.dto.CaseView;
 import com.leyon.lumin.moderation.api.dto.DecisionRequest;
+import com.leyon.lumin.moderation.service.ReviewCaseQueryService;
 import com.leyon.lumin.moderation.service.ReviewCaseService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -30,11 +31,14 @@ import java.util.Map;
 public class ReviewCaseController {
 
     private final ReviewCaseService reviewCaseService;
+    private final ReviewCaseQueryService reviewCaseQueryService;
     private final IdempotentExecutor idempotentExecutor;
 
     public ReviewCaseController(ReviewCaseService reviewCaseService,
+                                ReviewCaseQueryService reviewCaseQueryService,
                                 IdempotentExecutor idempotentExecutor) {
         this.reviewCaseService = reviewCaseService;
+        this.reviewCaseQueryService = reviewCaseQueryService;
         this.idempotentExecutor = idempotentExecutor;
     }
 
@@ -42,6 +46,30 @@ public class ReviewCaseController {
     public ApiEnvelope list() {
         List<CaseView> cases = reviewCaseService.listQueued();
         return ApiEnvelope.ok(cases);
+    }
+
+    /** 案件详情（脱敏元数据 + 完整裁决；越权与不存在统一 404）。 */
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiEnvelope> getCase(
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_ROLE) String reviewerRole,
+            @PathVariable String id) {
+        var view = reviewCaseQueryService.getCase(subject, reviewerRole, id);
+        return ResponseEntity.ok()
+                .eTag("\"" + view.revision() + "\"")
+                .body(ApiEnvelope.ok(view));
+    }
+
+    /** 受控材料：仅当前有效领取人；禁止缓存。 */
+    @GetMapping("/{id}/content")
+    public ResponseEntity<ApiEnvelope> getReviewContent(
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_ROLE) String reviewerRole,
+            @PathVariable String id) {
+        return ResponseEntity.ok()
+                .header("Cache-Control", "no-store")
+                .body(ApiEnvelope.ok(
+                        reviewCaseQueryService.getReviewContent(subject, reviewerRole, id)));
     }
 
     /** 领取（If-Match 原子领取 + 15 分钟租约，03 §2.4）。 */

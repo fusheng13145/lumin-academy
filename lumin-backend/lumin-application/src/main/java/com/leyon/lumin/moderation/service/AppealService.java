@@ -3,6 +3,7 @@ package com.leyon.lumin.moderation.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.audit.ProposalReviewStore;
 import com.leyon.lumin.foundation.port.CaseOwnershipPort;
 import com.leyon.lumin.moderation.domain.AppealStateMachine;
 import com.leyon.lumin.moderation.repository.AppealMapper;
@@ -36,17 +37,20 @@ public class AppealService {
     private final ReviewDecisionActorMapper decisionActorMapper;
     private final CaseOwnershipPort caseOwnershipPort;
     private final AuditRecorder auditRecorder;
+    private final ProposalReviewStore reviewStore;
     private final tools.jackson.databind.ObjectMapper objectMapper;
 
     public AppealService(AppealMapper appealMapper, ReviewCaseMapper reviewCaseMapper,
                          ReviewDecisionActorMapper decisionActorMapper,
                          CaseOwnershipPort caseOwnershipPort, AuditRecorder auditRecorder,
+                         ProposalReviewStore reviewStore,
                          tools.jackson.databind.ObjectMapper objectMapper) {
         this.appealMapper = appealMapper;
         this.reviewCaseMapper = reviewCaseMapper;
         this.decisionActorMapper = decisionActorMapper;
         this.caseOwnershipPort = caseOwnershipPort;
         this.auditRecorder = auditRecorder;
+        this.reviewStore = reviewStore;
         this.objectMapper = objectMapper;
     }
 
@@ -92,14 +96,24 @@ public class AppealService {
         return appeal;
     }
 
-    /**
-     * 复核（03 §6：原审全体回避；首次有效复核在事务内 OPEN→IN_REVIEW→终态）。
-     * 返回迁移后的申诉状态（UPHELD / OVERTURNED）。
-     */
     @Transactional
     public String reviewAppeal(String reviewer, String appealId, boolean uphold,
                                String decisionReason) {
-        if (decisionReason == null || decisionReason.isBlank()) {
+        return reviewAppeal(reviewer, appealId,
+                uphold ? "UPHOLD" : "OVERTURN", decisionReason, null);
+    }
+
+    /** 契约 reviewAppeal：action=UPHOLD/OVERTURN，理由与证据追加到 proposal_review。 */
+    @Transactional
+    public String reviewAppeal(String reviewer, String appealId, String action,
+                               String reason, List<String> evidenceRefs) {
+        boolean uphold = "UPHOLD".equals(action);
+        if (!uphold && !"OVERTURN".equals(action)) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        String normalizedReason = reason == null ? null : reason.trim();
+        if (normalizedReason == null || normalizedReason.isBlank()
+                || normalizedReason.length() > 1000) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
@@ -125,16 +139,23 @@ public class AppealService {
             throw new LuminBusinessException(ErrorCode.B2001);
         }
         int rows = appealMapper.transition(appealId, second.targetState().name(), reviewer,
-                decisionReason, appeal.state(), reviewer, now, appeal.lockVersion());
+                normalizedReason, appeal.state(), reviewer, now, appeal.lockVersion());
         if (rows == 0) {
             throw new LuminBusinessException(ErrorCode.B2002);
         }
+        reviewStore.append("APPEAL", appealId, reviewer, action, normalizedReason,
+                evidenceList(evidenceRefs, appealId), appeal.lockVersion(), now);
         auditRecorder.record(new AuditRecorder.AuditEntry(reviewer, "REVIEWER_L1",
                 "appeal.reviewed", "appeal", appealId,
-                "申诉复核：" + (uphold ? "UPHELD" : "OVERTURNED")
-                        + "（改判不直接改库，解除经治理域）",
+                "申诉复核：" + action + "（改判不直接改库，解除经治理域）",
                 traceId(), now.toInstant(ZoneOffset.UTC)));
         return second.targetState().name();
+    }
+
+    /** 证据为空时绑定申诉本身；契约要求 evidenceRefs 至少 1 项。 */
+    private static List<String> evidenceList(List<String> evidenceRefs, String appealId) {
+        return evidenceRefs == null || evidenceRefs.isEmpty()
+                ? List.of("appeal:" + appealId) : evidenceRefs;
     }
 
     private String toJson(List<String> values) {

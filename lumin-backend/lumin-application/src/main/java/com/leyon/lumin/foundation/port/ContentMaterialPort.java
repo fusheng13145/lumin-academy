@@ -11,9 +11,16 @@ public interface ContentMaterialPort {
     /** 版本材料摘要；版本不存在返回 null。 */
     MaterialRef findVersionMaterial(String versionId);
 
+    /** 不可变版本的可读审核材料（标题 + 正文/简介）；版本不存在返回 null。 */
+    ReviewMaterial findReviewMaterial(String versionId);
+
     /** MaterialRef.authorAgeBand 取权威源数据链 version→work→author→profile（03 §5.2）。 */
     record MaterialRef(String versionId, String workId, String chapterId,
                        String targetType, String materialSha256, Long policyVersion,
                        String authorAgeBand) {
+    }
+
+    /** 审核材料正文：CHAPTER 取已提交草稿正文，WORK 取标题+简介摘要。 */
+    record ReviewMaterial(String versionId, String title, String text) {
     }
 }

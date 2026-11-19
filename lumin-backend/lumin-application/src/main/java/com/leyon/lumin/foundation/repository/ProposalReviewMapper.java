@@ -1,4 +1,4 @@
-package com.leyon.lumin.identity.repository;
+package com.leyon.lumin.foundation.repository;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;

@@ -24,6 +24,48 @@ public interface AppealMapper {
     @Select("SELECT * FROM appeal WHERE id = #{id}")
     AppealRow findById(@Param("id") String id);
 
+    /** 申请人/有效监护同意可见（05 §3.3 listAppeals/getAppeal）。 */
+    @Select("""
+            SELECT COUNT(*) > 0 FROM guardian_consent
+            WHERE guardian_id = #{guardianId} AND child_id = #{childId}
+              AND revoked_at IS NULL AND scope IN ('REGISTRATION','PUBLICATION')
+            """)
+    boolean existsEffectiveGuardianConsent(@Param("guardianId") String guardianId,
+                                           @Param("childId") String childId);
+
+    /** 可见申诉列表；queueViewer 仅非申请人且未参与原裁决的独立复核角色。 */
+    @Select("""
+            <script>
+            SELECT a.* FROM appeal a
+            WHERE a.deleted_at IS NULL
+            <choose>
+              <when test="queueViewer">
+                AND a.applicant_id &lt;&gt; #{subject}
+                AND NOT EXISTS (SELECT 1 FROM review_decision d
+                                WHERE d.case_id = a.case_id AND d.actor_id = #{subject})
+              </when>
+              <otherwise>
+                AND (a.applicant_id = #{subject}
+                     OR EXISTS (SELECT 1 FROM guardian_consent g
+                                WHERE g.child_id = a.applicant_id
+                                  AND g.guardian_id = #{subject}
+                                  AND g.revoked_at IS NULL
+                                  AND g.scope IN ('REGISTRATION','PUBLICATION')))
+              </otherwise>
+            </choose>
+            <if test="cursorAt != null">
+              AND (a.created_at, a.id) &lt; (#{cursorAt,jdbcType=TIMESTAMP}, #{cursorId,jdbcType=VARCHAR})
+            </if>
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    java.util.List<AppealRow> listVisible(@Param("subject") String subject,
+                                          @Param("queueViewer") boolean queueViewer,
+                                          @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                          @Param("cursorId") String cursorId,
+                                          @Param("limit") int limit);
+
     @Select("""
             SELECT * FROM appeal WHERE case_id = #{caseId}
               AND state IN ('OPEN','IN_REVIEW')

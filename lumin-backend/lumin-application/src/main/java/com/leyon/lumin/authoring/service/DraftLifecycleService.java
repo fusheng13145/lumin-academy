@@ -123,6 +123,24 @@ public class DraftLifecycleService {
                 row.materialSha256(), row.policyVersion(), authorAgeBand);
     }
 
+    /** 不可变版本的可读材料：CHAPTER 取提交时已冻结的草稿正文；WORK 取标题+简介。 */
+    public ContentMaterialPort.ReviewMaterial findReviewMaterial(String versionId) {
+        ContentVersionRow row = versionId == null ? null
+                : contentVersionMapper.findById(versionId);
+        if (row == null) {
+            return null;
+        }
+        DraftRow draft = row.sourceDraftId() == null ? null
+                : draftMapper.findById(row.sourceDraftId());
+        String text;
+        if (draft != null && draft.bodyText() != null) {
+            text = draft.bodyText();
+        } else {
+            text = "标题：" + row.title() + "\n简介：" + (row.synopsis() == null ? "" : row.synopsis());
+        }
+        return new ContentMaterialPort.ReviewMaterial(row.id(), row.title(), text);
+    }
+
     /**
      * 提交事务段：FOR UPDATE 锁行重校验 → 插入不可变版本（含材料快照与摘要，
      * 03 §4.1 第 8 段）→ draft=SUBMITTED（乐观锁兜底并发）。

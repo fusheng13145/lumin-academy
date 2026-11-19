@@ -2,9 +2,9 @@
   "contract_sha256": "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 77,
-  "implemented_count": 57,
-  "missing_count": 6,
+  "controller_routes": 83,
+  "implemented_count": 63,
+  "missing_count": 0,
   "extra_count": 20,
   "implemented": [
     {
@@ -230,10 +230,22 @@
       "handler": "ReviewCaseController#list"
     },
     {
+      "operationId": "getCase",
+      "method": "GET",
+      "path": "/api/v1/review-cases/{id}",
+      "handler": "ReviewCaseController#getCase"
+    },
+    {
       "operationId": "claimCase",
       "method": "POST",
       "path": "/api/v1/review-cases/{id}/claims",
       "handler": "ReviewCaseController#claim"
+    },
+    {
+      "operationId": "getReviewContent",
+      "method": "GET",
+      "path": "/api/v1/review-cases/{id}/content",
+      "handler": "ReviewCaseController#getReviewContent"
     },
     {
       "operationId": "decideCase",
@@ -248,16 +260,34 @@
       "handler": "ReportController#createReport"
     },
     {
+      "operationId": "listRestrictions",
+      "method": "GET",
+      "path": "/api/v1/restrictions",
+      "handler": "RestrictionController#list"
+    },
+    {
       "operationId": "requestRestriction",
       "method": "POST",
       "path": "/api/v1/restrictions",
       "handler": "RestrictionController#requestRestriction"
     },
     {
+      "operationId": "getRestriction",
+      "method": "GET",
+      "path": "/api/v1/restrictions/{id}",
+      "handler": "RestrictionController#get"
+    },
+    {
       "operationId": "reviewRestriction",
       "method": "POST",
       "path": "/api/v1/restrictions/{id}/reviews",
       "handler": "RestrictionController#reviewRestriction"
+    },
+    {
+      "operationId": "listAppeals",
+      "method": "GET",
+      "path": "/api/v1/appeals",
+      "handler": "AppealController#listAppeals"
     },
     {
       "operationId": "createAppeal",
@@ -314,6 +344,12 @@
       "handler": "NotificationController#markRead"
     },
     {
+      "operationId": "listCategories",
+      "method": "GET",
+      "path": "/api/v1/categories",
+      "handler": "CategoryController#list"
+    },
+    {
       "operationId": "listConfigRevisions",
       "method": "GET",
       "path": "/api/v1/config-revisions",
@@ -350,44 +386,7 @@
       "handler": "AuditRecordController#list"
     }
   ],
-  "missing": [
-    {
-      "operationId": "getCase",
-      "method": "GET",
-      "path": "/api/v1/review-cases/{id}",
-      "handler": ""
-    },
-    {
-      "operationId": "getReviewContent",
-      "method": "GET",
-      "path": "/api/v1/review-cases/{id}/content",
-      "handler": ""
-    },
-    {
-      "operationId": "listRestrictions",
-      "method": "GET",
-      "path": "/api/v1/restrictions",
-      "handler": ""
-    },
-    {
-      "operationId": "getRestriction",
-      "method": "GET",
-      "path": "/api/v1/restrictions/{id}",
-      "handler": ""
-    },
-    {
-      "operationId": "listAppeals",
-      "method": "GET",
-      "path": "/api/v1/appeals",
-      "handler": ""
-    },
-    {
-      "operationId": "listCategories",
-      "method": "GET",
-      "path": "/api/v1/categories",
-      "handler": ""
-    }
-  ],
+  "missing": [],
   "extra": [
     {
       "method": "POST",

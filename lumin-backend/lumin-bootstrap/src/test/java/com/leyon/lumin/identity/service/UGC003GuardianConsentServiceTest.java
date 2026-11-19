@@ -6,13 +6,12 @@ import com.leyon.lumin.foundation.crypto.FieldCipher;
 import com.leyon.lumin.identity.port.GuardianVerificationPort;
 import com.leyon.lumin.identity.repository.GuardianConsentMapper;
 import com.leyon.lumin.identity.repository.GuardianConsentRow;
-import com.leyon.lumin.identity.repository.ProposalReviewMapper;
+import com.leyon.lumin.foundation.audit.ProposalReviewStore;
 import com.leyon.lumin.identity.repository.RoleAssignmentMapper;
 import com.leyon.lumin.identity.repository.UserProfileMapper;
 import com.leyon.lumin.identity.repository.UserProfileRow;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -41,14 +40,14 @@ class UGC003GuardianConsentServiceTest {
     private static final String PROOF = "guardian-proof-1";
 
     private final GuardianConsentMapper consentMapper = mock(GuardianConsentMapper.class);
-    private final ProposalReviewMapper reviewMapper = mock(ProposalReviewMapper.class);
+    private final ProposalReviewStore reviewStore = mock(ProposalReviewStore.class);
     private final RoleAssignmentMapper assignmentMapper = mock(RoleAssignmentMapper.class);
     private final UserProfileMapper profileMapper = mock(UserProfileMapper.class);
     private final GuardianVerificationPort port = mock(GuardianVerificationPort.class);
     private final FieldCipher cipher = new FieldCipher("unit-test-key");
     private final GuardianConsentService service = new GuardianConsentService(
-            consentMapper, reviewMapper, assignmentMapper, profileMapper, port, cipher,
-            new ObjectMapper(), "unit-test-cursor-key");
+            consentMapper, reviewStore, assignmentMapper, profileMapper, port, cipher,
+            "unit-test-cursor-key");
 
     @Test
     void createRequiresVerifiedAdultGuardianAndMinorChild() {
@@ -58,7 +57,6 @@ class UGC003GuardianConsentServiceTest {
         when(port.verify(GUARDIAN, CHILD, "PUBLICATION", PROOF, NOW)).thenReturn(true);
         when(consentMapper.findByProofDigest(anyString())).thenReturn(null);
         when(consentMapper.insert(any())).thenReturn(1);
-        when(reviewMapper.insert(any())).thenReturn(1);
         when(profileMapper.restoreAfterConsent(CHILD, NOW, GUARDIAN)).thenReturn(1);
 
         GuardianConsentService.Receipt receipt = service.create(GUARDIAN, "GUARDIAN",
@@ -90,7 +88,7 @@ class UGC003GuardianConsentServiceTest {
     void onlyParticipantsCanRead() {
         GuardianConsentRow row = consentRow();
         when(consentMapper.findById(row.id())).thenReturn(row);
-        when(reviewMapper.listByResource("CONSENT", row.id())).thenReturn(List.of());
+        when(reviewStore.listByResource("CONSENT", row.id())).thenReturn(List.of());
 
         GuardianConsentService.ConsentView view = service.getVisible(CHILD, row.id());
         assertEquals(PROOF, view.request().proofRef());
@@ -107,7 +105,6 @@ class UGC003GuardianConsentServiceTest {
         when(assignmentMapper.findActiveRoleCodes(GUARDIAN, NOW)).thenReturn(List.of("GUARDIAN"));
         when(consentMapper.findById(row.id())).thenReturn(row);
         when(consentMapper.revoke(row.id(), GUARDIAN, 1L, NOW, GUARDIAN)).thenReturn(1);
-        when(reviewMapper.insert(any())).thenReturn(1);
         when(profileMapper.downgradeAfterConsentRevocation(CHILD, NOW, GUARDIAN)).thenReturn(1);
 
         GuardianConsentService.Receipt receipt = service.revoke(GUARDIAN, "GUARDIAN",
