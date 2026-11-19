@@ -29,6 +29,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class UGC035BookshelfIntegrationTest extends MySqlIntegrationBase {
 
+    /** 嵌套配置：抽检闸恒未命中——AUTO 链路确定性验证（抽检函数另有单测）。 */
+    @org.springframework.boot.test.context.TestConfiguration
+    static class NeverSampledGate {
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        com.leyon.lumin.moderation.service.AutoSampleGate neverSampled() {
+            return caseId -> false;
+        }
+    }
+
     private static final String AUTHOR = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.AUTHOR;
     private static final String READER_C3 = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C3;
     private static final String READER_C2 = com.leyon.lumin.foundation.web.DemoAuthenticationFilter.READER_C2;
@@ -45,6 +55,20 @@ class UGC035BookshelfIntegrationTest extends MySqlIntegrationBase {
         MySqlFixtures.insertStubAuthorProfile(jdbc);
         MySqlFixtures.insertAuthorWorkAndCategory(jdbc);
         MySqlFixtures.insertReaderProfiles(jdbc);
+        seedReviewer(MySqlFixtures.REVIEWER_L1A, "sub-reviewer-l1a");
+        seedReviewer(MySqlFixtures.REVIEWER_L2A, "sub-reviewer-l2a");
+    }
+
+    /** 限制复核会写 proposal_review，actor 必须有 user_profile 外键目标。 */
+    private void seedReviewer(String userId, String oidcSubject) {
+        jdbc.update("""
+                INSERT IGNORE INTO user_profile (id, oidc_issuer, oidc_subject, nickname,
+                    declared_age_band, verified_age_band, effective_age_band, account_status,
+                    policy_revision, created_at, updated_at, created_by, updated_by)
+                VALUES (?, 'https://id.example', ?, '审核员', 'C3', 'C3', 'C3', 'ACTIVE',
+                    1, ?, ?, ?, ?)
+                """, userId, oidcSubject, MySqlFixtures.BUSINESS_TIME, MySqlFixtures.BUSINESS_TIME,
+                MySqlFixtures.SYSTEM, MySqlFixtures.SYSTEM);
     }
 
     private static String uuidKey() {

@@ -6,6 +6,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/lumin_test?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&allowPublicKeyRetrieval=true
     username: ${LUMIN_TEST_DB_USERNAME:root}
     password: ${LUMIN_TEST_DB_PASSWORD:}
+    hikari:
+      # 全量集成测试会缓存多个 Spring 上下文；每池最多 2 条连接，避免累积触顶
+      maximum-pool-size: 2
+      minimum-idle: 1
   outbox:
     enabled: false
   mybatis:

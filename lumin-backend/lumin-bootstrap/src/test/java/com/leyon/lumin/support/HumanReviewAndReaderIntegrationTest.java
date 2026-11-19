@@ -267,8 +267,11 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                         .content("{\"decision\":\"PASS\",\"grade\":\"G\",\"reasonCode\":\"OK_1001\","
                                 + "\"reason\":\"首审合规\",\"evidenceRefs\":[\"ev:1\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.state").value("WAITING_SECOND"))
-                .andExpect(jsonPath("$.data.stage").value(2));
+                .andExpect(jsonPath("$.data.state").value("WAITING_SECOND"));
+        // 契约 Receipt 不含 stage；阶段推进落库，直接核对 review_case.review_stage
+        assertThat(jdbc.queryForObject(
+                "SELECT review_stage FROM review_case WHERE id = ?", Integer.class, caseId))
+                .isEqualTo(2);
     }
 
     @Test

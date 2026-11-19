@@ -374,7 +374,8 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                         .header("X-Lumin-Demo-Subject", L2A)
                         .header("Idempotency-Key", uuidKey())
                         .contentType("application/json")
-                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"FINAL_VIOLATION\","
+                        .content("{\"workId\":\"" + workId + "\",\"caseId\":\""
+                                + UUID.randomUUID() + "\",\"kind\":\"FINAL_VIOLATION\","
                                 + "\"reason\":\"严重违规终局\"}"))
                 .andExpect(status().isOk()), "id");
         mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")
