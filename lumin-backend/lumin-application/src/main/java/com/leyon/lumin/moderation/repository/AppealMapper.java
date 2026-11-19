@@ -33,6 +33,14 @@ public interface AppealMapper {
     boolean existsEffectiveGuardianConsent(@Param("guardianId") String guardianId,
                                            @Param("childId") String childId);
 
+    /** 案件所属队列（getAppeal 队列作用域校验）。 */
+    @Select("SELECT queue_id FROM review_case WHERE id = #{caseId}")
+    String findQueueIdByCaseId(@Param("caseId") String caseId);
+
+    /** 案件来源（LEGAL 复核角色仅可读 LEGAL 来源）。 */
+    @Select("SELECT source FROM review_case WHERE id = #{caseId}")
+    String findSourceByCaseId(@Param("caseId") String caseId);
+
     /** 可见申诉列表；queueViewer 仅非申请人且未参与原裁决的独立复核角色。 */
     @Select("""
             <script>
@@ -43,6 +51,15 @@ public interface AppealMapper {
                 AND a.applicant_id &lt;&gt; #{subject}
                 AND NOT EXISTS (SELECT 1 FROM review_decision d
                                 WHERE d.case_id = a.case_id AND d.actor_id = #{subject})
+                AND EXISTS (SELECT 1 FROM review_case rc
+                            WHERE rc.id = a.case_id
+                            <if test="legalViewer">AND rc.source = 'LEGAL'</if>
+                            <if test="!queueGlobal">
+                              AND rc.queue_id IN
+                              <foreach collection="queueIds" item="queueId" open="(" separator="," close=")">
+                                #{queueId}
+                              </foreach>
+                            </if>)
               </when>
               <otherwise>
                 AND (a.applicant_id = #{subject}
@@ -62,6 +79,9 @@ public interface AppealMapper {
             """)
     java.util.List<AppealRow> listVisible(@Param("subject") String subject,
                                           @Param("queueViewer") boolean queueViewer,
+                                          @Param("legalViewer") boolean legalViewer,
+                                          @Param("queueGlobal") boolean queueGlobal,
+                                          @Param("queueIds") java.util.List<String> queueIds,
                                           @Param("cursorAt") java.time.LocalDateTime cursorAt,
                                           @Param("cursorId") String cursorId,
                                           @Param("limit") int limit);

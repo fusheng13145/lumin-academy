@@ -3,6 +3,7 @@ package com.leyon.lumin.moderation.service;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.audit.ProposalReviewStore;
+import com.leyon.lumin.foundation.port.ReviewerQueueScopePort;
 import com.leyon.lumin.moderation.repository.AppealMapper;
 import com.leyon.lumin.moderation.repository.AppealRow;
 import com.leyon.lumin.moderation.repository.ReviewDecisionActorMapper;
@@ -11,12 +12,15 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** UGC-014 申诉读取：申请人/监护人可见、复核队列原审回避、统一 404。 */
@@ -29,12 +33,15 @@ class AppealQueryServiceTest {
     private final AppealMapper appealMapper = mock(AppealMapper.class);
     private final ReviewDecisionActorMapper actorMapper = mock(ReviewDecisionActorMapper.class);
     private final ProposalReviewStore reviewStore = mock(ProposalReviewStore.class);
+    private final ReviewerQueueScopePort queueScopePort = mock(ReviewerQueueScopePort.class);
     private final AppealQueryService service = new AppealQueryService(
-            appealMapper, actorMapper, reviewStore, new ObjectMapper(), "unit-test-key");
+            appealMapper, actorMapper, reviewStore, queueScopePort,
+            new ObjectMapper(), "unit-test-key");
 
     @Test
     void listApplicantAppealsReturnsRequestAndReviews() {
-        when(appealMapper.listVisible(eq(SUBJECT), eq(false), isNull(), isNull(), eq(11)))
+        when(appealMapper.listVisible(eq(SUBJECT), eq(false), eq(false), eq(true),
+                isNull(), isNull(), isNull(), eq(11)))
                 .thenReturn(List.of(row()));
         when(reviewStore.listByResource("APPEAL", "appeal-1")).thenReturn(List.of());
 
@@ -64,6 +71,52 @@ class AppealQueryServiceTest {
                 () -> service.getVisible(SUBJECT, "REVIEWER_L2", "appeal-1"));
 
         assertEquals(ErrorCode.B2004, error.code());
+    }
+
+    @Test
+    void queueReviewerListUsesQueueScope() {
+        when(queueScopePort.resolve(SUBJECT, "REVIEWER_L2"))
+                .thenReturn(new ReviewerQueueScopePort.QueueScope(false, Set.of("queue-1")));
+        when(appealMapper.listVisible(eq(SUBJECT), eq(true), eq(false), eq(false),
+                eq(List.of("queue-1")), isNull(), isNull(), eq(11)))
+                .thenReturn(List.of(row()));
+        when(reviewStore.listByResource("APPEAL", "appeal-1")).thenReturn(List.of());
+
+        var page = service.listVisible(SUBJECT, "REVIEWER_L2", null, 10, NOW);
+
+        assertEquals(1, page.items().size());
+    }
+
+    @Test
+    void queueReviewerWithoutScopeGetsEmptyAppealPage() {
+        when(queueScopePort.resolve(SUBJECT, "REVIEWER_L2"))
+                .thenReturn(ReviewerQueueScopePort.QueueScope.none());
+
+        var page = service.listVisible(SUBJECT, "REVIEWER_L2", null, 10, NOW);
+
+        assertEquals(0, page.items().size());
+        verify(appealMapper, never()).listVisible(eq(SUBJECT), eq(true), eq(false),
+                eq(false), eq(List.of()), isNull(), isNull(), eq(11));
+    }
+
+    @Test
+    void queueReviewerOutsideQueueOrLegalSourceIsNotFound() {
+        when(appealMapper.findById("appeal-1")).thenReturn(row());
+        when(actorMapper.findActorIdsByCaseId("case-1")).thenReturn(List.of());
+        when(queueScopePort.resolve(SUBJECT, "REVIEWER_L2"))
+                .thenReturn(new ReviewerQueueScopePort.QueueScope(false, Set.of("queue-1")));
+        when(appealMapper.findQueueIdByCaseId("case-1")).thenReturn("queue-2");
+
+        LuminBusinessException outOfQueue = assertThrows(LuminBusinessException.class,
+                () -> service.getVisible(SUBJECT, "REVIEWER_L2", "appeal-1"));
+        assertEquals(ErrorCode.B2004, outOfQueue.code());
+
+        when(queueScopePort.resolve(SUBJECT, "LEGAL"))
+                .thenReturn(ReviewerQueueScopePort.QueueScope.all());
+        when(appealMapper.findSourceByCaseId("case-1")).thenReturn("REPORT");
+        LuminBusinessException nonLegal = assertThrows(LuminBusinessException.class,
+                () -> service.getVisible(SUBJECT, "LEGAL", "appeal-1"));
+        assertEquals(ErrorCode.B2004, nonLegal.code());
     }
 
     private AppealRow row() {

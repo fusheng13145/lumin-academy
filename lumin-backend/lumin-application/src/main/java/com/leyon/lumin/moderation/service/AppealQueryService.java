@@ -4,6 +4,7 @@ import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.audit.ProposalReviewStore;
+import com.leyon.lumin.foundation.port.ReviewerQueueScopePort;
 import com.leyon.lumin.moderation.repository.AppealMapper;
 import com.leyon.lumin.moderation.repository.AppealRow;
 import com.leyon.lumin.moderation.repository.ReviewDecisionActorMapper;
@@ -33,18 +34,21 @@ public class AppealQueryService {
     private final AppealMapper appealMapper;
     private final ReviewDecisionActorMapper decisionActorMapper;
     private final ProposalReviewStore reviewStore;
+    private final ReviewerQueueScopePort reviewerQueueScopePort;
     private final ObjectMapper objectMapper;
     private final String cursorKey;
 
     public AppealQueryService(AppealMapper appealMapper,
                               ReviewDecisionActorMapper decisionActorMapper,
                               ProposalReviewStore reviewStore,
+                              ReviewerQueueScopePort reviewerQueueScopePort,
                               ObjectMapper objectMapper,
                               @org.springframework.beans.factory.annotation.Value(
                                       "${lumin.cursor.key}") String cursorKey) {
         this.appealMapper = appealMapper;
         this.decisionActorMapper = decisionActorMapper;
         this.reviewStore = reviewStore;
+        this.reviewerQueueScopePort = reviewerQueueScopePort;
         this.objectMapper = objectMapper;
         this.cursorKey = cursorKey;
     }
@@ -79,8 +83,15 @@ public class AppealQueryService {
         }
         int limit = CursorCodec.resolveLimit(limitParam);
         boolean queueViewer = QUEUE_ROLES.contains(role);
+        boolean legalViewer = queueViewer && "LEGAL".equals(role);
+        ReviewerQueueScopePort.QueueScope scope = queueViewer
+                ? reviewerQueueScopePort.resolve(subject, role) : null;
+        String scopeKey = scope == null ? "N/A"
+                : scope.global() ? "ALL"
+                : String.join(",", scope.queueIds().stream().sorted().toList());
         String filterDigest = CursorCodec.filterDigest(
-                "list=appeals;viewer=" + subject + ";queue=" + queueViewer);
+                "list=appeals;viewer=" + subject + ";queue=" + queueViewer
+                        + ";scope=" + scopeKey);
         LocalDateTime cursorAt = null;
         String cursorId = null;
         if (cursorToken != null && !cursorToken.isBlank()) {
@@ -96,7 +107,13 @@ public class AppealQueryService {
             cursorAt = LocalDateTime.parse(decoded.payload().sortKeyValue());
             cursorId = decoded.payload().lastId().toString();
         }
-        List<AppealRow> rows = appealMapper.listVisible(subject, queueViewer,
+        if (scope != null && !scope.global() && scope.queueIds().isEmpty()) {
+            // session 模式无有效队列作用域：空页失败关闭，不泄露其他队列申诉
+            return new Page(List.of(), null);
+        }
+        List<AppealRow> rows = appealMapper.listVisible(subject, queueViewer, legalViewer,
+                scope == null || scope.global(), scope == null || scope.global() ? null
+                        : scope.queueIds().stream().sorted().toList(),
                 cursorAt, cursorId, limit + 1);
         boolean hasMore = rows.size() > limit;
         List<AppealRow> page = rows.subList(0, Math.min(rows.size(), limit));
@@ -128,6 +145,15 @@ public class AppealQueryService {
         boolean queueViewer = QUEUE_ROLES.contains(role)
                 && !applicant
                 && !decisionActorMapper.findActorIdsByCaseId(row.caseId()).contains(subject);
+        if (queueViewer) {
+            ReviewerQueueScopePort.QueueScope scope =
+                    reviewerQueueScopePort.resolve(subject, role);
+            String queueId = scope.global() ? null : appealMapper.findQueueIdByCaseId(row.caseId());
+            String source = "LEGAL".equals(role) ? appealMapper.findSourceByCaseId(row.caseId()) : null;
+            queueViewer = (scope.global()
+                    || (queueId != null && scope.queueIds().contains(queueId)))
+                    && (!"LEGAL".equals(role) || "LEGAL".equals(source));
+        }
         if (!applicant && !guardian && !queueViewer) {
             throw new LuminBusinessException(ErrorCode.B2004);
         }
