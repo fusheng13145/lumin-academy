@@ -52,6 +52,10 @@ public interface SubscriptionMapper {
             """)
     int updatePreferences(@Param("row") SubscriptionRow row);
 
+    /** 作品的全部有效订阅（追更扇出用；新章事件后逐接收者裁决）。 */
+    @Select("SELECT * FROM subscription WHERE work_id = #{workId} AND enabled = 1")
+    java.util.List<SubscriptionRow> listEnabledByWork(@Param("workId") String workId);
+
     /** 订阅列表（订阅时间倒序 + 作品元数据；含业务态供前端灰显下架作品）。 */
     @Select("""
             SELECT s.id AS subscriptionId, s.work_id AS workId,
