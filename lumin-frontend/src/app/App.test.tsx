@@ -28,6 +28,20 @@ beforeEach(() => {
       || path.includes('/me/publication-workflows') || path.includes('/review-cases')) {
       return envelope({ items: [], nextCursor: null });
     }
+    // 可信看板（UGC-040）：运营工作台挂载即拉取三路读数——空口径如实给形状
+    if (path.startsWith('/api/v1/metrics/')) {
+      if (path.includes('reading')) {
+        return envelope({ frozenDefinitionVersion: 1, windowDays: 7,
+          windowStart: '2026-11-13T00:00:00Z', effectiveReads: 0,
+          syntheticExcluded: 0, byBand: [] });
+      }
+      if (path.includes('retention')) {
+        return envelope({ frozenDefinitionVersion: 1, cohorts: [] });
+      }
+      return envelope({ frozenDefinitionVersion: 1, submissions: 0, approved: 0,
+        rejected: 0, takedownActive: 0, featuredActive: 0,
+        realReaders: 0, syntheticProfiles: 0 });
+    }
     return envelope([]);
   });
 });

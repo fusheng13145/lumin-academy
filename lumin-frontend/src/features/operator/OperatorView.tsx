@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { configService, type ConfigRevisionDto } from '../../services/configService';
+import { metricsService, type ReadingMetricsDto, type RetentionMetricsDto,
+  type SupplyMetricsDto } from '../../services/metricsService';
 
 const KEYS = ['REVIEW_ROUTING', 'ACCESS_POLICY', 'NOTIFICATION_POLICY', 'CONTENT_CATALOG'] as const;
 
@@ -172,6 +174,83 @@ export function OperatorView() {
           ))}
         </ul>
       )}
+
+      <MetricsBoard />
     </section>
+  );
+}
+
+// 可信看板（UGC-040）：读数带口径版本；空数据如实呈现「暂无数据」，不编数字。
+const RATE_LABEL = (rate: number): string => `${Math.round(rate * 100)}%`;
+
+function MetricsBoard() {
+  const [reading, setReading] = useState<ReadingMetricsDto | null>(null);
+  const [retention, setRetention] = useState<RetentionMetricsDto | null>(null);
+  const [supply, setSupply] = useState<SupplyMetricsDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const [r, ret, s] = await Promise.all([
+          metricsService.listReadingMetrics(),
+          metricsService.listRetentionMetrics(),
+          metricsService.listSupplyMetrics(),
+        ]);
+        if (alive) {
+          setReading(r);
+          setRetention(ret);
+          setSupply(s);
+        }
+      } catch (e) {
+        if (alive) {
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (error) {
+    return <p className="muted-note" role="alert">看板加载失败：{error}</p>;
+  }
+  if (reading === null || retention === null || supply === null) {
+    return <div className="catalog-state" aria-busy="true">正在加载看板</div>;
+  }
+  return (
+    <div className="card setting-block" aria-label="供给与阅读看板">
+      <h2 className="setting-block__title">
+        供给与阅读看板（口径 v{reading.frozenDefinitionVersion}）
+      </h2>
+      <p className="draft-item__meta">
+        有效阅读（近 {reading.windowDays} 天，去重读者×章节）：
+        <strong>{reading.effectiveReads}</strong>
+        {reading.syntheticExcluded > 0
+          ? ` · 已剔除合成流量 ${reading.syntheticExcluded}` : ''}
+      </p>
+      {reading.byBand.length > 0 ? (
+        <p className="draft-item__meta">
+          分群：{reading.byBand.map((band) => `${band.band} ${band.reads}`).join(' · ')}
+        </p>
+      ) : (
+        <p className="draft-item__meta">分群：暂无数据（无数据不编数字）</p>
+      )}
+      <p className="draft-item__meta">
+        次周留存：{retention.cohorts.length === 0
+          ? '暂无分群数据（无数据不编数字）'
+          : retention.cohorts.map((cohort) =>
+              `${cohort.weekStart} 群 ${cohort.cohortSize} 留存 ${cohort.retainedCount}`
+              + `（${RATE_LABEL(cohort.retentionRate)}）`).join(' · ')}
+      </p>
+      <p className="draft-item__meta">
+        供给健康：提交 <strong>{supply.submissions}</strong> · 通过 {supply.approved}
+        {' '}· 驳回 {supply.rejected} · 生效下架 {supply.takedownActive}
+        {' '}· 生效精选 {supply.featuredActive}
+      </p>
+      <p className="draft-item__meta">
+        读者档案：真实 {supply.realReaders} · 合成（已剔除）{supply.syntheticProfiles}
+      </p>
+    </div>
   );
 }
