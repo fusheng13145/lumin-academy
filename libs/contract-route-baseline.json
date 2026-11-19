@@ -2,9 +2,9 @@
   "contract_sha256": "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 63,
-  "implemented_count": 43,
-  "missing_count": 20,
+  "controller_routes": 65,
+  "implemented_count": 45,
+  "missing_count": 18,
   "extra_count": 20,
   "implemented": [
     {
@@ -20,10 +20,22 @@
       "handler": "ProfileController#me"
     },
     {
+      "operationId": "listRoleGrants",
+      "method": "GET",
+      "path": "/api/v1/role-grants",
+      "handler": "RoleGrantController#list"
+    },
+    {
       "operationId": "requestRoleGrant",
       "method": "POST",
       "path": "/api/v1/role-grants",
       "handler": "RoleGrantController#propose"
+    },
+    {
+      "operationId": "getRoleGrant",
+      "method": "GET",
+      "path": "/api/v1/role-grants/{id}",
+      "handler": "RoleGrantController#get"
     },
     {
       "operationId": "reviewRoleGrant",
@@ -295,18 +307,6 @@
       "operationId": "revokeConsent",
       "method": "POST",
       "path": "/api/v1/guardian-consents/{id}/revocations",
-      "handler": ""
-    },
-    {
-      "operationId": "listRoleGrants",
-      "method": "GET",
-      "path": "/api/v1/role-grants",
-      "handler": ""
-    },
-    {
-      "operationId": "getRoleGrant",
-      "method": "GET",
-      "path": "/api/v1/role-grants/{id}",
       "handler": ""
     },
     {
