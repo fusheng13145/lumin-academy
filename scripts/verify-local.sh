@@ -5,19 +5,23 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-echo "== [1/4] 后端 test-compile =="
+echo "== [1/5] 后端 test-compile =="
 (cd lumin-backend && mvn -q test-compile)
 echo "OK"
 
-echo "== [2/4] 依赖无环（显式 import 边） =="
+echo "== [2/5] 依赖无环（显式 import 边） =="
 python libs/tools/check_dependency_cycles.py
 echo "OK"
 
-echo "== [3/4] 契约结构校验 =="
+echo "== [3/5] 契约结构校验 =="
 python libs/tools/validate_contract.py
 echo "OK"
 
-echo "== [4/4] 前端 lint + build =="
+echo "== [4/5] 契约—路由基线比对（UGC-001/026） =="
+python libs/tools/route_contract_matrix.py --check
+echo "OK"
+
+echo "== [5/5] 前端 lint + build =="
 (cd lumin-frontend && npm run lint && npm run build)
 echo "OK"
 

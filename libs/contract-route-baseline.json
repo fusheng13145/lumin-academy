@@ -1,0 +1,493 @@
+{
+  "contract_sha256": "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602",
+  "contract_operations": 63,
+  "contract_paths": 53,
+  "controller_routes": 61,
+  "implemented_count": 41,
+  "missing_count": 22,
+  "extra_count": 20,
+  "implemented": [
+    {
+      "operationId": "requestRoleGrant",
+      "method": "POST",
+      "path": "/api/v1/role-grants",
+      "handler": "RoleGrantController#propose"
+    },
+    {
+      "operationId": "reviewRoleGrant",
+      "method": "POST",
+      "path": "/api/v1/role-grants/{id}/reviews",
+      "handler": "RoleGrantController#review"
+    },
+    {
+      "operationId": "listRightsRequests",
+      "method": "GET",
+      "path": "/api/v1/me/rights-requests",
+      "handler": "RightsRequestController#list"
+    },
+    {
+      "operationId": "createRightsRequest",
+      "method": "POST",
+      "path": "/api/v1/me/rights-requests",
+      "handler": "RightsRequestController#create"
+    },
+    {
+      "operationId": "getRightsRequest",
+      "method": "GET",
+      "path": "/api/v1/me/rights-requests/{id}",
+      "handler": "RightsRequestController#get"
+    },
+    {
+      "operationId": "listMyWorks",
+      "method": "GET",
+      "path": "/api/v1/me/works",
+      "handler": "MeWorkspaceController#listMyWorks"
+    },
+    {
+      "operationId": "listMyChapters",
+      "method": "GET",
+      "path": "/api/v1/me/works/{id}/chapters",
+      "handler": "MeWorkspaceController#listMyChapters"
+    },
+    {
+      "operationId": "listWorks",
+      "method": "GET",
+      "path": "/api/v1/works",
+      "handler": "ReaderController#listWorks"
+    },
+    {
+      "operationId": "createWork",
+      "method": "POST",
+      "path": "/api/v1/works",
+      "handler": "WorkController#createWork"
+    },
+    {
+      "operationId": "getWork",
+      "method": "GET",
+      "path": "/api/v1/works/{id}",
+      "handler": "ReaderController#getWork"
+    },
+    {
+      "operationId": "listChapters",
+      "method": "GET",
+      "path": "/api/v1/works/{id}/chapters",
+      "handler": "ReaderController#listChapters"
+    },
+    {
+      "operationId": "createChapter",
+      "method": "POST",
+      "path": "/api/v1/works/{id}/chapters",
+      "handler": "ChapterController#createChapter"
+    },
+    {
+      "operationId": "createDraft",
+      "method": "POST",
+      "path": "/api/v1/drafts",
+      "handler": "DraftController#createDraft"
+    },
+    {
+      "operationId": "getDraft",
+      "method": "GET",
+      "path": "/api/v1/drafts/{id}",
+      "handler": "DraftController#getDraft"
+    },
+    {
+      "operationId": "saveDraft",
+      "method": "PUT",
+      "path": "/api/v1/drafts/{id}",
+      "handler": "DraftController#saveDraft"
+    },
+    {
+      "operationId": "submitDraft",
+      "method": "POST",
+      "path": "/api/v1/drafts/{id}/submissions",
+      "handler": "DraftSubmissionController#submitDraft"
+    },
+    {
+      "operationId": "createAssetUpload",
+      "method": "POST",
+      "path": "/api/v1/asset-uploads",
+      "handler": "AssetUploadController#create"
+    },
+    {
+      "operationId": "getAssetUpload",
+      "method": "GET",
+      "path": "/api/v1/asset-uploads/{id}",
+      "handler": "AssetUploadController#status"
+    },
+    {
+      "operationId": "completeAssetUpload",
+      "method": "POST",
+      "path": "/api/v1/asset-uploads/{id}/completions",
+      "handler": "AssetUploadController#complete"
+    },
+    {
+      "operationId": "getAssetContent",
+      "method": "GET",
+      "path": "/api/v1/assets/{id}/content",
+      "handler": "AssetUploadController#content"
+    },
+    {
+      "operationId": "listCases",
+      "method": "GET",
+      "path": "/api/v1/review-cases",
+      "handler": "ReviewCaseController#list"
+    },
+    {
+      "operationId": "claimCase",
+      "method": "POST",
+      "path": "/api/v1/review-cases/{id}/claims",
+      "handler": "ReviewCaseController#claim"
+    },
+    {
+      "operationId": "decideCase",
+      "method": "POST",
+      "path": "/api/v1/review-cases/{id}/decisions",
+      "handler": "ReviewCaseController#decide"
+    },
+    {
+      "operationId": "createReport",
+      "method": "POST",
+      "path": "/api/v1/reports",
+      "handler": "ReportController#createReport"
+    },
+    {
+      "operationId": "requestRestriction",
+      "method": "POST",
+      "path": "/api/v1/restrictions",
+      "handler": "RestrictionController#requestRestriction"
+    },
+    {
+      "operationId": "reviewRestriction",
+      "method": "POST",
+      "path": "/api/v1/restrictions/{id}/reviews",
+      "handler": "RestrictionController#reviewRestriction"
+    },
+    {
+      "operationId": "createAppeal",
+      "method": "POST",
+      "path": "/api/v1/appeals",
+      "handler": "AppealController#createAppeal"
+    },
+    {
+      "operationId": "getAppeal",
+      "method": "GET",
+      "path": "/api/v1/appeals/{id}",
+      "handler": "AppealController#getAppeal"
+    },
+    {
+      "operationId": "reviewAppeal",
+      "method": "POST",
+      "path": "/api/v1/appeals/{id}/reviews",
+      "handler": "AppealController#reviewAppeal"
+    },
+    {
+      "operationId": "receiveMachineReport",
+      "method": "POST",
+      "path": "/internal/v1/machine-reports",
+      "handler": "MachineReportController#receive"
+    },
+    {
+      "operationId": "readChapter",
+      "method": "GET",
+      "path": "/api/v1/chapters/{id}/content",
+      "handler": "ReaderController#readChapter"
+    },
+    {
+      "operationId": "getProgress",
+      "method": "GET",
+      "path": "/api/v1/me/reading-progress/{id}",
+      "handler": "ReadingProgressController#get"
+    },
+    {
+      "operationId": "saveProgress",
+      "method": "PUT",
+      "path": "/api/v1/me/reading-progress/{id}",
+      "handler": "ReadingProgressController#save"
+    },
+    {
+      "operationId": "listNotifications",
+      "method": "GET",
+      "path": "/api/v1/me/notifications",
+      "handler": "NotificationController#list"
+    },
+    {
+      "operationId": "markNotificationRead",
+      "method": "POST",
+      "path": "/api/v1/me/notifications/{id}/read-receipts",
+      "handler": "NotificationController#markRead"
+    },
+    {
+      "operationId": "listConfigRevisions",
+      "method": "GET",
+      "path": "/api/v1/config-revisions",
+      "handler": "ConfigRevisionController#list"
+    },
+    {
+      "operationId": "createConfigRevision",
+      "method": "POST",
+      "path": "/api/v1/config-revisions",
+      "handler": "ConfigRevisionController#propose"
+    },
+    {
+      "operationId": "getConfigRevision",
+      "method": "GET",
+      "path": "/api/v1/config-revisions/{id}",
+      "handler": "ConfigRevisionController#get"
+    },
+    {
+      "operationId": "reviewConfigRevision",
+      "method": "POST",
+      "path": "/api/v1/config-revisions/{id}/reviews",
+      "handler": "ConfigRevisionController#review"
+    },
+    {
+      "operationId": "activateConfigRevision",
+      "method": "POST",
+      "path": "/api/v1/config-revisions/{id}/activations",
+      "handler": "ConfigRevisionController#activate"
+    },
+    {
+      "operationId": "listAuditRecords",
+      "method": "GET",
+      "path": "/api/v1/audit-records",
+      "handler": "AuditRecordController#list"
+    }
+  ],
+  "missing": [
+    {
+      "operationId": "createProfile",
+      "method": "POST",
+      "path": "/api/v1/profiles",
+      "handler": ""
+    },
+    {
+      "operationId": "getMe",
+      "method": "GET",
+      "path": "/api/v1/me",
+      "handler": ""
+    },
+    {
+      "operationId": "verifyAge",
+      "method": "POST",
+      "path": "/api/v1/me/age-checks",
+      "handler": ""
+    },
+    {
+      "operationId": "listGuardianConsents",
+      "method": "GET",
+      "path": "/api/v1/guardian-consents",
+      "handler": ""
+    },
+    {
+      "operationId": "createConsent",
+      "method": "POST",
+      "path": "/api/v1/guardian-consents",
+      "handler": ""
+    },
+    {
+      "operationId": "getGuardianConsent",
+      "method": "GET",
+      "path": "/api/v1/guardian-consents/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "revokeConsent",
+      "method": "POST",
+      "path": "/api/v1/guardian-consents/{id}/revocations",
+      "handler": ""
+    },
+    {
+      "operationId": "listRoleGrants",
+      "method": "GET",
+      "path": "/api/v1/role-grants",
+      "handler": ""
+    },
+    {
+      "operationId": "getRoleGrant",
+      "method": "GET",
+      "path": "/api/v1/role-grants/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "getMyWork",
+      "method": "GET",
+      "path": "/api/v1/me/works/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "listMyDrafts",
+      "method": "GET",
+      "path": "/api/v1/me/drafts",
+      "handler": ""
+    },
+    {
+      "operationId": "listMyPublicationWorkflows",
+      "method": "GET",
+      "path": "/api/v1/me/publication-workflows",
+      "handler": ""
+    },
+    {
+      "operationId": "changeWorkLifecycle",
+      "method": "POST",
+      "path": "/api/v1/works/{id}/lifecycle-actions",
+      "handler": ""
+    },
+    {
+      "operationId": "discardDraft",
+      "method": "POST",
+      "path": "/api/v1/drafts/{id}/discards",
+      "handler": ""
+    },
+    {
+      "operationId": "getWorkflow",
+      "method": "GET",
+      "path": "/api/v1/publication-workflows/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "cancelWorkflow",
+      "method": "POST",
+      "path": "/api/v1/publication-workflows/{id}/cancellations",
+      "handler": ""
+    },
+    {
+      "operationId": "getCase",
+      "method": "GET",
+      "path": "/api/v1/review-cases/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "getReviewContent",
+      "method": "GET",
+      "path": "/api/v1/review-cases/{id}/content",
+      "handler": ""
+    },
+    {
+      "operationId": "listRestrictions",
+      "method": "GET",
+      "path": "/api/v1/restrictions",
+      "handler": ""
+    },
+    {
+      "operationId": "getRestriction",
+      "method": "GET",
+      "path": "/api/v1/restrictions/{id}",
+      "handler": ""
+    },
+    {
+      "operationId": "listAppeals",
+      "method": "GET",
+      "path": "/api/v1/appeals",
+      "handler": ""
+    },
+    {
+      "operationId": "listCategories",
+      "method": "GET",
+      "path": "/api/v1/categories",
+      "handler": ""
+    }
+  ],
+  "extra": [
+    {
+      "method": "POST",
+      "path": "/api/v1/ai/runs",
+      "handler": "AiController#start"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/runs/{runId}",
+      "handler": "AiController#get"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ai/runs/{runId}/candidates/{candidateId}/accept",
+      "handler": "AiController#acceptCandidate"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ai/runs/{runId}/candidates/{candidateId}/reject",
+      "handler": "AiController#rejectCandidate"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/health",
+      "handler": "AiController#health"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/ai/memory/{workId}",
+      "handler": "AiMemoryController#list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/ai/memory/{workId}/facts/{factId}/confirm",
+      "handler": "AiMemoryController#confirm"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/internal/asset-objects",
+      "handler": "AssetUploadController#putObject"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/me/bookmarks",
+      "handler": "BookmarkController#add"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/bookmarks",
+      "handler": "BookmarkController#list"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/me/bookmarks/{workId}",
+      "handler": "BookmarkController#remove"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/bookmarks/{workId}/status",
+      "handler": "BookmarkController#status"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/reading-history",
+      "handler": "BookmarkController#history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/legal-holds",
+      "handler": "LegalHoldController#create"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/legal-holds/{id}/releases",
+      "handler": "LegalHoldController#release"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/restrictions/{id}/revocations",
+      "handler": "RestrictionController#revokeRestriction"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/sessions",
+      "handler": "AuthSessionController#issue"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/sessions/revocations",
+      "handler": "AuthSessionController#revoke"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/me/closure",
+      "handler": "ClosureController#close"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/closure",
+      "handler": "ClosureController#status"
+    }
+  ]
+}

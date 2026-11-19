@@ -1,6 +1,6 @@
 # 启明书院 · Lumin Academy
 
-P0-A 阶段仓库。后端与前端分别收敛在 `lumin-backend/` 与 `lumin-frontend/` 两个目录；`contracts/`、`docs/`、
+P0 阶段仓库（P0-A 已交付，P0-B/C 实现中，P0-D 未开始）。后端与前端分别收敛在 `lumin-backend/` 与 `lumin-frontend/` 两个目录；`contracts/`、`docs/`、
 `libs/` 是只读契约、设计文档与静态校验工具，不参与运行时。
 
 ## 目录结构
@@ -18,7 +18,7 @@ lumin-academy/
 │   │   ├── src/main/java/com/leyon/lumin/
 │   │   │   ├── LuminBackendApplication.java   #   Spring Boot 启动类
 │   │   │   └── {module}/api      #   接入层 Controller（catalog/authoring/.../ai）
-│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V10
+│   │   └── src/main/resources/    #   application.yaml + db/migration/V1–V11（12 个脚本，V7 重号待并）
 │   └── （旧单模块 src/ 已移除）
 ├── lumin-frontend/           # 前端：React 19 + TypeScript + Vite，纵向 feature + 共享层 + 展示壳（见 docs/19）
 │   ├── android/              # Android 壳：Capacitor 8 + Gradle 8.14.3（2026-11-18）
@@ -42,10 +42,11 @@ lumin-academy/
 │   └── README.md             #   目录职责、与后端边界、合规约束
 ├── contracts/
 │   └── p0.openapi.yaml       # P0 唯一机器契约（只读，禁止修改；校验脚本比对 SHA256）
-├── docs/                     # 01–18 设计文档（需求/概要/详细/库表/接口/原型/测试/部署/阶段规划/P0-A/工作台/移动端/多模块与AI）
+├── docs/                     # 01–22 设计文档（需求/概要/详细/库表/接口/原型/测试/部署/阶段规划/P0-A/工作台/移动端/多模块与AI/契约对账）
 ├── libs/
 │   ├── error-codes.json      # 错误码字典（14 条 = OK + 13）
-│   └── tools/                # validate_contract.py / check_dependency_cycles.py（Python3 标准库）
+│   ├── contract-route-baseline.json  # 契约—路由对账基线（UGC-001/026）
+│   └── tools/                # validate_contract.py / check_dependency_cycles.py / route_contract_matrix.py
 ├── ui-demo/                  # 单文件 HTML UI 原型（历史物料，不参与构建）
 ├── 启明书院_设计方案.md
 ├── 启明书院_团队守则.md
@@ -59,7 +60,7 @@ lumin-academy/
 ```text
 # 后端（默认在 lumin-backend/ 下执行）
 cd lumin-backend
-mvn test                    # 全量多模块 JUnit 回归（bootstrap 3478 + ai 3）
+mvn test                    # 全量多模块 JUnit 回归（bootstrap 3499 + application 3 + ai 3）
 mvn -pl lumin-bootstrap -am spring-boot:run   # 启动唯一可执行模块
 mvn verify -Pcoverage       # 追加 JaCoCo 0.8.15 覆盖率报告（各模块 target/site/jacoco/）
 
@@ -80,6 +81,7 @@ cd android
 # 只读静态校验（在仓库根目录执行）
 python libs/tools/validate_contract.py
 python libs/tools/check_dependency_cycles.py
+python libs/tools/route_contract_matrix.py --check   # 契约—路由基线（UGC-001/026）
 python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   # 负向对照，预期退出码 1
 ```
 
@@ -148,6 +150,6 @@ python libs/tools/check_dependency_cycles.py --inject "foundation->identity"   #
 ## 阶段边界
 
 - 契约 `contracts/p0.openapi.yaml` 只读；校验脚本前后比对 SHA256 证明未被修改。
-- P0-A 只落地领域层纯函数：无 Controller / Service / Repository 实现、无 DDL、无交易入口、无供应商 SDK。
-- 前端当前使用 `src/data/mock.ts` 合成夹具，不发起网络请求；服务端类型应从契约生成，不在前端手写业务判定。
-- 未做浏览器验收、真机验收与接口联调；单测通过只代表纯函数在合成夹具下行为正确。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
+- **2026-11-19 更新**：P0-B/C 已落地 Controller / Service / Repository / V1–V11 DDL；`docs/22` 对账为契约 63 operationId、路由实现 41、缺失 22、契约外 20。P0-A「只落地领域层纯函数」仅代表 2026-11-15 时点。
+- 前端书城/作者/审核/运营/账号已接真实 API，但仍保留 `src/mocks` 合成夹具与移动端本地演示路径；服务端类型应从契约生成，不在前端手写业务判定。
+- 未做浏览器全旅程验收、真机验收与生产接口联调；3505 个后端测试通过只代表当前工作区自动化证据。2026-11-18 更新：移动端已完成 Playwright 17 张流程截图与 `npm run build:mobile` / `npm run build`；Android 真机与 Java API 联调仍未完成。
