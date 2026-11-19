@@ -1,5 +1,6 @@
 package com.leyon.lumin.authoring.service;
 
+import com.leyon.lumin.authoring.api.dto.DraftContractView;
 import com.leyon.lumin.authoring.repository.DraftMapper;
 import com.leyon.lumin.authoring.repository.DraftRow;
 import com.leyon.lumin.catalog.service.WorkService;
@@ -86,6 +87,38 @@ class DraftCommandServiceTest {
         LuminBusinessException error = assertThrows(LuminBusinessException.class,
                 () -> service.discardDraft("s1", "d1", "\"2\"", "不再需要"));
         assertEquals(ErrorCode.B2002, error.code());
+    }
+
+    @Test
+    void getWorkDraftReturnsContractContent() {
+        when(draftMapper.findById("d1")).thenReturn(row("EDITABLE", 3L));
+        owned();
+
+        DraftContractView view = service.getDraft("s1", "d1");
+
+        assertEquals("d1", view.id());
+        assertEquals("EDITABLE", view.state());
+        assertEquals(3L, view.revision());
+        assertEquals("WORK", view.content().get("targetType"));
+        assertEquals("w1", view.content().get("workId"));
+        assertEquals("标题", view.content().get("title"));
+        assertEquals("简介", view.content().get("synopsis"));
+        assertEquals(java.util.List.of(), view.content().get("tags"));
+    }
+
+    @Test
+    void getChapterDraftReturnsContractContent() {
+        when(draftMapper.findById("d1")).thenReturn(new DraftRow("d1", "w1", "c1", "CHAPTER",
+                null, "第一章", null, null, "[]", null, "正文", "EDITABLE", NOW, NOW,
+                "s1", "s1", 2L, null));
+        owned();
+
+        DraftContractView view = service.getDraft("s1", "d1");
+
+        assertEquals("CHAPTER", view.content().get("targetType"));
+        assertEquals("c1", view.content().get("chapterId"));
+        assertEquals("第一章", view.content().get("title"));
+        assertEquals("正文", view.content().get("body"));
     }
 
     @Test

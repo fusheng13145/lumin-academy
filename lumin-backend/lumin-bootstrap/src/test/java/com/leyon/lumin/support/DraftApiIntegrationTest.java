@@ -84,10 +84,10 @@ class DraftApiIntegrationTest extends MySqlIntegrationBase {
         mockMvc.perform(get("/api/v1/drafts/" + draftId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data.title").value("启明"))
+                .andExpect(jsonPath("$.data.content.title").value("启明"))
                 .andExpect(jsonPath("$.data.state").value("EDITABLE"))
                 .andExpect(jsonPath("$.data.revision").value(1))
-                .andExpect(jsonPath("$.data.tags[0]").value("奇幻"))
+                .andExpect(jsonPath("$.data.content.tags[0]").value("奇幻"))
                 .andExpect(header().string("ETag", "\"1\""));
     }
 
@@ -123,7 +123,7 @@ class DraftApiIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(jsonPath("$.data.revision").value(2));
         mockMvc.perform(get("/api/v1/drafts/" + draftId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.title").value("修订稿"))
+                .andExpect(jsonPath("$.data.content.title").value("修订稿"))
                 .andExpect(header().string("ETag", "\"2\""));
     }
 

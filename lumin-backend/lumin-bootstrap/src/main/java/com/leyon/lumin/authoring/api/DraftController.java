@@ -1,8 +1,8 @@
 package com.leyon.lumin.authoring.api;
 
+import com.leyon.lumin.authoring.api.dto.DraftContractView;
 import com.leyon.lumin.authoring.api.dto.DraftCreateRequest;
 import com.leyon.lumin.authoring.api.dto.DraftSaveRequest;
-import com.leyon.lumin.authoring.api.dto.DraftView;
 import com.leyon.lumin.authoring.service.DraftCommandService;
 import com.leyon.lumin.foundation.contract.ApiEnvelope;
 import com.leyon.lumin.foundation.web.DemoAuthenticationFilter;
@@ -54,7 +54,7 @@ public class DraftController {
     public ResponseEntity<ApiEnvelope> getDraft(
             @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
             @PathVariable String id) {
-        DraftView view = draftCommandService.getDraft(subject, id);
+        DraftContractView view = draftCommandService.getDraft(subject, id);
         return ResponseEntity.ok()
                 .eTag("\"" + view.revision() + "\"")
                 .body(ApiEnvelope.ok(view));

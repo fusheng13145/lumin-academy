@@ -6,7 +6,6 @@ import tools.jackson.databind.ObjectMapper;
 import com.leyon.lumin.authoring.api.dto.DraftContractView;
 import com.leyon.lumin.authoring.api.dto.DraftCreateRequest;
 import com.leyon.lumin.authoring.api.dto.DraftSaveRequest;
-import com.leyon.lumin.authoring.api.dto.DraftView;
 import com.leyon.lumin.authoring.domain.DraftContentValidator;
 import com.leyon.lumin.authoring.repository.DraftMapper;
 import com.leyon.lumin.authoring.repository.DraftRow;
@@ -86,8 +85,8 @@ public class DraftCommandService {
 
     /** 草稿详情：越权与不存在统一 404 B2004（05 §2）。 */
     @Transactional(readOnly = true)
-    public DraftView getDraft(String subject, String id) {
-        return toView(requireOwnedDraft(subject, id));
+    public DraftContractView getDraft(String subject, String id) {
+        return toContractView(requireOwnedDraft(subject, id));
     }
 
     /** 作者草稿列表（05 §3.2 listMyDrafts：归属过滤后签名游标分页）。 */
@@ -204,12 +203,6 @@ public class DraftCommandService {
         }
         workService.requireOwnedWork(row.workId(), subject);
         return row;
-    }
-
-    private DraftView toView(DraftRow row) {
-        return new DraftView(row.id(), row.workId(), row.chapterId(), row.targetType(),
-                row.title(), row.synopsis(), row.categoryId(), fromJson(row.tags()),
-                row.coverAssetId(), row.bodyText(), row.state(), row.lockVersion());
     }
 
     private DraftContractView toContractView(DraftRow row) {
