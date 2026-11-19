@@ -2,10 +2,10 @@
   "contract_sha256": "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 83,
+  "controller_routes": 88,
   "implemented_count": 63,
   "missing_count": 0,
-  "extra_count": 20,
+  "extra_count": 25,
   "implemented": [
     {
       "operationId": "createProfile",
@@ -452,6 +452,31 @@
       "method": "GET",
       "path": "/api/v1/me/reading-history",
       "handler": "BookmarkController#history"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/me/subscriptions",
+      "handler": "SubscriptionController#subscribe"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/subscriptions",
+      "handler": "SubscriptionController#list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/subscriptions/{workId}/status",
+      "handler": "SubscriptionController#status"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/me/subscriptions/{workId}/preferences",
+      "handler": "SubscriptionController#updatePreferences"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/me/subscriptions/{workId}",
+      "handler": "SubscriptionController#unsubscribe"
     },
     {
       "method": "POST",

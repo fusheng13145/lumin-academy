@@ -3,6 +3,7 @@ import { BAND_LABEL } from '../../lib/demoPolicy';
 import { Icon } from '../../components/icons/Icon';
 import { notificationService, type NotificationItem } from '../../services/notificationService';
 import { bookshelfService, type BookshelfItem, type ReadingHistoryItem } from '../../services/bookshelfService';
+import { subscriptionService, type SubscriptionItem } from '../../services/subscriptionService';
 import type { AgeBand } from '../../types';
 
 interface MineViewProps {
@@ -69,6 +70,13 @@ export function MineView({
           <Icon name="catalog" size={18} /> 书架与历史
         </h2>
         <BookshelfList />
+      </div>
+
+      <div className="card setting-block">
+        <h2 className="setting-block__title">
+          <Icon name="bell" size={18} /> 追更订阅
+        </h2>
+        <SubscriptionList />
       </div>
     </section>
   );
@@ -190,5 +198,70 @@ function BookshelfList() {
       )}
       {bookmarksEmpty && historyEmpty ? <p className="muted-note">暂无阅读历史</p> : null}
     </div>
+  );
+}
+
+function SubscriptionList() {
+  const [items, setItems] = useState<SubscriptionItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const list = await subscriptionService.listSubscriptions();
+        if (alive) {
+          setItems(list);
+        }
+      } catch (e) {
+        if (alive) {
+          setError(e instanceof Error ? e.message : '加载失败');
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const remove = async (workId: string): Promise<void> => {
+    try {
+      await subscriptionService.unsubscribe(workId);
+      setItems((prev) => (prev ?? []).filter((item) => item.workId !== workId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '退订失败');
+    }
+  };
+
+  if (error) {
+    return <p className="muted-note">{error}</p>;
+  }
+  if (items === null) {
+    return null;
+  }
+  if (items.length === 0) {
+    return <p className="muted-note">暂无追更——收藏≠订阅，订阅后在作品更新时聚合提醒</p>;
+  }
+  const removed = (state: string) => state === 'REMOVED';
+  return (
+    <ul className="notice-list">
+      {items.map((item) => (
+        <li key={item.workId} className="notice notice--info">
+          <span className={'badge ' + (removed(item.workState) ? 'badge--removed' : 'badge--info')}>
+            {removed(item.workState) ? '已下架' : item.pushEnabled ? '推送开' : '站内提醒'}
+          </span>
+          <p>
+            《{item.title || item.workId}》 {item.author}
+            {item.quietStart && item.quietEnd
+              ? ` · 免打扰 ${item.quietStart}–${item.quietEnd}（${item.timezoneId}）`
+              : ''}
+          </p>
+          <button className="btn btn--sm" type="button"
+            onClick={() => void remove(item.workId)}>
+            退订
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

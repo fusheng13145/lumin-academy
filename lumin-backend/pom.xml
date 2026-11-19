@@ -24,7 +24,6 @@
         <module>lumin-infrastructure</module>
         <module>lumin-ai</module>
         <module>lumin-bootstrap</module>
-        <module>lumin-coverage</module>
     </modules>
 
     <properties>
