@@ -57,12 +57,25 @@ class RestrictionReviewHistoryTest {
 
     @Test
     void requestReturnsContractReceipt() {
-        ReceiptView receipt = service.requestRestriction(REQUESTER, "work-1", null,
-                "TEMPORARY", "涉嫌违规", NOW.plusDays(2));
+        ReceiptView receipt = service.requestRestriction(REQUESTER,
+                "11111111-1111-4111-8111-111111111111", null,
+                "TEMPORARY", "涉嫌违规", NOW.plusDays(2),
+                "22222222-2222-4222-8222-222222222222");
 
         assertEquals("RESTRICTION", receipt.resourceType());
         assertEquals("PENDING", receipt.state());
         assertEquals(1L, receipt.revision());
         verify(restrictionMapper).insert(any(RestrictionRow.class));
+    }
+
+    @Test
+    void requestRejectsMissingCaseId() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.leyon.lumin.foundation.LuminBusinessException.class,
+                () -> service.requestRestriction(REQUESTER,
+                        "11111111-1111-4111-8111-111111111111", null,
+                        "TEMPORARY", "涉嫌违规", NOW.plusDays(2), null));
+        verify(restrictionMapper, org.mockito.Mockito.never())
+                .insert(any(RestrictionRow.class));
     }
 }

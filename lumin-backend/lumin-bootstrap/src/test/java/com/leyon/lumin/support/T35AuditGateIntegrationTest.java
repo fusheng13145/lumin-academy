@@ -149,7 +149,7 @@ class T35AuditGateIntegrationTest extends MySqlIntegrationBase {
                         .header("X-Lumin-Demo-Subject", L2A)
                         .header("Idempotency-Key", uuidKey())
                         .contentType("application/json")
-                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"TEMPORARY\","
+                        .content("{\"workId\":\"" + workId + "\",\"caseId\":\"33333333-3333-4333-8333-333333333333\",\"kind\":\"TEMPORARY\","
                                 + "\"reason\":\"涉嫌违规待核实\"}"))
                 .andExpect(status().isOk()), "id");
         mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")

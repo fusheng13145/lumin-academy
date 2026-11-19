@@ -43,18 +43,16 @@ public class RestrictionService {
         this.publicationGatePort = publicationGatePort;
     }
 
-    /** 提案（PENDING）：05 §3.3 requestRestriction——REVIEWER_L2/LEGAL/OPERATOR 提案。 */
-    @Transactional
-    public ReceiptView requestRestriction(String requester, String workId, String chapterId,
-                                          String kind, String reason, LocalDateTime expiresAt) {
-        return requestRestriction(requester, workId, chapterId, kind, reason, expiresAt, null);
-    }
-
-    /** 契约 requestRestriction：caseId 绑定原案件；缺失时保留骨架合成值。 */
+    /** 契约 requestRestriction：workId/caseId 必填且为 UUID，绑定原案件。 */
     @Transactional
     public ReceiptView requestRestriction(String requester, String workId, String chapterId,
                                           String kind, String reason, LocalDateTime expiresAt,
                                           String caseId) {
+        requireId(workId, "workId");
+        requireId(caseId, "caseId");
+        if (chapterId != null && !chapterId.isBlank()) {
+            requireId(chapterId, "chapterId");
+        }
         if (reason == null || reason.isBlank()) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
@@ -74,8 +72,7 @@ public class RestrictionService {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
         RestrictionRow row = new RestrictionRow(UUID.randomUUID().toString(), workId,
-                chapterId, kind, "PENDING", reason, caseId == null
-                        ? UUID.randomUUID().toString() : caseId,
+                chapterId, kind, "PENDING", reason, caseId,
                 requester, null, null, expiresAt, null, null, now, now, requester,
                 requester, 1L);
         restrictionMapper.insert(row);
@@ -180,6 +177,17 @@ public class RestrictionService {
     }
 
     /** 限制作用域：章节级限制 chapterId 非空，否则为作品级。 */
+    private static void requireId(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        try {
+            UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+    }
+
     private static String targetScope(RestrictionRow row) {
         return row.chapterId() == null ? "WORK" : "CHAPTER";
     }

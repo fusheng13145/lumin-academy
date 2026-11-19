@@ -174,7 +174,7 @@ class UGC035BookshelfIntegrationTest extends MySqlIntegrationBase {
                                 com.leyon.lumin.foundation.web.DemoAuthenticationFilter.REVIEWER_L2A)
                         .header("Idempotency-Key", uuidKey())
                         .contentType("application/json")
-                        .content("{\"workId\":\"" + workId + "\",\"kind\":\"TEMPORARY\","
+                        .content("{\"workId\":\"" + workId + "\",\"caseId\":\"33333333-3333-4333-8333-333333333333\",\"kind\":\"TEMPORARY\","
                                 + "\"reason\":\"下架测试\"}"))
                 .andExpect(status().isOk()), "id");
         mockMvc.perform(post("/api/v1/restrictions/" + restrictionId + "/reviews")
