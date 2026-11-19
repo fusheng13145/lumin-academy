@@ -117,4 +117,45 @@ export interface ProgressDto {
   etag: string;
 }
 
-export const readerService = { listWorks, getWork, listChapters, readChapter, getProgress };
+/** 保存请求体（05 §3.4 saveProgress：0–10000bp、readSeconds ≥0、ISO-8601）。 */
+export interface SaveProgressPayload {
+  positionBasisPoints: number;
+  readSeconds: number;
+  clientUpdatedAt: string;
+}
+
+/** 保存响应（新 ETag + 版本重绑标记——UI 版本变更提示依据）。 */
+export interface SaveProgressResultDto {
+  etag: string;
+  versionChanged: boolean;
+}
+
+/**
+ * 保存进度（05 §3.4：本人且可读；版本绑定乐观锁）。
+ * 首次写 If-Match="0"；此后用最近一次 GET/保存返回的 etag；
+ * 冲突（B2002/P1002）由调用方重取后再试——不静默丢弃位置。
+ */
+export async function saveProgress(
+    chapterId: string,
+    payload: SaveProgressPayload,
+    ifMatch: string,
+    band?: AgeBand | null,
+): Promise<SaveProgressResultDto> {
+  const envelope = await request<SaveProgressResultDto>({
+    method: 'PUT',
+    path: `/me/reading-progress/${chapterId}`,
+    headers: readerHeaders(band),
+    ifMatch,
+    body: payload,
+  });
+  return envelope.data;
+}
+
+export const readerService = {
+  listWorks,
+  getWork,
+  listChapters,
+  readChapter,
+  getProgress,
+  saveProgress,
+};

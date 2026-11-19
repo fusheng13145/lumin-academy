@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '../../components/icons/Icon';
 import { READ_THEMES } from '../../mocks/mock';
 import { bookBlockedHint, bookBlockedReason } from '../../lib/demoPolicy';
+import { scrollRatioToBasisPoints } from '../../lib/readingProgressSync';
 import type { AgeBand, Book, ReadThemeId } from '../../types';
 
 interface ReaderOverlayProps {
@@ -19,6 +20,10 @@ interface ReaderOverlayProps {
   realTitle?: string | null;
   /** 真实数据路径：正文拉取失败提示。 */
   realError?: string | null;
+  /** 真实数据路径：滚动位置回调（万分比 0–10000；UGC-016 进度保存链）。 */
+  onScrollRatio?: (positionBasisPoints: number) => void;
+  /** 真实数据路径：同版本恢复位置（null = 不恢复；版本不同不跨版本套用）。 */
+  initialScrollRatio?: number | null;
 }
 
 // 单章原创正文段落池：按章号确定性取三段，不读系统时钟。
@@ -66,6 +71,8 @@ export function ReaderOverlay({
   realBody = null,
   realTitle = null,
   realError = null,
+  onScrollRatio,
+  initialScrollRatio = null,
 }: ReaderOverlayProps) {
   const [toolbarOpen, setToolbarOpen] = useState(false);
   const [wide, setWide] = useState(() => window.matchMedia('(min-width: 1024px)').matches);
@@ -80,6 +87,23 @@ export function ReaderOverlay({
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+  // 回调经 ref 透传：滚动高频触发，不因父组件闭包变化重渲染。
+  const onScrollRatioRef = useRef(onScrollRatio);
+  useEffect(() => {
+    onScrollRatioRef.current = onScrollRatio;
+  }, [onScrollRatio]);
+
+  // 滚动位置 → 万分比（reader-shell 是唯一滚动容器）；恢复仅同版本一次性生效。
+  const handleReaderScroll = useCallback(() => {
+    const el = shellRef.current;
+    if (!el || !onScrollRatioRef.current) {
+      return;
+    }
+    const scrollable = el.scrollHeight - el.clientHeight;
+    const ratio = scrollable > 0 ? el.scrollTop / scrollable : 0;
+    onScrollRatioRef.current(scrollRatioToBasisPoints(ratio));
+  }, []);
 
   const idx = Math.min(Math.max(chapterIdx, 0), book.chapters.length - 1);
   const chapter = book.chapters[idx];
@@ -92,6 +116,23 @@ export function ReaderOverlay({
         BODY_POOL[(idx + 3) % BODY_POOL.length],
         BODY_POOL[(idx + 5) % BODY_POOL.length],
       ];
+
+  // 同版本恢复位置（UGC-016）：正文渲染完成后一次性滚动到进度位置；
+  // 版本不同时父组件不传值，位置不跨版本套用。
+  useEffect(() => {
+    if (initialScrollRatio === null) {
+      return;
+    }
+    const el = shellRef.current;
+    if (!el) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      const scrollable = el.scrollHeight - el.clientHeight;
+      el.scrollTop = Math.min(1, Math.max(0, initialScrollRatio)) * scrollable;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [initialScrollRatio, realBody, idx]);
 
   // 阅读主题写入根属性：从渲染期副作用移入 useEffect（React 19 StrictMode 安全）。
   useEffect(() => {
@@ -258,7 +299,7 @@ export function ReaderOverlay({
         </button>
       </div>
 
-      <div className="reader-shell">
+      <div className="reader-shell" ref={shellRef} onScroll={handleReaderScroll}>
         <div className="reader-stage">
           <div
             className="reader-paper"
