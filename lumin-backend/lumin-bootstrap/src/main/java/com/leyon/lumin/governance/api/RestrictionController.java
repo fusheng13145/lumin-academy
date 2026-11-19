@@ -78,12 +78,9 @@ public class RestrictionController {
             @RequestBody RestrictionRequest request) {
         return idempotentExecutor.execute(subject, "POST", httpRequest.getRequestURI(),
                 idempotencyKey, null, request,
-                () -> new IdempotentExecutor.ApiResult(200, Map.of(
-                        "id", restrictionService.requestRestriction(subject,
-                                request.workId(), request.chapterId(), request.kind(),
-                                request.reason(), parseTime(request.expiresAt()),
-                                request.caseId()),
-                        "state", "PENDING")));
+                () -> new IdempotentExecutor.ApiResult(200, restrictionService.requestRestriction(
+                        subject, request.workId(), request.chapterId(), request.kind(),
+                        request.reason(), parseTime(request.expiresAt()), request.caseId())));
     }
 
     /** 契约 Review 请求体；兼容既有 activate 布尔。 */
@@ -110,10 +107,9 @@ public class RestrictionController {
         }
         return idempotentExecutor.execute(subject, "POST", httpRequest.getRequestURI(),
                 idempotencyKey, ifMatch, request,
-                () -> new IdempotentExecutor.ApiResult(200, Map.of(
-                        "id", id,
-                        "state", restrictionService.reviewRestriction(subject, id,
-                                approve, request.reason(), request.evidenceRefs(), ifMatch))));
+                () -> new IdempotentExecutor.ApiResult(200,
+                        restrictionService.reviewRestriction(subject, id, approve,
+                                request.reason(), request.evidenceRefs(), ifMatch)));
     }
 
     /** 临时措施改判解除（ACTIVE→REVOKED；终局/解约被状态机拒绝）。 */
@@ -125,9 +121,8 @@ public class RestrictionController {
             HttpServletRequest httpRequest) {
         return idempotentExecutor.execute(subject, "POST", httpRequest.getRequestURI(),
                 idempotencyKey, null, Map.of(),
-                () -> new IdempotentExecutor.ApiResult(200, Map.of(
-                        "id", id,
-                        "state", restrictionService.revokeRestriction(subject, id))));
+                () -> new IdempotentExecutor.ApiResult(200,
+                        restrictionService.revokeRestriction(subject, id)));
     }
 
     private static LocalDateTime parseTime(String value) {

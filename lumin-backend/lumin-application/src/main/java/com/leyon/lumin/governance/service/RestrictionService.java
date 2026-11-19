@@ -8,6 +8,7 @@ import com.leyon.lumin.governance.domain.RestrictionStateMachine;
 import com.leyon.lumin.governance.domain.RestrictionStateMachine.TransitionResult;
 import com.leyon.lumin.foundation.values.RestrictionKind;
 import com.leyon.lumin.foundation.values.RestrictionState;
+import com.leyon.lumin.foundation.web.ReceiptView;
 import com.leyon.lumin.governance.repository.RestrictionMapper;
 import com.leyon.lumin.governance.repository.RestrictionRow;
 import org.springframework.stereotype.Service;
@@ -44,16 +45,16 @@ public class RestrictionService {
 
     /** 提案（PENDING）：05 §3.3 requestRestriction——REVIEWER_L2/LEGAL/OPERATOR 提案。 */
     @Transactional
-    public String requestRestriction(String requester, String workId, String chapterId,
-                                     String kind, String reason, LocalDateTime expiresAt) {
+    public ReceiptView requestRestriction(String requester, String workId, String chapterId,
+                                          String kind, String reason, LocalDateTime expiresAt) {
         return requestRestriction(requester, workId, chapterId, kind, reason, expiresAt, null);
     }
 
     /** 契约 requestRestriction：caseId 绑定原案件；缺失时保留骨架合成值。 */
     @Transactional
-    public String requestRestriction(String requester, String workId, String chapterId,
-                                     String kind, String reason, LocalDateTime expiresAt,
-                                     String caseId) {
+    public ReceiptView requestRestriction(String requester, String workId, String chapterId,
+                                          String kind, String reason, LocalDateTime expiresAt,
+                                          String caseId) {
         if (reason == null || reason.isBlank()) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
@@ -81,22 +82,22 @@ public class RestrictionService {
         auditRecorder.record(new AuditRecorder.AuditEntry(requester,
                 requesterRole(requester), "restriction.requested", "restriction",
                 row.id(), reason, traceId(), now.toInstant(ZoneOffset.UTC)));
-        return row.id();
+        return new ReceiptView(row.id(), "RESTRICTION", "PENDING", 1L);
     }
 
     /** 独立复核生效（PENDING→ACTIVE；提案人不得自批由服务层校验）。 */
     @Transactional
-    public String reviewRestriction(String reviewer, String restrictionId, boolean activate,
-                                    String ifMatchExpectedLock) {
+    public ReceiptView reviewRestriction(String reviewer, String restrictionId, boolean activate,
+                                         String ifMatchExpectedLock) {
         return reviewRestriction(reviewer, restrictionId, activate, null, null,
                 ifMatchExpectedLock);
     }
 
     /** 契约 reviewRestriction：审批理由与证据追加到 proposal_review，不覆写历史。 */
     @Transactional
-    public String reviewRestriction(String reviewer, String restrictionId, boolean activate,
-                                    String reason, java.util.List<String> evidenceRefs,
-                                    String ifMatchExpectedLock) {
+    public ReceiptView reviewRestriction(String reviewer, String restrictionId, boolean activate,
+                                         String reason, java.util.List<String> evidenceRefs,
+                                         String ifMatchExpectedLock) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         RestrictionRow row = restrictionId == null ? null
                 : restrictionMapper.findById(restrictionId);
@@ -140,12 +141,13 @@ public class RestrictionService {
                 traceId(), now.toInstant(ZoneOffset.UTC)),
                 java.util.Map.of("restrictionState", row.state()),
                 java.util.Map.of("restrictionState", transition.targetState().name()));
-        return transition.targetState().name();
+        return new ReceiptView(restrictionId, "RESTRICTION",
+                transition.targetState().name(), row.lockVersion() + 1);
     }
 
     /** 临时措施改判解除（ACTIVE→REVOKED；终局/解约被状态机拒绝）。 */
     @Transactional
-    public String revokeRestriction(String reviewer, String restrictionId) {
+    public ReceiptView revokeRestriction(String reviewer, String restrictionId) {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         RestrictionRow row = restrictionMapper.findById(restrictionId);
         if (row == null) {
@@ -174,7 +176,7 @@ public class RestrictionService {
                 "临时措施独立复核改判解除", traceId(), now.toInstant(ZoneOffset.UTC)),
                 java.util.Map.of("restrictionState", "ACTIVE"),
                 java.util.Map.of("restrictionState", "REVOKED"));
-        return "REVOKED";
+        return new ReceiptView(restrictionId, "RESTRICTION", "REVOKED", row.lockVersion() + 1);
     }
 
     /** 限制作用域：章节级限制 chapterId 非空，否则为作品级。 */

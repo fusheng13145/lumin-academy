@@ -2,6 +2,7 @@ package com.leyon.lumin.governance.service;
 
 import com.leyon.lumin.foundation.audit.AuditRecorder;
 import com.leyon.lumin.foundation.audit.ProposalReviewStore;
+import com.leyon.lumin.foundation.web.ReceiptView;
 import com.leyon.lumin.governance.repository.RestrictionMapper;
 import com.leyon.lumin.governance.repository.RestrictionRow;
 import org.junit.jupiter.api.Test;
@@ -41,13 +42,27 @@ class RestrictionReviewHistoryTest {
                 eq(REVIEWER), any(), eq("PENDING"), eq("system"), any(LocalDateTime.class),
                 eq(2L))).thenReturn(1);
 
-        String state = service.reviewRestriction(REVIEWER, "restriction-1", true,
+        ReceiptView receipt = service.reviewRestriction(REVIEWER, "restriction-1", true,
                 "复核生效", List.of("restriction:restriction-1"), "\"2\"");
 
-        assertEquals("ACTIVE", state);
+        assertEquals("restriction-1", receipt.id());
+        assertEquals("RESTRICTION", receipt.resourceType());
+        assertEquals("ACTIVE", receipt.state());
+        assertEquals(3L, receipt.revision());
         verify(reviewStore).append(eq("RESTRICTION"), eq("restriction-1"), eq(REVIEWER),
                 eq("APPROVE"), eq("复核生效"),
                 eq(List.of("restriction:restriction-1")), eq(2L),
                 any(LocalDateTime.class));
+    }
+
+    @Test
+    void requestReturnsContractReceipt() {
+        ReceiptView receipt = service.requestRestriction(REQUESTER, "work-1", null,
+                "TEMPORARY", "涉嫌违规", NOW.plusDays(2));
+
+        assertEquals("RESTRICTION", receipt.resourceType());
+        assertEquals("PENDING", receipt.state());
+        assertEquals(1L, receipt.revision());
+        verify(restrictionMapper).insert(any(RestrictionRow.class));
     }
 }
