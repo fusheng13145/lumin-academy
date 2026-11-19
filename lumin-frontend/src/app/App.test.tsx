@@ -18,6 +18,8 @@ const envelope = (data: unknown) => new Response(JSON.stringify({
 const fetchMock = vi.fn<typeof fetch>();
 
 beforeEach(() => {
+  // 应用现挂哈希路由（UGC-017）：上一用例的地址不得串入下一用例
+  window.location.hash = '';
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
   fetchMock.mockImplementation(async (input) => {
@@ -197,6 +199,10 @@ describe('全局导航', () => {
   it('桌面和移动端使用相同简洁命名，所有工作区仍可抵达', async () => {
     render(<App />);
     const user = userEvent.setup();
+    // 审核/运营为读者默认隐藏的工作台入口（UGC-017）：先在「我的」打开开关
+    await user.click(within(mainNavigation()).getByRole('button', { name: '我的' }));
+    await user.click(screen.getByRole('switch', { name: '显示审核/运营入口' }));
+    await user.click(within(mainNavigation()).getByRole('button', { name: '书城' }));
     const top = within(mainNavigation());
     const bottom = within(screen.getByRole('navigation', { name: '底部导航' }));
     for (const [name, heading] of [['创作', '创作'], ['审核', '审核'], ['运营', '运营与配置'], ['我的', '我的'], ['书城', '书城']]) {

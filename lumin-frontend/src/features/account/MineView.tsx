@@ -11,6 +11,9 @@ interface MineViewProps {
   onToggleUiTheme: () => void;
   ageBand: AgeBand;
   onAgeBandChange: (band: AgeBand) => void;
+  /** 审核/运营入口展示开关（UGC-017：读者默认不展示工作台切换）。 */
+  showStaffNav: boolean;
+  onShowStaffNavChange: () => void;
 }
 
 const AGE_BANDS: AgeBand[] = ['C0', 'C1', 'C2', 'C3', 'C4'];
@@ -21,6 +24,8 @@ export function MineView({
   onToggleUiTheme,
   ageBand,
   onAgeBandChange,
+  showStaffNav,
+  onShowStaffNavChange,
 }: MineViewProps) {
   return (
     <section aria-labelledby="mine-h">
@@ -35,11 +40,25 @@ export function MineView({
             className={'switch' + (uiTheme === 'night' ? ' is-on' : '')}
             role="switch"
             aria-checked={uiTheme === 'night'}
+            aria-label="夜间模式"
             onClick={onToggleUiTheme}
           >
             <span className="switch__thumb">
               <Icon name={uiTheme === 'night' ? 'moon' : 'sun'} size={14} />
             </span>
+          </button>
+        </div>
+
+        <div className="setting-row">
+          <span>显示审核/运营入口</span>
+          <button
+            className={'switch' + (showStaffNav ? ' is-on' : '')}
+            role="switch"
+            aria-checked={showStaffNav}
+            aria-label="显示审核/运营入口"
+            onClick={onShowStaffNavChange}
+          >
+            <span className="switch__thumb" />
           </button>
         </div>
 
