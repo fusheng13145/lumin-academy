@@ -24,6 +24,7 @@
         <module>lumin-infrastructure</module>
         <module>lumin-ai</module>
         <module>lumin-bootstrap</module>
+        <module>lumin-coverage</module>
     </modules>
 
     <properties>
@@ -31,6 +32,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <argLine></argLine>
+        <!-- 项目路径含中文时 JaCoCo agent 写 target 会静默失败：执行数据统一落 ASCII 临时目录。 -->
+        <jacoco.exec.path>${java.io.tmpdir}/lumin-jacoco-${project.artifactId}.exec</jacoco.exec.path>
     </properties>
 
     <dependencies>
@@ -72,11 +75,17 @@
                         <executions>
                             <execution>
                                 <id>prepare-agent</id>
+                                <configuration>
+                                    <destFile>${jacoco.exec.path}</destFile>
+                                </configuration>
                                 <goals><goal>prepare-agent</goal></goals>
                             </execution>
                             <execution>
                                 <id>report</id>
                                 <phase>verify</phase>
+                                <configuration>
+                                    <dataFile>${jacoco.exec.path}</dataFile>
+                                </configuration>
                                 <goals><goal>report</goal></goals>
                             </execution>
                         </executions>

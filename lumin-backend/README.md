@@ -13,10 +13,10 @@
 
 ```text
 cd lumin-backend
-mvn test                        # 主验收命令：全量多模块 JUnit 回归（bootstrap 3478 + ai 3）
+mvn test                        # 主验收命令：全量多模块 JUnit 回归（3670 = bootstrap 3664 + application 3 + ai 3）
 mvn -pl lumin-bootstrap -am spring-boot:run   # 启动唯一可执行模块
 mvn -DskipTests package         # 产出 lumin-bootstrap/target/*.jar
-mvn verify -Pcoverage           # 可选：JaCoCo 0.8.15 覆盖率报告（各模块 target/site/jacoco/）
+mvn verify -Pcoverage           # 可选：JaCoCo 0.8.15；聚合读数见 docs/23（全项目 86.48% 行 / 74.19% 分支）
 ```
 
 首次构建需联网或由 IDE 下载 `spring-boot-starter-parent:4.0.9` 及其依赖；**本机已于 2026-11-15 联网完成首次下载并全量回归，
@@ -57,14 +57,21 @@ HTTP 服务器或客户端、OIDC / 对象存储 / 机审供应商 SDK、任何�
 | `lumin-application/` | 用例编排、事务边界、DTO/VO、出站端口、MyBatis Mapper 契约与 Row；`foundation/contract/ApiEnvelope` 在此 |
 | `lumin-infrastructure/` | `@MapperScan` 配置、本地对象存储、Outbox 调度、AI 持久化（`MyBatisAiRunStore`/`MyBatisAiMemoryStore` 及 5 个 Mapper） |
 | `lumin-ai/` | `AiProvider`（Ollama/DeepSeek）、`AiProviderRouter`、workflow + 4 Agent、长期记忆端口、AI 视图对象 |
-| `lumin-bootstrap/` | `LuminBackendApplication`、全部 Controller、`application.yaml`、`db/migration/V1–V7`、3478 个测试 |
-| `lumin-bootstrap/src/main/resources/db/migration/` | 版本化迁移脚本：V1 核心 16 表、V2 role_assignment、V3 治理/申诉/通知、V4 billing 骨架、V5 阅读进度、V6 审计、V7 AI 五表 |
+| `lumin-bootstrap/` | `LuminBackendApplication`、全部 Controller、`application.yaml`、`db/migration/V1–V16`、3664 个测试 |
+| `lumin-bootstrap/src/main/resources/db/migration/` | 版本化迁移脚本：V1 核心 16 表、V2 role_assignment、V3 治理/申诉/通知、V4 billing 骨架、V5 阅读进度、V6 审计、V7 AI 五表、V8–V16 增量；V16 为 auth_session |
 | `lumin-bootstrap/src/test/java/com/leyon/lumin/**` | 纯函数穷举、架构无环、契约骨架、MockMvc、真实 MySQL 集成（凭据 `LUMIN_TEST_DB_*`） |
 
 模块方向：`bootstrap -> {domain, application, infrastructure, ai}`；`infrastructure -> {application, ai}`；
 `ai -> {domain, application}`；`application -> domain`；`domain` 不依赖任何框架。
 唯一真实跨业务域边 `publication -> identity` 仍在允许列表内；AI 模块允许 `ai -> foundation`（共享错误码/时间/契约）。
 `DependencyAcyclicTest` 与 `libs/tools/check_dependency_cycles.py` 同时扫描五模块，双证据。
+
+### 启动迁移门禁（2026-11-19）
+
+`lumin-bootstrap` 显式装配 `FlywayMigrationRunner`（`spring.flyway.enabled` 默认 `true`），启动时对
+`classpath:db/migration` 执行 `validate + migrate`；空库实测依次应用 V1–V16 并输出
+`Successfully applied 16 migrations` / `now at version v16`。测试配置关闭 Flyway，测试库仍由
+`TestDatabase.recreateSchema()` 重建，避免二次执行。V16 为原重复 V7 的 `auth_session` 重编号。
 
 ## AI 模块（2026-11-18）
 

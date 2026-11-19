@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -185,6 +186,152 @@ class ReviewCaseServiceTest {
         assertEquals(0, page.items().size());
         assertEquals(null, page.nextCursor());
         verifyNoInteractions(caseMapper);
+    }
+
+    @Test
+    void listCasesRejectsCursorSubjectMismatchAndMalformedSortKey() {
+        String digest = CursorCodec.filterDigest("list=review-cases;viewer=" + SUBJECT
+                + ";role=" + ROLE + ";queueScope=ALL");
+        String foreign = CursorCodec.encode(new CursorCodec.Payload("2|2026-11-19T12:00",
+                UUID.fromString("00000000-0000-4000-8000-0000000000a1"), digest,
+                UUID.fromString("00000000-0000-4000-8000-0000000000ff"), Instant.now()),
+                CURSOR_KEY.getBytes(StandardCharsets.UTF_8));
+        assertCode(ErrorCode.P1001, () -> service.listCases(SUBJECT, ROLE, foreign, 10));
+
+        String malformed = CursorCodec.encode(new CursorCodec.Payload("no-separator",
+                UUID.fromString("00000000-0000-4000-8000-0000000000a1"), digest,
+                UUID.fromString(SUBJECT), Instant.now()),
+                CURSOR_KEY.getBytes(StandardCharsets.UTF_8));
+        assertCode(ErrorCode.P1001, () -> service.listCases(SUBJECT, ROLE, malformed, 10));
+    }
+
+    @Test
+    void claimRejectsMissingRoleStageParticipantAndIllegalTransition() {
+        assertCode(ErrorCode.B2004, () -> service.claim(SUBJECT, ROLE, "missing", "\"1\""));
+        when(caseMapper.findByIdForUpdate("low")).thenReturn(new ReviewCaseRow(
+                "low", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "QUEUED",
+                "queue-1", 1, null, null, LocalDateTime.now(), LocalDateTime.now(),
+                1L, LocalDateTime.now(), LocalDateTime.now(), SUBJECT, SUBJECT, 1L, null));
+        assertCode(ErrorCode.A2001, () -> service.claim(SUBJECT, "AUTHOR", "low", "\"1\""));
+
+        when(caseMapper.findByIdForUpdate("stage3")).thenReturn(new ReviewCaseRow(
+                "stage3", null, null, "work-1", null, "SUBMISSION", "HIGH", "P1", "QUEUED",
+                "queue-1", 3, null, null, LocalDateTime.now(), LocalDateTime.now(),
+                1L, LocalDateTime.now(), LocalDateTime.now(), SUBJECT, SUBJECT, 1L, null));
+        assertCode(ErrorCode.A2001, () -> service.claim(SUBJECT, "REVIEWER_L1", "stage3", "\"1\""));
+        when(decisionMapper.findByCase("stage3")).thenReturn(List.of(decision("d-1", "stage3")));
+        assertCode(ErrorCode.A2001, () -> service.claim(SUBJECT, "REVIEWER_L2", "stage3", "\"1\""));
+
+        when(caseMapper.findByIdForUpdate("closed")).thenReturn(new ReviewCaseRow(
+                "closed", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "DECIDED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now(), LocalDateTime.now(),
+                LocalDateTime.now(), 1L, LocalDateTime.now(), LocalDateTime.now(),
+                SUBJECT, SUBJECT, 1L, null));
+        assertCode(ErrorCode.B2001, () -> service.claim(SUBJECT, ROLE, "closed", "\"1\""));
+    }
+
+    @Test
+    void claimWriteRaceReturnsContention() {
+        when(caseMapper.findByIdForUpdate("case-1")).thenReturn(new ReviewCaseRow(
+                "case-1", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "QUEUED",
+                "queue-1", 1, null, null, LocalDateTime.now(), LocalDateTime.now(),
+                1L, LocalDateTime.now(), LocalDateTime.now(), SUBJECT, SUBJECT, 1L, null));
+        when(caseMapper.claim(anyString(), anyString(), anyString(), any(),
+                anyString(), any(), eq(1L))).thenReturn(0);
+        assertCode(ErrorCode.B2002, () -> service.claim(SUBJECT, ROLE, "case-1", "\"1\""));
+    }
+
+    @Test
+    void decideRejectsMissingAssigneeExpiredLeaseAndWriteRace() {
+        assertCode(ErrorCode.B2004, () -> service.decide(SUBJECT, ROLE, "missing", "\"1\"",
+                new DecisionRequest("PASS", "G", "OK_1001", "合规", List.of("ev:1"))));
+
+        when(caseMapper.findByIdForUpdate("case-1")).thenReturn(new ReviewCaseRow(
+                "case-1", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "CLAIMED",
+                "queue-1", 1, "other", LocalDateTime.now().plusMinutes(10),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        assertCode(ErrorCode.B2004, () -> service.decide(SUBJECT, ROLE, "case-1", "\"2\"",
+                new DecisionRequest("PASS", "G", "OK_1001", "合规", List.of("ev:1"))));
+
+        when(caseMapper.findByIdForUpdate("case-2")).thenReturn(new ReviewCaseRow(
+                "case-2", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "CLAIMED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now().minusDays(1),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        assertCode(ErrorCode.B2001, () -> service.decide(SUBJECT, ROLE, "case-2", "\"2\"",
+                new DecisionRequest("PASS", "G", "OK_1001", "合规", List.of("ev:1"))));
+
+        when(caseMapper.findByIdForUpdate("case-3")).thenReturn(new ReviewCaseRow(
+                "case-3", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "CLAIMED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now().plusMinutes(10),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        when(caseMapper.transitionState(anyString(), anyString(), anyInt(), anyString(),
+                anyString(), any(), eq(2L))).thenReturn(0);
+        assertCode(ErrorCode.B2002, () -> service.decide(SUBJECT, ROLE, "case-3", "\"2\"",
+                new DecisionRequest("PASS", "G", "OK_1001", "合规", List.of("ev:1"))));
+    }
+
+    @Test
+    void claimStageThreeByFreshSecondReviewerSucceeds() {
+        when(caseMapper.findByIdForUpdate("stage3")).thenReturn(new ReviewCaseRow(
+                "stage3", null, null, "work-1", null, "SUBMISSION", "HIGH", "P1", "QUEUED",
+                "queue-1", 3, null, null, LocalDateTime.now(), LocalDateTime.now(),
+                1L, LocalDateTime.now(), LocalDateTime.now(), SUBJECT, SUBJECT, 1L, null));
+        when(decisionMapper.findByCase("stage3")).thenReturn(List.of());
+        when(caseMapper.claim(eq("stage3"), eq("CLAIMED"), eq(SUBJECT),
+                any(LocalDateTime.class), eq(SUBJECT), any(), eq(1L))).thenReturn(1);
+
+        ReceiptView receipt = service.claim(SUBJECT, "REVIEWER_L2", "stage3", "\"1\"");
+
+        assertEquals("CLAIMED", receipt.state());
+        assertEquals(2L, receipt.revision());
+    }
+
+    @Test
+    void decideHighRiskFirstPassWaitsForSecondReview() {
+        when(caseMapper.findByIdForUpdate("high")).thenReturn(new ReviewCaseRow(
+                "high", null, null, "work-1", null, "SUBMISSION", "HIGH", "P1", "CLAIMED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now().plusMinutes(10),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        when(caseMapper.transitionState(eq("high"), eq("WAITING_SECOND"), eq(2), eq("CLAIMED"),
+                eq(SUBJECT), any(), eq(2L))).thenReturn(1);
+
+        ReceiptView receipt = service.decide(SUBJECT, ROLE, "high", "\"2\"",
+                new DecisionRequest("PASS", "G", "OK_1001", "合规", List.of()));
+
+        assertEquals("WAITING_SECOND", receipt.state());
+    }
+
+    @Test
+    void decideEscalateAndHideFollowDifferentTerminalPaths() {
+        when(caseMapper.findByIdForUpdate("esc")).thenReturn(new ReviewCaseRow(
+                "esc", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "CLAIMED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now().plusMinutes(10),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        when(caseMapper.transitionState(eq("esc"), eq("WAITING_SECOND"), eq(3), eq("CLAIMED"),
+                eq(SUBJECT), any(), eq(2L))).thenReturn(1);
+        assertEquals("WAITING_SECOND", service.decide(SUBJECT, ROLE, "esc", "\"2\"",
+                new DecisionRequest("ESCALATE", null, "OK_1001", "升级", List.of())).state());
+
+        when(caseMapper.findByIdForUpdate("hide")).thenReturn(new ReviewCaseRow(
+                "hide", null, null, "work-1", null, "SUBMISSION", "LOW", "P2", "CLAIMED",
+                "queue-1", 1, SUBJECT, LocalDateTime.now().plusMinutes(10),
+                LocalDateTime.now(), LocalDateTime.now(), 2L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 2L, null));
+        when(caseMapper.transitionState(eq("hide"), eq("DECIDED"), eq(1), eq("CLAIMED"),
+                eq(SUBJECT), any(), eq(2L))).thenReturn(1);
+        assertEquals("DECIDED", service.decide(SUBJECT, ROLE, "hide", "\"2\"",
+                new DecisionRequest("HIDE", null, "OK_1001", "隐藏", List.of())).state());
+    }
+
+    private static void assertCode(ErrorCode expected,
+                                   org.junit.jupiter.api.function.Executable action) {
+        LuminBusinessException error = assertThrows(LuminBusinessException.class, action);
+        assertEquals(expected, error.code());
     }
 
     private ContentMaterialPort.MaterialRef material(String versionId, String ageBand) {

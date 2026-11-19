@@ -25,6 +25,8 @@ import com.leyon.lumin.publication.repository.PublicationPointerMapper;
 import com.leyon.lumin.publication.repository.PublicationPointerRow;
 import com.leyon.lumin.publication.repository.PublicationWorkflowMapper;
 import com.leyon.lumin.publication.repository.PublicationWorkflowRow;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.ZoneOffset;
@@ -41,6 +43,8 @@ import java.util.UUID;
  */
 @Service
 public class ReaderService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReaderService.class);
 
     private final PublicationPointerMapper pointerMapper;
     private final PublicationWorkflowMapper workflowMapper;
@@ -96,8 +100,8 @@ public class ReaderService {
         PublishedVersionRef version = draftLifecycleService
                 .findPublishedVersion(decision.versionId());
         if (version.objectKey() == null) {
-            System.out.println("DBG-NOOBJ vid=" + version.versionId()
-                    + " ch=" + version.chapterId() + " state=" + version.state());
+            log.warn("发布版本缺少正文对象，chapterId={}, versionId={}",
+                    version.chapterId(), version.versionId());
             return Optional.empty();
         }
         String body = new String(objectStore.read(version.objectKey()),
@@ -199,8 +203,6 @@ public class ReaderService {
         PublishedVersionRef version = pointer == null ? null
                 : draftLifecycleService.findPublishedVersion(pointer.versionId());
         if (pointer == null || version == null) {
-            System.out.println("DBG-NOPTR type=" + targetType + " id=" + targetId
-                    + " ptr=" + (pointer == null) + " ver=" + (version == null));
             // 无发布指针且无已发布事实：不告警（03 §3.1 步骤 3）
             throw new LuminBusinessException(ErrorCode.B2004);
         }

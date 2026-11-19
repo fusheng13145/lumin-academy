@@ -154,7 +154,8 @@ public class AiWorkflowService {
             return new AiHealthView(provider.name(), provider.model(), available,
                     available ? "供应商可用" : "供应商未就绪，请检查 Ollama 服务或 API key");
         } catch (Exception exception) {
-            return new AiHealthView(activeName, "", false, exception.getMessage());
+            log.warn("AI 供应商健康检查失败，provider={}", activeName, exception);
+            return new AiHealthView(activeName, "", false, "供应商健康检查失败");
         }
     }
 
