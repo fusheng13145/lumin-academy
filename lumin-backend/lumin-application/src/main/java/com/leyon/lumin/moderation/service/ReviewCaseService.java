@@ -7,6 +7,7 @@ import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.event.OutboxAppender;
 import com.leyon.lumin.foundation.event.OutboxEventRow;
 import com.leyon.lumin.foundation.port.ContentMaterialPort;
+import com.leyon.lumin.foundation.port.ReviewerQueueScopePort;
 import com.leyon.lumin.foundation.values.ReviewDecision;
 import com.leyon.lumin.foundation.values.ReviewCaseEvent;
 import com.leyon.lumin.foundation.values.ReviewCaseState;
@@ -58,6 +59,7 @@ public class ReviewCaseService {
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
     private final ContentMaterialPort contentMaterialPort;
+    private final ReviewerQueueScopePort reviewerQueueScopePort;
     private final String cursorKey;
 
     public ReviewCaseService(ReviewCaseMapper caseMapper,
@@ -65,6 +67,7 @@ public class ReviewCaseService {
                              OutboxAppender outboxAppender,
                              AuditRecorder auditRecorder, ObjectMapper objectMapper,
                              ContentMaterialPort contentMaterialPort,
+                             ReviewerQueueScopePort reviewerQueueScopePort,
                              @Value("${lumin.cursor.key}") String cursorKey) {
         this.caseMapper = caseMapper;
         this.decisionMapper = decisionMapper;
@@ -72,6 +75,7 @@ public class ReviewCaseService {
         this.auditRecorder = auditRecorder;
         this.objectMapper = objectMapper;
         this.contentMaterialPort = contentMaterialPort;
+        this.reviewerQueueScopePort = reviewerQueueScopePort;
         this.cursorKey = cursorKey;
     }
 
@@ -86,8 +90,16 @@ public class ReviewCaseService {
         }
         requireLimit(limitParam);
         int limit = CursorCodec.resolveLimit(limitParam);
+        ReviewerQueueScopePort.QueueScope queueScope =
+                reviewerQueueScopePort.resolve(subject, role);
+        if (!queueScope.global() && queueScope.queueIds().isEmpty()) {
+            // session 模式无有效 queue scope：空页失败关闭，不泄露其他队列案件
+            return new Page(List.of(), null);
+        }
+        String scopeKey = queueScope.global() ? "ALL"
+                : String.join(",", queueScope.queueIds().stream().sorted().toList());
         String filterDigest = CursorCodec.filterDigest("list=review-cases;viewer=" + subject
-                + ";role=" + role);
+                + ";role=" + role + ";queueScope=" + scopeKey);
         int cursorRank = 0;
         LocalDateTime cursorDue = LocalDateTime.of(1970, 1, 1, 0, 0);
         UUID cursorId = UUID.fromString("00000000-0000-0000-0000-000000000000");
@@ -103,8 +115,11 @@ public class ReviewCaseService {
             cursorDue = LocalDateTime.parse(sortKey[1]);
             cursorId = decoded.payload().lastId();
         }
-        List<ReviewCaseRow> rows = caseMapper.listQueued(cursorRank, cursorDue,
-                cursorId.toString(), limit + 1);
+        List<ReviewCaseRow> rows = caseMapper.listQueued(subject,
+                "REVIEWER_L1".equals(role), "LEGAL".equals(role),
+                queueScope.global(), queueScope.global() ? null
+                        : queueScope.queueIds().stream().sorted().toList(),
+                cursorRank, cursorDue, cursorId.toString(), limit + 1);
         boolean hasNext = rows.size() > limit;
         List<ReviewCaseRow> pageRows = hasNext ? rows.subList(0, limit) : rows;
         java.util.Map<String, List<ReviewDecisionRow>> decisionsByCase = pageRows.isEmpty()

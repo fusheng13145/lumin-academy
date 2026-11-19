@@ -6,6 +6,7 @@ import com.leyon.lumin.foundation.audit.AuditRecorder;
 import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.event.OutboxAppender;
 import com.leyon.lumin.foundation.port.ContentMaterialPort;
+import com.leyon.lumin.foundation.port.ReviewerQueueScopePort;
 import com.leyon.lumin.foundation.web.ReceiptView;
 import com.leyon.lumin.moderation.api.dto.DecisionRequest;
 import com.leyon.lumin.moderation.repository.ReviewCaseMapper;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,9 +34,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,19 +59,25 @@ class ReviewCaseServiceTest {
     private AuditRecorder auditRecorder;
     @Mock
     private ContentMaterialPort contentMaterialPort;
+    @Mock
+    private ReviewerQueueScopePort reviewerQueueScopePort;
     private ReviewCaseService service;
 
     @BeforeEach
     void setUp() {
+        lenient().when(reviewerQueueScopePort.resolve(anyString(), anyString()))
+                .thenReturn(ReviewerQueueScopePort.QueueScope.all());
         service = new ReviewCaseService(caseMapper, decisionMapper, outboxAppender,
-                auditRecorder, mock(ObjectMapper.class), contentMaterialPort, CURSOR_KEY);
+                auditRecorder, mock(ObjectMapper.class), contentMaterialPort,
+                reviewerQueueScopePort, CURSOR_KEY);
     }
 
     @Test
     void listCasesMapsContractPageAndIssuesSignedCursor() {
         LocalDateTime due = LocalDateTime.of(2026, 11, 19, 12, 0);
         String firstId = "00000000-0000-4000-8000-0000000000a1";
-        when(caseMapper.listQueued(eq(0), any(LocalDateTime.class), anyString(), eq(2)))
+        when(caseMapper.listQueued(eq(SUBJECT), eq(false), eq(false), eq(true), isNull(),
+                eq(0), any(LocalDateTime.class), anyString(), eq(2)))
                 .thenReturn(List.of(
                         row(firstId, "P1", due),
                         row("00000000-0000-4000-8000-0000000000a2", "P2", due.plusHours(1))));
@@ -80,7 +91,8 @@ class ReviewCaseServiceTest {
         assertNotNull(page.nextCursor());
         CursorCodec.DecodedCursor decoded = CursorCodec.decode(page.nextCursor(),
                 CURSOR_KEY.getBytes(StandardCharsets.UTF_8), Instant.now(),
-                CursorCodec.filterDigest("list=review-cases;viewer=" + SUBJECT + ";role=" + ROLE));
+                CursorCodec.filterDigest("list=review-cases;viewer=" + SUBJECT
+                        + ";role=" + ROLE + ";queueScope=ALL"));
         assertEquals(ErrorCode.OK, decoded.code());
         assertEquals("2|" + due, decoded.payload().sortKeyValue());
         assertEquals(UUID.fromString(firstId), decoded.payload().lastId());
@@ -92,7 +104,8 @@ class ReviewCaseServiceTest {
         LocalDateTime due = LocalDateTime.of(2026, 11, 19, 12, 0);
         String firstId = "00000000-0000-4000-8000-0000000000b1";
         String secondId = "00000000-0000-4000-8000-0000000000b2";
-        when(caseMapper.listQueued(eq(0), any(LocalDateTime.class), anyString(), eq(3)))
+        when(caseMapper.listQueued(eq(SUBJECT), eq(false), eq(false), eq(true), isNull(),
+                eq(0), any(LocalDateTime.class), anyString(), eq(3)))
                 .thenReturn(List.of(row(firstId, "P1", due), row(secondId, "P2", due)));
         when(decisionMapper.findByCaseIds(anyList())).thenReturn(List.of(
                 decision("d-1", firstId), decision("d-2", secondId)));
@@ -129,7 +142,8 @@ class ReviewCaseServiceTest {
         String secondId = "00000000-0000-4000-8000-0000000000c2";
         String firstVersion = "11111111-1111-4111-8111-111111111111";
         String secondVersion = "22222222-2222-4222-8222-222222222222";
-        when(caseMapper.listQueued(eq(0), any(LocalDateTime.class), anyString(), eq(3)))
+        when(caseMapper.listQueued(eq(SUBJECT), eq(false), eq(false), eq(true), isNull(),
+                eq(0), any(LocalDateTime.class), anyString(), eq(3)))
                 .thenReturn(List.of(row(firstId, "P1", due, firstVersion),
                         row(secondId, "P2", due, secondVersion)));
         when(decisionMapper.findByCaseIds(anyList())).thenReturn(List.of());
@@ -142,6 +156,35 @@ class ReviewCaseServiceTest {
         assertEquals("C3", page.items().get(1).authorAgeBand());
         verify(contentMaterialPort, times(1)).findVersionMaterials(anyList());
         verify(contentMaterialPort, org.mockito.Mockito.never()).findVersionMaterial(anyString());
+    }
+
+    @Test
+    void listCasesPassesQueueScopedIdsAndFailClosedWithoutScope() {
+        when(reviewerQueueScopePort.resolve(SUBJECT, ROLE))
+                .thenReturn(new ReviewerQueueScopePort.QueueScope(false,
+                        Set.of("queue-b", "queue-a")));
+        when(caseMapper.listQueued(eq(SUBJECT), eq(false), eq(false), eq(false),
+                eq(List.of("queue-a", "queue-b")), eq(0), any(LocalDateTime.class),
+                anyString(), eq(2))).thenReturn(List.of());
+
+        ReviewCaseService.Page page = service.listCases(SUBJECT, ROLE, null, 1);
+
+        assertEquals(0, page.items().size());
+        verify(caseMapper).listQueued(eq(SUBJECT), eq(false), eq(false), eq(false),
+                eq(List.of("queue-a", "queue-b")), eq(0), any(LocalDateTime.class),
+                anyString(), eq(2));
+    }
+
+    @Test
+    void listCasesReturnsEmptyPageWhenSessionHasNoQueueScope() {
+        when(reviewerQueueScopePort.resolve(SUBJECT, ROLE))
+                .thenReturn(ReviewerQueueScopePort.QueueScope.none());
+
+        ReviewCaseService.Page page = service.listCases(SUBJECT, ROLE, null, 10);
+
+        assertEquals(0, page.items().size());
+        assertEquals(null, page.nextCursor());
+        verifyNoInteractions(caseMapper);
     }
 
     private ContentMaterialPort.MaterialRef material(String versionId, String ageBand) {

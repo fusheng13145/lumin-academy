@@ -70,18 +70,40 @@ public interface ReviewCaseMapper {
                               @Param("operator") String operator,
                               @Param("now") java.time.LocalDateTime now);
 
-    /** 队列列表（03 §2.4：priority/completion_due_at/id 排序；不含正文；签名游标）。 */
+    /** 队列列表（03 §2.4 / 05 §3.3）：有效角色 + queue scope + 阶段 + 原审回避过滤；
+     *  priority/completion_due_at/id 排序；不含正文；签名游标。 */
     @Select("""
+            <script>
             SELECT * FROM review_case
             WHERE state IN ('QUEUED','WAITING_SECOND') AND deleted_at IS NULL
-              AND (FIELD(priority,'P0','P1','P2','P3') > #{cursorRank}
+            <if test="levelOne">
+              AND review_stage = 1 AND source &lt;&gt; 'APPEAL'
+            </if>
+            <if test="legalOnly">
+              AND source = 'LEGAL'
+            </if>
+            <if test="!queueGlobal">
+              AND queue_id IN
+              <foreach collection="queueIds" item="queueId" open="(" separator="," close=")">
+                #{queueId}
+              </foreach>
+            </if>
+              AND NOT EXISTS (SELECT 1 FROM review_decision d
+                              WHERE d.case_id = review_case.id AND d.actor_id = #{subject})
+              AND (FIELD(priority,'P0','P1','P2','P3') &gt; #{cursorRank}
                    OR (FIELD(priority,'P0','P1','P2','P3') = #{cursorRank}
-                       AND (completion_due_at > #{cursorDue}
-                            OR (completion_due_at = #{cursorDue} AND id > #{cursorId}))))
+                       AND (completion_due_at &gt; #{cursorDue}
+                            OR (completion_due_at = #{cursorDue} AND id &gt; #{cursorId}))))
             ORDER BY FIELD(priority,'P0','P1','P2','P3'), completion_due_at, id
             LIMIT #{limit}
+            </script>
             """)
-    java.util.List<ReviewCaseRow> listQueued(@Param("cursorRank") int cursorRank,
+    java.util.List<ReviewCaseRow> listQueued(@Param("subject") String subject,
+                                             @Param("levelOne") boolean levelOne,
+                                             @Param("legalOnly") boolean legalOnly,
+                                             @Param("queueGlobal") boolean queueGlobal,
+                                             @Param("queueIds") java.util.List<String> queueIds,
+                                             @Param("cursorRank") int cursorRank,
                                              @Param("cursorDue") java.time.LocalDateTime cursorDue,
                                              @Param("cursorId") String cursorId,
                                              @Param("limit") int limit);
