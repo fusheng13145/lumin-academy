@@ -26,6 +26,13 @@ public interface ChapterMapper {
     @Select("SELECT id, business_state, prior_state FROM chapter WHERE id = #{id} AND deleted_at IS NULL")
     ChapterStateRow findStateById(@Param("id") String id);
 
+    /** 作品下未达到 ACTIVE 的章节数（完结前“全部章节已发布”前提）。 */
+    @Select("""
+            SELECT COUNT(*) FROM chapter
+            WHERE work_id = #{workId} AND deleted_at IS NULL AND business_state <> 'ACTIVE'
+            """)
+    int countUnpublishedByWork(@Param("workId") String workId);
+
     /** 首版发布业务态迁移（乐观锁 + 期望态兜底并发，与 WorkMapper.updateBusinessState 同式）。 */
     @Update("""
             UPDATE chapter SET business_state = #{state}, prior_state = #{priorState},

@@ -62,6 +62,53 @@ public class WorkService {
         return workMapper.listMyWorks(authorId);
     }
 
+    /** 作者私有作品详情（05 §3.2 getMyWork；不存在/越权统一 404）。 */
+    public record MyWorkDetail(String id, String state, String title, String draftId,
+                               String draftState, String publishedVersionId, long revision) {
+    }
+
+    @Transactional(readOnly = true)
+    public MyWorkDetail getMyWork(String authorId, String workId) {
+        com.leyon.lumin.catalog.repository.MyWorkDetailRow row =
+                workId == null ? null : workMapper.findMyWorkDetail(workId, authorId);
+        if (row == null) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        return new MyWorkDetail(row.id(), row.businessState(), row.title(), row.draftId(),
+                row.draftState(), row.publishedVersionId(),
+                row.lockVersion() == null ? 1L : row.lockVersion());
+    }
+
+    /** 作品下全部既有章节是否均已 ACTIVE（完结前提；空作品视为满足）。 */
+    @Transactional(readOnly = true)
+    public boolean allChaptersPublished(String workId) {
+        return chapterMapper.countUnpublishedByWork(workId) == 0;
+    }
+
+    /**
+     * 作者生命周期业务态迁移（03 §2.1 COMPLETE_REQUESTED / RESUME_SERIAL）：
+     * 调用方已用状态机裁决，本方法只做归属、乐观锁与持久化。
+     */
+    @Transactional
+    public long changeBusinessState(String subject, String workId, String targetState,
+                                    boolean complete, long expectedLockVersion,
+                                    LocalDateTime now) {
+        WorkRow row = workId == null ? null : workMapper.findById(workId);
+        if (row == null || !row.authorId().equals(subject)) {
+            throw new LuminBusinessException(ErrorCode.B2004);
+        }
+        if (row.lockVersion() != expectedLockVersion) {
+            throw new LuminBusinessException(ErrorCode.B2002);
+        }
+        int rows = workMapper.updateBusinessStateIfLock(workId, targetState,
+                complete ? row.businessState() : null,
+                complete ? now : null, subject, now, row.businessState(), expectedLockVersion);
+        if (rows == 0) {
+            throw new LuminBusinessException(ErrorCode.B2002);
+        }
+        return expectedLockVersion + 1;
+    }
+
     /** 无归属校验的摘要读取（authoring 组装版本核验数据用；缺失返回 null）。 */
     public WorkSummary getWorkSummary(String workId) {
         WorkRow row = workId == null ? null : workMapper.findById(workId);

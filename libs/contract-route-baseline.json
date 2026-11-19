@@ -2,9 +2,9 @@
   "contract_sha256": "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 70,
-  "implemented_count": 50,
-  "missing_count": 13,
+  "controller_routes": 77,
+  "implemented_count": 57,
+  "missing_count": 6,
   "extra_count": 20,
   "implemented": [
     {
@@ -98,10 +98,28 @@
       "handler": "MeWorkspaceController#listMyWorks"
     },
     {
+      "operationId": "getMyWork",
+      "method": "GET",
+      "path": "/api/v1/me/works/{id}",
+      "handler": "MeWorkspaceController#getMyWork"
+    },
+    {
       "operationId": "listMyChapters",
       "method": "GET",
       "path": "/api/v1/me/works/{id}/chapters",
       "handler": "MeWorkspaceController#listMyChapters"
+    },
+    {
+      "operationId": "listMyDrafts",
+      "method": "GET",
+      "path": "/api/v1/me/drafts",
+      "handler": "MeDraftsController#listMyDrafts"
+    },
+    {
+      "operationId": "listMyPublicationWorkflows",
+      "method": "GET",
+      "path": "/api/v1/me/publication-workflows",
+      "handler": "MePublicationWorkflowController#listMyPublicationWorkflows"
     },
     {
       "operationId": "listWorks",
@@ -134,6 +152,12 @@
       "handler": "ChapterController#createChapter"
     },
     {
+      "operationId": "changeWorkLifecycle",
+      "method": "POST",
+      "path": "/api/v1/works/{id}/lifecycle-actions",
+      "handler": "WorkLifecycleController#changeWorkLifecycle"
+    },
+    {
       "operationId": "createDraft",
       "method": "POST",
       "path": "/api/v1/drafts",
@@ -152,10 +176,28 @@
       "handler": "DraftController#saveDraft"
     },
     {
+      "operationId": "discardDraft",
+      "method": "POST",
+      "path": "/api/v1/drafts/{id}/discards",
+      "handler": "DraftController#discardDraft"
+    },
+    {
       "operationId": "submitDraft",
       "method": "POST",
       "path": "/api/v1/drafts/{id}/submissions",
       "handler": "DraftSubmissionController#submitDraft"
+    },
+    {
+      "operationId": "getWorkflow",
+      "method": "GET",
+      "path": "/api/v1/publication-workflows/{id}",
+      "handler": "PublicationWorkflowController#getWorkflow"
+    },
+    {
+      "operationId": "cancelWorkflow",
+      "method": "POST",
+      "path": "/api/v1/publication-workflows/{id}/cancellations",
+      "handler": "PublicationWorkflowController#cancelWorkflow"
     },
     {
       "operationId": "createAssetUpload",
@@ -309,48 +351,6 @@
     }
   ],
   "missing": [
-    {
-      "operationId": "getMyWork",
-      "method": "GET",
-      "path": "/api/v1/me/works/{id}",
-      "handler": ""
-    },
-    {
-      "operationId": "listMyDrafts",
-      "method": "GET",
-      "path": "/api/v1/me/drafts",
-      "handler": ""
-    },
-    {
-      "operationId": "listMyPublicationWorkflows",
-      "method": "GET",
-      "path": "/api/v1/me/publication-workflows",
-      "handler": ""
-    },
-    {
-      "operationId": "changeWorkLifecycle",
-      "method": "POST",
-      "path": "/api/v1/works/{id}/lifecycle-actions",
-      "handler": ""
-    },
-    {
-      "operationId": "discardDraft",
-      "method": "POST",
-      "path": "/api/v1/drafts/{id}/discards",
-      "handler": ""
-    },
-    {
-      "operationId": "getWorkflow",
-      "method": "GET",
-      "path": "/api/v1/publication-workflows/{id}",
-      "handler": ""
-    },
-    {
-      "operationId": "cancelWorkflow",
-      "method": "POST",
-      "path": "/api/v1/publication-workflows/{id}/cancellations",
-      "handler": ""
-    },
     {
       "operationId": "getCase",
       "method": "GET",

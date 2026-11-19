@@ -60,4 +60,44 @@ public interface PublicationWorkflowMapper {
     /** 按版本查流程（INV-01：一份不可变版本只绑定一个发布流程）。 */
     @Select("SELECT * FROM publication_workflow WHERE version_id = #{versionId}")
     PublicationWorkflowRow findByVersionId(@Param("versionId") String versionId);
+
+    /** 作者发布流程 keyset 分页（05 §3.2 listMyPublicationWorkflows：先按作品归属过滤）。 */
+    @Select("""
+            <script>
+            SELECT wf.* FROM publication_workflow wf
+            JOIN content_version cv ON cv.id = wf.version_id
+            JOIN work w ON w.id = cv.work_id AND w.deleted_at IS NULL
+            WHERE w.author_id = #{authorId}
+            <if test="cursorAt != null">
+              AND (wf.created_at, wf.id) &lt; (#{cursorAt,jdbcType=TIMESTAMP}, #{cursorId,jdbcType=VARCHAR})
+            </if>
+            ORDER BY wf.created_at DESC, wf.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    java.util.List<PublicationWorkflowRow> listByAuthor(
+            @Param("authorId") String authorId,
+            @Param("cursorAt") java.time.LocalDateTime cursorAt,
+            @Param("cursorId") String cursorId,
+            @Param("limit") int limit);
+
+    /** 作品及其章节的未结束流程计数（完结前 noPendingWorkflow 前提）。 */
+    @Select("""
+            SELECT COUNT(*) FROM publication_workflow wf
+            JOIN content_version cv ON cv.id = wf.version_id
+            WHERE cv.work_id = #{workId}
+              AND wf.state IN ('SUBMITTED','AUTO_REVIEW','HUMAN_REVIEW','SUSPENDED')
+            """)
+    int countOpenByWork(@Param("workId") String workId);
+
+    /** 作者撤回：仅未结束流程、乐观锁匹配；成功后版本态由调用方置 WITHDRAWN。 */
+    @Update("""
+            UPDATE publication_workflow SET state = 'CANCELLED', suspended_reason = NULL,
+                updated_at = #{now}, updated_by = #{operator}, lock_version = lock_version + 1
+            WHERE id = #{id} AND lock_version = #{expectedLockVersion}
+              AND state IN ('SUBMITTED','AUTO_REVIEW','HUMAN_REVIEW','SUSPENDED')
+            """)
+    int cancel(@Param("id") String id, @Param("expectedLockVersion") long expectedLockVersion,
+               @Param("operator") String operator,
+               @Param("now") java.time.LocalDateTime now);
 }

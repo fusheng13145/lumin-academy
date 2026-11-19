@@ -50,6 +50,35 @@ public interface DraftMapper {
                              @Param("operator") String operator,
                              @Param("now") java.time.LocalDateTime now);
 
+    /** 作者草稿 keyset 分页（05 §3.2 listMyDrafts：先按作品归属过滤）。 */
+    @Select("""
+            <script>
+            SELECT d.* FROM draft d
+            JOIN work w ON w.id = d.work_id AND w.deleted_at IS NULL
+            WHERE w.author_id = #{authorId} AND d.deleted_at IS NULL
+            <if test="cursorAt != null">
+              AND (d.updated_at, d.id) &lt; (#{cursorAt,jdbcType=TIMESTAMP}, #{cursorId,jdbcType=VARCHAR})
+            </if>
+            ORDER BY d.updated_at DESC, d.id DESC
+            LIMIT #{limit}
+            </script>
+            """)
+    java.util.List<DraftRow> listByAuthor(@Param("authorId") String authorId,
+                                           @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                           @Param("cursorId") String cursorId,
+                                           @Param("limit") int limit);
+
+    /** 丢弃草稿：仅 EDITABLE + 乐观锁，行数 0 由服务层区分 B2001/B2002。 */
+    @Update("""
+            UPDATE draft SET state = 'DISCARDED', updated_at = #{now}, updated_by = #{operator},
+                lock_version = lock_version + 1
+            WHERE id = #{id} AND state = 'EDITABLE' AND lock_version = #{expectedLockVersion}
+                AND deleted_at IS NULL
+            """)
+    int discard(@Param("id") String id, @Param("expectedLockVersion") long expectedLockVersion,
+                @Param("operator") String operator,
+                @Param("now") java.time.LocalDateTime now);
+
     /**
      * 保存 EDITABLE 草稿内容（03 §2.2：If-Match 与 lockVersion 相同才允许，递增版本）。
      * 内容列仅此一处更新；owner 校验与状态判定由服务层完成。

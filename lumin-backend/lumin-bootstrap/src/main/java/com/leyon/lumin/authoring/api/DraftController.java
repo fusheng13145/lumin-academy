@@ -75,5 +75,24 @@ public class DraftController {
     }
 
     /** 提交端点已按域所有权移至 publication 接入层（URL 不变）：publication/api/DraftSubmissionController。 */
+
+    /** 丢弃草稿（05 §3.2 discardDraft；仅 EDITABLE，If-Match 保护）。 */
+    @PostMapping("/{id}/discards")
+    public ResponseEntity<String> discardDraft(
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @PathVariable String id,
+            @RequestHeader(value = "If-Match", required = false) String ifMatch,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            HttpServletRequest httpRequest,
+            @RequestBody ReasonRequest request) {
+        return idempotentExecutor.execute(subject, "POST", httpRequest.getRequestURI(),
+                idempotencyKey, ifMatch, request,
+                () -> new IdempotentExecutor.ApiResult(200,
+                        draftCommandService.discardDraft(subject, id, ifMatch, request.reason())));
+    }
+
+    /** 05 §3.2 ReasonRequest。 */
+    public record ReasonRequest(String reason) {
+    }
 }
 

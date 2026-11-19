@@ -70,4 +70,41 @@ public interface WorkMapper {
             ORDER BY w.created_at DESC
             """)
     java.util.List<MyWorkRow> listMyWorks(@Param("authorId") String authorId);
+
+    /** 作者私有作品详情（05 §3.2 getMyWork：不存在/越权由服务层统一 404）。 */
+    @Select("""
+            SELECT w.id, w.business_state, w.lock_version,
+                   cv.title,
+                   d.id AS draft_id, d.state AS draft_state,
+                   p.version_id AS published_version_id
+            FROM work w
+            LEFT JOIN content_version cv ON cv.id = (SELECT c.id FROM content_version c
+                WHERE c.work_id = w.id AND c.target_type = 'WORK'
+                ORDER BY c.revision_no DESC LIMIT 1)
+            LEFT JOIN draft d ON d.id = (SELECT c.id FROM draft c
+                WHERE c.work_id = w.id AND c.target_type = 'WORK' AND c.state = 'EDITABLE'
+                    AND c.deleted_at IS NULL
+                ORDER BY c.updated_at DESC, c.id DESC LIMIT 1)
+            LEFT JOIN publication_pointer p ON p.target_type = 'WORK' AND p.target_id = w.id
+            WHERE w.id = #{workId} AND w.author_id = #{authorId} AND w.deleted_at IS NULL
+            LIMIT 1
+            """)
+    MyWorkDetailRow findMyWorkDetail(@Param("workId") String workId,
+                                     @Param("authorId") String authorId);
+
+    /** 业务态迁移并校验乐观锁（作者生命周期动作；行数 0 区分并发/非法迁移）。 */
+    @Update("""
+            UPDATE work SET business_state = #{state}, prior_state = #{priorState},
+                completed_at = #{completedAt}, updated_at = #{now}, updated_by = #{operator},
+                lock_version = lock_version + 1
+            WHERE id = #{id} AND business_state = #{expectedState}
+                AND lock_version = #{expectedLockVersion} AND deleted_at IS NULL
+            """)
+    int updateBusinessStateIfLock(@Param("id") String id, @Param("state") String state,
+                                  @Param("priorState") String priorState,
+                                  @Param("completedAt") java.time.LocalDateTime completedAt,
+                                  @Param("operator") String operator,
+                                  @Param("now") java.time.LocalDateTime now,
+                                  @Param("expectedState") String expectedState,
+                                  @Param("expectedLockVersion") long expectedLockVersion);
 }

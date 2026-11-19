@@ -90,10 +90,22 @@ public class DraftLifecycleService {
                 row.policyVersion());
     }
 
-    /** 版本状态机字段迁移（APPROVED/REJECTED + grade），由调用方经状态机裁决后调用。 */
-    public void transitionVersionState(String versionId, String state, String grade,
+    /** 版本归属摘要（publication 读取流程详情时经本端口校验作品归属）。 */
+    public record VersionOwner(String versionId, String workId, String chapterId,
+                               String targetType) {
+    }
+
+    public VersionOwner findVersionOwner(String versionId) {
+        ContentVersionRow row = versionId == null ? null
+                : contentVersionMapper.findById(versionId);
+        return row == null ? null : new VersionOwner(row.id(), row.workId(), row.chapterId(),
+                row.targetType());
+    }
+
+    /** 版本状态机字段迁移（APPROVED/REJECTED/WITHDRAWN + grade），由调用方经状态机裁决后调用。 */
+    public int transitionVersionState(String versionId, String state, String grade,
                                        String operator, LocalDateTime now) {
-        contentVersionMapper.transitionState(versionId, state, grade, operator, now);
+        return contentVersionMapper.transitionState(versionId, state, grade, operator, now);
     }
 
     /** 版本材料核验数据（消费事件核验 materialSha256/policyVersion 绑定，05 §4.3）；

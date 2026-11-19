@@ -3,6 +3,7 @@ package com.leyon.lumin.authoring.service;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
+import com.leyon.lumin.authoring.api.dto.DraftContractView;
 import com.leyon.lumin.authoring.api.dto.DraftCreateRequest;
 import com.leyon.lumin.authoring.api.dto.DraftSaveRequest;
 import com.leyon.lumin.authoring.api.dto.DraftView;
@@ -14,13 +15,19 @@ import com.leyon.lumin.catalog.domain.TargetRef;
 import com.leyon.lumin.catalog.service.WorkService;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
-import com.leyon.lumin.foundation.web.ReceiptView;
+import com.leyon.lumin.foundation.audit.AuditRecorder;
+import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.values.TargetType;
+import com.leyon.lumin.foundation.web.IfMatch;
+import com.leyon.lumin.foundation.web.ReceiptView;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,12 +42,21 @@ public class DraftCommandService {
     private final DraftMapper draftMapper;
     private final WorkService workService;
     private final ObjectMapper objectMapper;
+    private final AuditRecorder auditRecorder;
+    private final String cursorKey;
 
     public DraftCommandService(DraftMapper draftMapper, WorkService workService,
-                               ObjectMapper objectMapper) {
+                               ObjectMapper objectMapper, AuditRecorder auditRecorder,
+                               @Value("${lumin.cursor.key}") String cursorKey) {
         this.draftMapper = draftMapper;
         this.workService = workService;
         this.objectMapper = objectMapper;
+        this.auditRecorder = auditRecorder;
+        this.cursorKey = cursorKey;
+    }
+
+    /** 契约 DraftPage（05 §3.2 listMyDrafts）。 */
+    public record Page(List<DraftContractView> items, String nextCursor) {
     }
 
     /** 创建 WORK / CHAPTER 草稿（05 §3.2 createDraft；baseVersionId 随修订流落地）。 */
@@ -72,6 +88,77 @@ public class DraftCommandService {
     @Transactional(readOnly = true)
     public DraftView getDraft(String subject, String id) {
         return toView(requireOwnedDraft(subject, id));
+    }
+
+    /** 作者草稿列表（05 §3.2 listMyDrafts：归属过滤后签名游标分页）。 */
+    @Transactional(readOnly = true)
+    public Page listMyDrafts(String subject, String cursorToken, Integer limitParam,
+                             LocalDateTime now) {
+        ErrorCode limitCheck = CursorCodec.validateLimit(limitParam);
+        if (limitCheck != ErrorCode.OK) {
+            throw new LuminBusinessException(limitCheck);
+        }
+        int limit = CursorCodec.resolveLimit(limitParam);
+        String filterDigest = CursorCodec.filterDigest("list=my-drafts;viewer=" + subject);
+        LocalDateTime cursorAt = null;
+        String cursorId = null;
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            CursorCodec.DecodedCursor decoded = CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(StandardCharsets.UTF_8),
+                    now.toInstant(ZoneOffset.UTC), filterDigest);
+            if (decoded.code() != ErrorCode.OK) {
+                throw new LuminBusinessException(decoded.code());
+            }
+            if (!subject.equals(decoded.payload().subjectId().toString())) {
+                throw new LuminBusinessException(ErrorCode.P1001);
+            }
+            try {
+                cursorAt = LocalDateTime.parse(decoded.payload().sortKeyValue());
+                cursorId = decoded.payload().lastId().toString();
+            } catch (RuntimeException e) {
+                throw new LuminBusinessException(ErrorCode.P1001);
+            }
+        }
+        List<DraftRow> rows = draftMapper.listByAuthor(subject, cursorAt, cursorId, limit + 1);
+        boolean hasMore = rows.size() > limit;
+        List<DraftRow> page = rows.subList(0, Math.min(rows.size(), limit));
+        List<DraftContractView> items = new ArrayList<>(page.size());
+        for (DraftRow row : page) {
+            items.add(toContractView(row));
+        }
+        String nextCursor = null;
+        if (hasMore && !page.isEmpty()) {
+            DraftRow last = page.get(page.size() - 1);
+            nextCursor = CursorCodec.encode(new CursorCodec.Payload(
+                    last.updatedAt().toString(), UUID.fromString(last.id()), filterDigest,
+                    UUID.fromString(subject), now.toInstant(ZoneOffset.UTC)),
+                    cursorKey.getBytes(StandardCharsets.UTF_8));
+        }
+        return new Page(items, nextCursor);
+    }
+
+    /** 丢弃草稿（03 §2.2 DISCARD；仅 EDITABLE，If-Match 保护）。 */
+    @Transactional
+    public ReceiptView discardDraft(String subject, String id, String ifMatch, String reason) {
+        DraftRow row = requireOwnedDraft(subject, id);
+        if (!"EDITABLE".equals(row.state())) {
+            throw new LuminBusinessException(ErrorCode.B2001);
+        }
+        String normalizedReason = normalizeReason(reason);
+        long expected = IfMatch.requireValid(ifMatch);
+        if (row.lockVersion() != expected) {
+            throw new LuminBusinessException(ErrorCode.B2002);
+        }
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int rows = draftMapper.discard(id, expected, subject, now);
+        if (rows == 0) {
+            throw new LuminBusinessException(ErrorCode.B2002);
+        }
+        auditRecorder.record(new AuditRecorder.AuditEntry(subject, "AUTHOR",
+                "draft.discarded", "draft", id, normalizedReason,
+                com.leyon.lumin.foundation.contract.ApiEnvelope.currentTraceId(),
+                now.toInstant(ZoneOffset.UTC)));
+        return new ReceiptView(id, "DRAFT", "DISCARDED", expected + 1);
     }
 
     /** 保存（03 §2.2：If-Match 匹配 lockVersion 才允许，递增版本；SUBMITTED 冻结）。 */
@@ -123,6 +210,24 @@ public class DraftCommandService {
         return new DraftView(row.id(), row.workId(), row.chapterId(), row.targetType(),
                 row.title(), row.synopsis(), row.categoryId(), fromJson(row.tags()),
                 row.coverAssetId(), row.bodyText(), row.state(), row.lockVersion());
+    }
+
+    private DraftContractView toContractView(DraftRow row) {
+        return DraftContractView.of(row.id(), row.lockVersion(), row.state(),
+                row.targetType(), row.workId(), row.chapterId(), row.baseVersionId(),
+                row.title(), row.synopsis(), row.categoryId(), fromJson(row.tags()),
+                row.coverAssetId(), row.bodyText());
+    }
+
+    private static String normalizeReason(String reason) {
+        if (reason == null) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        String normalized = reason.trim();
+        if (normalized.isEmpty() || normalized.length() > 500) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+        return normalized;
     }
 
     private TargetRef targetOf(DraftCreateRequest request) {
