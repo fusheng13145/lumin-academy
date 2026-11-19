@@ -17,6 +17,15 @@ export interface SubscriptionItem {
   timezoneId: string;
 }
 
+/** 是否已追更（详情页标记；05 §3.4 语义——未订阅与越权同为不可见）。 */
+export async function subscriptionStatus(workId: string): Promise<boolean> {
+  const envelope = await request<{ workId: string; subscribed: boolean }>({
+    method: 'GET',
+    path: `/me/subscriptions/${workId}/status`,
+  });
+  return envelope.data.subscribed;
+}
+
 export async function listSubscriptions(): Promise<SubscriptionItem[]> {
   const envelope = await request<SubscriptionItem[]>({
     method: 'GET',
@@ -44,6 +53,7 @@ export async function unsubscribe(workId: string): Promise<void> {
 }
 
 export const subscriptionService = {
+  subscriptionStatus,
   listSubscriptions,
   subscribe,
   unsubscribe,
