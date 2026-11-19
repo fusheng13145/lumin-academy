@@ -8,5 +8,9 @@ public record ChapterListRow(
         String draftId,
         String draftState,
         String draftTitle,
-        Long draftLockVersion) {
+        Long draftLockVersion,
+        String workId,
+        String title,
+        String publishedVersionId,
+        Long lockVersion) {
 }

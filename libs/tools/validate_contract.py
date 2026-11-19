@@ -23,7 +23,7 @@ CONTRACT = ROOT / "contracts" / "p0.openapi.yaml"
 ERROR_JSON = ROOT / "libs" / "error-codes.json"
 API_DOC = ROOT / "docs" / "05-接口设计文档.md"
 
-BASELINE_SHA256 = "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602"
+BASELINE_SHA256 = "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf"
 DOC_OPERATION_ID_COUNT = 63          # docs/10 A.8 口径（2026-11-15 文档口径对齐后，与契约原文实测一致）
 MONEY_MINOR_MAX = 9007199254740991   # 2^53-1，04 §5.2 / 契约 MoneyMinor
 TRADING_KEYWORD = re.compile(

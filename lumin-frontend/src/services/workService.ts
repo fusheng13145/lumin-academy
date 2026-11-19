@@ -7,13 +7,12 @@ import { request } from './http';
  */
 export interface MyWork {
   id: string;
-  businessState: string;
-  copyrightStatus: string;
+  state: string;
+  title: string | null;
   draftId: string | null;
   draftState: string | null;
-  draftTitle: string | null;
-  latestTitle: string | null;
-  latestVersionState: string | null;
+  publishedVersionId: string | null;
+  revision: number;
 }
 
 export interface DraftPayload {
@@ -27,8 +26,11 @@ export interface DraftPayload {
 }
 
 export async function listMyWorks(): Promise<MyWork[]> {
-  const envelope = await request<MyWork[]>({ method: 'GET', path: '/me/works' });
-  return envelope.data;
+  const envelope = await request<{ items: MyWork[]; nextCursor: string | null }>({
+    method: 'GET',
+    path: '/me/works',
+  });
+  return envelope.data.items;
 }
 
 export async function createWork(): Promise<ReceiptView> {

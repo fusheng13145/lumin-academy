@@ -6,6 +6,24 @@ import { createDraft, submitDraft } from '../../services/draftService';
 import { chapterService, type MyChapter } from '../../services/chapterService';
 
 // 创作：作品列表 → 章节 → 章节草稿 → 提交审校（真实 API）
+const WORK_STATE_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  ACTIVE: '连载',
+  COMPLETED: '完结',
+  REMOVED: '下架',
+  TERMINATED: '终止',
+};
+
+const CHAPTER_STATE_LABEL: Record<string, string> = {
+  DRAFT: '草稿',
+  ACTIVE: '连载',
+  REMOVED: '下架',
+  TERMINATED: '终止',
+};
+
+const stateLabel = (labels: Record<string, string>, state: string): string =>
+  labels[state] ?? state;
+
 export function AuthorView() {
   const [works, setWorks] = useState<MyWork[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,8 +90,7 @@ export function AuthorView() {
     setError(null);
     setBusy(true);
     try {
-      const { chapterService: svc } = await import('../../services/chapterService');
-      await svc.createChapter(work.id);
+      await chapterService.createChapter(work.id);
       setChapters(await chapterService.listMyChapters(work.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : '新建章节失败');
@@ -123,13 +140,14 @@ export function AuthorView() {
           {works.map((w) => (
             <li key={w.id} className="draft-item card">
               <div className="draft-item__main">
-                <h3>{w.latestTitle ?? '（无版本）'}</h3>
+                <h3>{w.title ?? '（无标题）'}</h3>
                 <p className="draft-item__meta">
-                  {w.businessState} · 最新版本 {w.latestVersionState ?? '—'}
+                  {stateLabel(WORK_STATE_LABEL, w.state)}
                   {w.draftState ? ` · 草稿 ${w.draftState}` : ''}
                 </p>
               </div>
-              {w.draftState === 'EDITABLE' && w.draftId && (
+              {w.draftState === 'EDITABLE' && w.draftId
+                && w.state !== 'REMOVED' && w.state !== 'TERMINATED' && (
                 <button
                   className="btn btn--soft"
                   type="button"
@@ -148,7 +166,7 @@ export function AuthorView() {
           <h2 className="setting-block__title">章节</h2>
           {chapters.map((ch) => (
             <div key={ch.id} className="setting-row">
-              <span>第 {ch.sequenceNo} 章 · {ch.businessState}
+              <span>第 {ch.sequenceNo} 章 · {stateLabel(CHAPTER_STATE_LABEL, ch.state)}
                 {ch.draftState ? ` · 草稿 ${ch.draftState}` : ''}</span>
             </div>
           ))}

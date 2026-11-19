@@ -45,16 +45,27 @@ public interface ChapterMapper {
                             @Param("now") java.time.LocalDateTime now,
                             @Param("expectedState") String expectedState);
 
-    /** 作者作品的章节列表（05 §3.2 listMyChapters：含可编辑草稿状态）。 */
+    /** 作者作品的章节列表（05 §3.2 listMyChapters：含可编辑草稿状态；sequence_no,id 升序游标）。 */
     @Select("""
             SELECT c.id, c.sequence_no, c.business_state,
                    d.id AS draft_id, d.state AS draft_state, d.title AS draft_title,
-                   d.lock_version AS draft_lock_version
+                   d.lock_version AS draft_lock_version,
+                   c.work_id, COALESCE(cv.title, d.title) AS title,
+                   p.version_id AS published_version_id, c.lock_version
             FROM chapter c
             LEFT JOIN draft d ON d.chapter_id = c.id AND d.state = 'EDITABLE'
                 AND d.deleted_at IS NULL
+            LEFT JOIN content_version cv ON cv.id = (SELECT c2.id FROM content_version c2
+                WHERE c2.chapter_id = c.id ORDER BY c2.revision_no DESC LIMIT 1)
+            LEFT JOIN publication_pointer p ON p.target_type = 'CHAPTER' AND p.target_id = c.id
             WHERE c.work_id = #{workId} AND c.deleted_at IS NULL
-            ORDER BY c.sequence_no
+              AND (c.sequence_no > #{cursorSeq}
+                   OR (c.sequence_no = #{cursorSeq} AND c.id > #{cursorId}))
+            ORDER BY c.sequence_no, c.id
+            LIMIT #{limit}
             """)
-    java.util.List<ChapterListRow> listByWorkWithDraft(@Param("workId") String workId);
+    java.util.List<ChapterListRow> listByWorkWithDraft(@Param("workId") String workId,
+                                                       @Param("cursorSeq") int cursorSeq,
+                                                       @Param("cursorId") String cursorId,
+                                                       @Param("limit") int limit);
 }

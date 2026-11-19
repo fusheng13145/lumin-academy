@@ -22,7 +22,7 @@ python libs/tools/check_dependency_cycles.py --inject "moderation->authoring.rep
 
 ## `validate_contract.py` 校验项
 
-1. 只读打开 `contracts/p0.openapi.yaml`，前置/后置比对 SHA256 基线 `278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602`，证明契约未被修改。
+1. 只读打开 `contracts/p0.openapi.yaml`，前置/后置比对 SHA256 基线 `5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf`，证明契约未被修改。
 2. `openapi: 3.0.3` 与 `info` 存在。
 3. 全部 `operationId` 唯一；**基数差异如实登记**（见下）。
 4. 所有 `#/components/...` `$ref` 可解析到已定义键（缩进级收集 six 个子段）。

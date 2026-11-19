@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ContractSkeletonTest {
 
     private static final String BASELINE_SHA256 =
-            "278151636eb16e96a28cbe7058bd665f549a5fff21471fbccc849a88ec147602";
+            "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf";
     /** docs/10 A.8 口径（2026-11-15 文档口径对齐后，与契约原文实测 63 一致）。 */
     private static final int DOC_OPERATION_ID_COUNT = 63;
     private static final Pattern OPERATION_ID = Pattern.compile(

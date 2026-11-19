@@ -8,9 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 /**
  * 作者私有工作区接入层（05 §3.2 契约路径：GET /me/works、GET /me/works/{id}/chapters；
@@ -27,29 +26,23 @@ public class MeWorkspaceController {
         this.workService = workService;
     }
 
-    /** 私有作品列表（05 §3.2 listMyWorks：仅本人，含 DRAFT 与最新版本状态）。 */
+    /** 私有作品列表（05 §3.2 listMyWorks：仅本人，含 DRAFT 与治理态，签名游标分页）。 */
     @GetMapping
     public ApiEnvelope listMyWorks(
-            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject) {
-        List<WorkController.MyWorkView> works = workService.listMyWorks(subject).stream()
-                .map(w -> new WorkController.MyWorkView(w.id(), w.businessState(),
-                        w.copyrightStatus(), w.draftId(), w.draftState(), w.draftTitle(),
-                        w.latestTitle(), w.latestVersionState()))
-                .toList();
-        return ApiEnvelope.ok(works);
+            @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer limit) {
+        return ApiEnvelope.ok(workService.listMyWorks(subject, cursor, limit));
     }
 
-    /** 作者作品的章节列表（05 §3.2 listMyChapters；仅本人）。 */
+    /** 作者作品的章节列表（05 §3.2 listMyChapters；仅本人，签名游标分页）。 */
     @GetMapping("/{workId}/chapters")
     public ApiEnvelope listMyChapters(
             @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
-            @PathVariable String workId) {
-        List<WorkController.ChapterListItem> chapters = workService.listMyChapters(subject, workId)
-                .stream()
-                .map(c -> new WorkController.ChapterListItem(c.id(), c.sequenceNo(),
-                        c.businessState(), c.draftId(), c.draftState(), c.draftTitle()))
-                .toList();
-        return ApiEnvelope.ok(chapters);
+            @PathVariable String workId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Integer limit) {
+        return ApiEnvelope.ok(workService.listMyChapters(subject, workId, cursor, limit));
     }
 
     /** 私有作品详情（05 §3.2 getMyWork；不存在/越权统一 404）。 */

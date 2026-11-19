@@ -12,5 +12,7 @@ public record MyWorkRow(
         Long draftLockVersion,
         String latestTitle,
         String latestVersionState,
-        String latestGrade) {
+        String latestGrade,
+        String publishedVersionId,
+        java.time.LocalDateTime createdAt) {
 }

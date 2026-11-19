@@ -5,13 +5,18 @@ import com.leyon.lumin.catalog.repository.ChapterMapper;
 import com.leyon.lumin.catalog.repository.MyWorkRow;
 import com.leyon.lumin.catalog.repository.WorkMapper;
 import com.leyon.lumin.catalog.repository.WorkRow;
+import com.leyon.lumin.foundation.cursor.CursorCodec;
 import com.leyon.lumin.foundation.ErrorCodes.ErrorCode;
 import com.leyon.lumin.foundation.LuminBusinessException;
 import com.leyon.lumin.foundation.web.IfMatch;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,11 +30,14 @@ public class WorkService {
 
     private final WorkMapper workMapper;
     private final com.leyon.lumin.catalog.repository.ChapterMapper chapterMapper;
+    private final String cursorKey;
 
     public WorkService(WorkMapper workMapper,
-                       com.leyon.lumin.catalog.repository.ChapterMapper chapterMapper) {
+                       com.leyon.lumin.catalog.repository.ChapterMapper chapterMapper,
+                       @Value("${lumin.cursor.key}") String cursorKey) {
         this.workMapper = workMapper;
         this.chapterMapper = chapterMapper;
+        this.cursorKey = cursorKey;
     }
 
     /** 新作品：DRAFT + 版权 VALID，不直接公开元数据（05 §3.2 createWork）。 */
@@ -56,10 +64,54 @@ public class WorkService {
                 row.businessState(), row.lockVersion());
     }
 
-    /** 作者私有作品列表（05 §3.2 listMyWorks：含 DRAFT 与最新版本状态）。 */
+    /** 契约 AuthorWorkView（05 §3.2；state 含治理态 REMOVED/TERMINATED）。 */
+    public record AuthorWorkView(String id, String state, String title, String draftId,
+                                 String draftState, String publishedVersionId, long revision) {
+    }
+
+    /** 契约 AuthorChapterView（05 §3.2；state 含治理态 REMOVED/TERMINATED）。 */
+    public record AuthorChapterView(String id, String workId, int sequenceNo, String state,
+                                    String title, String draftId, String draftState,
+                                    String publishedVersionId, long revision) {
+    }
+
+    public record Page<T>(List<T> items, String nextCursor) {
+    }
+
+    /** 作者私有作品列表（05 §3.2 listMyWorks：created_at,id 倒序签名游标）。 */
     @Transactional(readOnly = true)
-    public List<MyWorkRow> listMyWorks(String authorId) {
-        return workMapper.listMyWorks(authorId);
+    public Page<AuthorWorkView> listMyWorks(String subject, String cursorToken, Integer limitParam) {
+        requireLimit(limitParam);
+        int limit = CursorCodec.resolveLimit(limitParam);
+        String filterDigest = CursorCodec.filterDigest("list=my-works;viewer=" + subject);
+        LocalDateTime cursorAt = LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+        UUID cursorId = UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff");
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            CursorCodec.DecodedCursor decoded = CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(StandardCharsets.UTF_8), Instant.now(), filterDigest);
+            requireCursor(decoded, subject);
+            cursorAt = LocalDateTime.parse(decoded.payload().sortKeyValue());
+            cursorId = decoded.payload().lastId();
+        }
+        List<MyWorkRow> rows = workMapper.listMyWorks(subject, cursorAt,
+                cursorId.toString(), limit + 1);
+        boolean hasNext = rows.size() > limit;
+        List<MyWorkRow> pageRows = hasNext ? rows.subList(0, limit) : rows;
+        List<AuthorWorkView> items = pageRows.stream()
+                .map(row -> new AuthorWorkView(row.id(), row.businessState(),
+                        row.latestTitle() != null ? row.latestTitle() : row.draftTitle(),
+                        row.draftId(), row.draftState(), row.publishedVersionId(),
+                        row.lockVersion() == null ? 1L : row.lockVersion()))
+                .toList();
+        String nextCursor = null;
+        if (hasNext) {
+            MyWorkRow last = pageRows.get(pageRows.size() - 1);
+            nextCursor = CursorCodec.encode(new CursorCodec.Payload(
+                    last.createdAt().toString(), UUID.fromString(last.id()), filterDigest,
+                    UUID.fromString(subject), Instant.now()),
+                    cursorKey.getBytes(StandardCharsets.UTF_8));
+        }
+        return new Page<>(items, nextCursor);
     }
 
     /** 作者私有作品详情（05 §3.2 getMyWork；不存在/越权统一 404）。 */
@@ -160,11 +212,58 @@ public class WorkService {
         }
     }
 
-    /** 作者作品的章节列表（05 §3.2 listMyChapters：归属校验 + 可编辑草稿状态）。 */
+    /** 作者作品的章节列表（05 §3.2 listMyChapters：sequence_no,id 升序签名游标）。 */
     @Transactional(readOnly = true)
-    public List<ChapterListRow> listMyChapters(String subject, String workId) {
+    public Page<AuthorChapterView> listMyChapters(String subject, String workId,
+                                                  String cursorToken, Integer limitParam) {
+        requireLimit(limitParam);
         requireOwnedRow(workId, subject);
-        return chapterMapper.listByWorkWithDraft(workId);
+        int limit = CursorCodec.resolveLimit(limitParam);
+        String filterDigest = CursorCodec.filterDigest("list=my-chapters;work=" + workId
+                + ";viewer=" + subject);
+        int cursorSeq = 0;
+        UUID cursorId = UUID.fromString("00000000-0000-0000-0000-000000000000");
+        if (cursorToken != null && !cursorToken.isBlank()) {
+            CursorCodec.DecodedCursor decoded = CursorCodec.decode(cursorToken,
+                    cursorKey.getBytes(StandardCharsets.UTF_8), Instant.now(), filterDigest);
+            requireCursor(decoded, subject);
+            cursorSeq = Integer.parseInt(decoded.payload().sortKeyValue());
+            cursorId = decoded.payload().lastId();
+        }
+        List<ChapterListRow> rows = chapterMapper.listByWorkWithDraft(workId, cursorSeq,
+                cursorId.toString(), limit + 1);
+        boolean hasNext = rows.size() > limit;
+        List<ChapterListRow> pageRows = hasNext ? rows.subList(0, limit) : rows;
+        List<AuthorChapterView> items = pageRows.stream()
+                .map(row -> new AuthorChapterView(row.id(), row.workId(), row.sequenceNo(),
+                        row.businessState(), row.title(), row.draftId(), row.draftState(),
+                        row.publishedVersionId(),
+                        row.lockVersion() == null ? 1L : row.lockVersion()))
+                .toList();
+        String nextCursor = null;
+        if (hasNext) {
+            ChapterListRow last = pageRows.get(pageRows.size() - 1);
+            nextCursor = CursorCodec.encode(new CursorCodec.Payload(
+                    Integer.toString(last.sequenceNo()), UUID.fromString(last.id()), filterDigest,
+                    UUID.fromString(subject), Instant.now()),
+                    cursorKey.getBytes(StandardCharsets.UTF_8));
+        }
+        return new Page<>(items, nextCursor);
+    }
+
+    /** 显式 limit 非法 → 400/P1001（05 §2；不静默钳制）。 */
+    private void requireLimit(Integer limitParam) {
+        if (CursorCodec.validateLimit(limitParam) != ErrorCode.OK) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
+    }
+
+    /** 游标必须签名有效、未过期且属于当前主体。 */
+    private void requireCursor(CursorCodec.DecodedCursor decoded, String subject) {
+        if (decoded.code() != ErrorCode.OK
+                || !decoded.payload().subjectId().toString().equals(subject)) {
+            throw new LuminBusinessException(ErrorCode.P1001);
+        }
     }
 
     /** 首版发布成功：DRAFT →(FIRST_VERSION_PUBLISHED)→ ACTIVE（03 §2.1，SYSTEM）。

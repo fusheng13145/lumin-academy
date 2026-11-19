@@ -54,22 +54,30 @@ public interface WorkMapper {
                             @Param("now") java.time.LocalDateTime now,
                             @Param("expectedState") String expectedState);
 
-    /** 作者私有作品列表（05 §3.2 listMyWorks：含 DRAFT 与可编辑草稿状态）。 */
+    /** 作者私有作品列表（05 §3.2 listMyWorks：含 DRAFT 与可编辑草稿状态；created_at,id 倒序游标）。 */
     @Select("""
             SELECT w.id, w.business_state, w.copyright_status, w.lock_version,
                    d.id AS draft_id, d.state AS draft_state, d.title AS draft_title,
                    d.lock_version AS draft_lock_version,
                    cv.title AS latest_title, cv.state AS latest_version_state,
-                   cv.grade AS latest_grade
+                   cv.grade AS latest_grade,
+                   p.version_id AS published_version_id, w.created_at
             FROM work w
             LEFT JOIN draft d ON d.work_id = w.id AND d.state = 'EDITABLE'
                 AND d.deleted_at IS NULL
             LEFT JOIN content_version cv ON cv.id = (SELECT c.id FROM content_version c
                 WHERE c.work_id = w.id ORDER BY c.revision_no DESC LIMIT 1)
+            LEFT JOIN publication_pointer p ON p.target_type = 'WORK' AND p.target_id = w.id
             WHERE w.author_id = #{authorId} AND w.deleted_at IS NULL
-            ORDER BY w.created_at DESC
+              AND (w.created_at < #{cursorAt}
+                   OR (w.created_at = #{cursorAt} AND w.id < #{cursorId}))
+            ORDER BY w.created_at DESC, w.id DESC
+            LIMIT #{limit}
             """)
-    java.util.List<MyWorkRow> listMyWorks(@Param("authorId") String authorId);
+    java.util.List<MyWorkRow> listMyWorks(@Param("authorId") String authorId,
+                                          @Param("cursorAt") java.time.LocalDateTime cursorAt,
+                                          @Param("cursorId") String cursorId,
+                                          @Param("limit") int limit);
 
     /** 作者私有作品详情（05 §3.2 getMyWork：不存在/越权由服务层统一 404）。 */
     @Select("""

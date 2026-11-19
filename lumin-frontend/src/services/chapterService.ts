@@ -5,19 +5,22 @@ import { request } from './http';
  */
 export interface MyChapter {
   id: string;
+  workId: string;
   sequenceNo: number;
-  businessState: string;
+  state: string;
+  title: string | null;
   draftId: string | null;
   draftState: string | null;
-  draftTitle: string | null;
+  publishedVersionId: string | null;
+  revision: number;
 }
 
 export async function listMyChapters(workId: string): Promise<MyChapter[]> {
-  const envelope = await request<MyChapter[]>({
+  const envelope = await request<{ items: MyChapter[]; nextCursor: string | null }>({
     method: 'GET',
     path: `/me/works/${workId}/chapters`,
   });
-  return envelope.data;
+  return envelope.data.items;
 }
 
 export async function createChapter(workId: string): Promise<{ id: string }> {

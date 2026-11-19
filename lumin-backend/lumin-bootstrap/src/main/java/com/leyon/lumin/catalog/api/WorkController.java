@@ -44,15 +44,4 @@ public class WorkController {
                         workService.createWork(subject, LocalDateTime.now(ZoneOffset.UTC)),
                         "work", "DRAFT", 1L)));
     }
-
-    /** 私有作品列表项（05 §3.2：含可编辑草稿状态与最新版本摘要）。 */
-    public record MyWorkView(String id, String businessState, String copyrightStatus,
-                             String draftId, String draftState, String draftTitle,
-                             String latestTitle, String latestVersionState) {
-    }
-
-    /** 私有章节列表项。 */
-    public record ChapterListItem(String id, int sequenceNo, String businessState,
-                                  String draftId, String draftState, String draftTitle) {
-    }
 }

@@ -429,8 +429,8 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/me/works"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].id").value(workId))
-                .andExpect(jsonPath("$.data[0].draftState").value("EDITABLE"));
+                .andExpect(jsonPath("$.data.items[0].id").value(workId))
+                .andExpect(jsonPath("$.data.items[0].draftState").value("EDITABLE"));
         long workLock = jdbc.queryForObject(
                 "SELECT lock_version FROM work WHERE id = ?", Long.class, workId);
         String chapterId = com.leyon.lumin.support.TestResponseSupport.field(mockMvc.perform(
@@ -446,10 +446,10 @@ class HumanReviewAndReaderIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/me/works/" + workId + "/chapters"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].id").value(chapterId))
-                .andExpect(jsonPath("$.data[0].businessState").value("DRAFT"))
-                .andExpect(jsonPath("$.data[0].draftState").value("EDITABLE"));
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].id").value(chapterId))
+                .andExpect(jsonPath("$.data.items[0].state").value("DRAFT"))
+                .andExpect(jsonPath("$.data.items[0].draftState").value("EDITABLE"));
     }
 
     private void submitAndApprove(String workId, String draftId) throws Exception {

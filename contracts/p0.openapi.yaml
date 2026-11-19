@@ -762,11 +762,11 @@ components:
     AuthorWorkView:
       type: object
       additionalProperties: false
-      description: 私有作品身份；新建时state=DRAFT且title/草稿/公开版本可空。draftId与draftState同时为空或同时有值；公开版本指针仅表示当前公开版本，不代表可见性授权。
+      description: 私有作品身份；新建时state=DRAFT且title/草稿/公开版本可空。draftId与draftState同时为空或同时有值；公开版本指针仅表示当前公开版本，不代表可见性授权。state含治理态REMOVED/TERMINATED，仅供作者工作台展示，不表示公开可见。
       required: [id, state, title, draftId, draftState, publishedVersionId, revision]
       properties:
         id: {$ref: '#/components/schemas/Id'}
-        state: {type: string, enum: [DRAFT, ACTIVE, COMPLETED]}
+        state: {type: string, enum: [DRAFT, ACTIVE, COMPLETED, REMOVED, TERMINATED]}
         title: {type: string, nullable: true, minLength: 1, maxLength: 100}
         draftId: {type: string, format: uuid, nullable: true}
         draftState: {type: string, nullable: true, enum: [EDITABLE, SUBMITTED, DISCARDED, null]}
@@ -784,13 +784,13 @@ components:
     AuthorChapterView:
       type: object
       additionalProperties: false
-      description: 含未公开DRAFT的私有章节；draftId与draftState同时为空或同时有值，title可在未建立草稿时为空。
+      description: 含未公开DRAFT的私有章节；draftId与draftState同时为空或同时有值，title可在未建立草稿时为空。state含治理态REMOVED/TERMINATED，仅供作者工作台展示。
       required: [id, workId, sequenceNo, state, title, draftId, draftState, publishedVersionId, revision]
       properties:
         id: {$ref: '#/components/schemas/Id'}
         workId: {$ref: '#/components/schemas/Id'}
         sequenceNo: {type: integer, minimum: 1}
-        state: {type: string, enum: [DRAFT, ACTIVE]}
+        state: {type: string, enum: [DRAFT, ACTIVE, REMOVED, TERMINATED]}
         title: {type: string, nullable: true, minLength: 1, maxLength: 100}
         draftId: {type: string, format: uuid, nullable: true}
         draftState: {type: string, nullable: true, enum: [EDITABLE, SUBMITTED, DISCARDED, null]}

@@ -85,6 +85,50 @@ class AuthorReadApiTest {
     }
 
     @Test
+    void listMyWorksReturnsContractPageWithGovernanceState() throws Exception {
+        when(workService.listMyWorks(eq(SUBJECT), isNull(), eq(10)))
+                .thenReturn(new WorkService.Page<>(
+                        List.of(new WorkService.AuthorWorkView("work-1", "REMOVED", "作品标题",
+                                "draft-1", "EDITABLE", "version-1", 4L)),
+                        "next-work"));
+
+        mockMvc.perform(get("/api/v1/me/works")
+                        .param("limit", "10")
+                        .requestAttr(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT, SUBJECT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.items[0].id").value("work-1"))
+                .andExpect(jsonPath("$.data.items[0].state").value("REMOVED"))
+                .andExpect(jsonPath("$.data.items[0].title").value("作品标题"))
+                .andExpect(jsonPath("$.data.items[0].draftId").value("draft-1"))
+                .andExpect(jsonPath("$.data.items[0].publishedVersionId").value("version-1"))
+                .andExpect(jsonPath("$.data.items[0].revision").value(4))
+                .andExpect(jsonPath("$.data.nextCursor").value("next-work"));
+    }
+
+    @Test
+    void listMyChaptersReturnsContractPageWithGovernanceState() throws Exception {
+        when(workService.listMyChapters(eq(SUBJECT), eq("work-1"), isNull(), eq(10)))
+                .thenReturn(new WorkService.Page<>(
+                        List.of(new WorkService.AuthorChapterView("chapter-1", "work-1", 1,
+                                "TERMINATED", "第一章", "draft-1", "EDITABLE", "version-1", 2L)),
+                        "next-chapter"));
+
+        mockMvc.perform(get("/api/v1/me/works/work-1/chapters")
+                        .param("limit", "10")
+                        .requestAttr(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT, SUBJECT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.items[0].id").value("chapter-1"))
+                .andExpect(jsonPath("$.data.items[0].workId").value("work-1"))
+                .andExpect(jsonPath("$.data.items[0].sequenceNo").value(1))
+                .andExpect(jsonPath("$.data.items[0].state").value("TERMINATED"))
+                .andExpect(jsonPath("$.data.items[0].title").value("第一章"))
+                .andExpect(jsonPath("$.data.items[0].revision").value(2))
+                .andExpect(jsonPath("$.data.nextCursor").value("next-chapter"));
+    }
+
+    @Test
     void listMyDraftsReturnsContractPage() throws Exception {        DraftContractView view = DraftContractView.of("draft-1", 2, "EDITABLE", "CHAPTER",
                 "work-1", "chapter-1", null, "第一章", null, null, List.of(),
                 null, "正文");

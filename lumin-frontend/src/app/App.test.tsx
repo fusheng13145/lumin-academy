@@ -20,7 +20,14 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockReset();
-  fetchMock.mockImplementation(async () => envelope([]));
+  fetchMock.mockImplementation(async (input) => {
+    const path = String(input);
+    if (path.includes('/me/works') || path.includes('/me/drafts')
+      || path.includes('/me/publication-workflows')) {
+      return envelope({ items: [], nextCursor: null });
+    }
+    return envelope([]);
+  });
 });
 
 afterEach(() => {
