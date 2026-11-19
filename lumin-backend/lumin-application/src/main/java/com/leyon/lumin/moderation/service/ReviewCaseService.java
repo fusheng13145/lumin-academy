@@ -107,7 +107,14 @@ public class ReviewCaseService {
                 cursorId.toString(), limit + 1);
         boolean hasNext = rows.size() > limit;
         List<ReviewCaseRow> pageRows = hasNext ? rows.subList(0, limit) : rows;
-        List<CaseDetailView> items = pageRows.stream().map(this::toDetail).toList();
+        java.util.Map<String, List<ReviewDecisionRow>> decisionsByCase = pageRows.isEmpty()
+                ? java.util.Map.of()
+                : decisionMapper.findByCaseIds(pageRows.stream().map(ReviewCaseRow::id).toList())
+                        .stream().collect(java.util.stream.Collectors.groupingBy(
+                                ReviewDecisionRow::caseId));
+        List<CaseDetailView> items = pageRows.stream()
+                .map(row -> toDetail(row, decisionsByCase.getOrDefault(row.id(), List.of())))
+                .toList();
         String nextCursor = null;
         if (hasNext) {
             ReviewCaseRow last = pageRows.get(pageRows.size() - 1);
@@ -263,7 +270,7 @@ public class ReviewCaseService {
         }
     }
 
-    private CaseDetailView toDetail(ReviewCaseRow row) {
+    private CaseDetailView toDetail(ReviewCaseRow row, List<ReviewDecisionRow> decisionRows) {
         String authorAgeBand = "C4";
         if (row.versionId() != null) {
             ContentMaterialPort.MaterialRef material =
@@ -272,7 +279,7 @@ public class ReviewCaseService {
                 authorAgeBand = material.authorAgeBand();
             }
         }
-        List<DecisionItemView> decisions = decisionMapper.findByCase(row.id()).stream()
+        List<DecisionItemView> decisions = decisionRows.stream()
                 .map(this::toDecision)
                 .toList();
         return new CaseDetailView(row.id(), row.workId(), row.versionId(), row.state(),

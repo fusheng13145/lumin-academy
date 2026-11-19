@@ -11,6 +11,7 @@ import com.leyon.lumin.moderation.api.dto.DecisionRequest;
 import com.leyon.lumin.moderation.repository.ReviewCaseMapper;
 import com.leyon.lumin.moderation.repository.ReviewCaseRow;
 import com.leyon.lumin.moderation.repository.ReviewDecisionMapper;
+import com.leyon.lumin.moderation.repository.ReviewDecisionRow;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,9 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,7 +70,7 @@ class ReviewCaseServiceTest {
                 .thenReturn(List.of(
                         row(firstId, "P1", due),
                         row("00000000-0000-4000-8000-0000000000a2", "P2", due.plusHours(1))));
-        when(decisionMapper.findByCase(anyString())).thenReturn(List.of());
+        when(decisionMapper.findByCaseIds(anyList())).thenReturn(List.of());
 
         ReviewCaseService.Page page = service.listCases(SUBJECT, ROLE, null, 1);
 
@@ -80,6 +84,27 @@ class ReviewCaseServiceTest {
         assertEquals(ErrorCode.OK, decoded.code());
         assertEquals("2|" + due, decoded.payload().sortKeyValue());
         assertEquals(UUID.fromString(firstId), decoded.payload().lastId());
+        verify(decisionMapper, times(1)).findByCaseIds(anyList());
+    }
+
+    @Test
+    void listCasesMapsBatchedDecisionsToTheirOwnCase() {
+        LocalDateTime due = LocalDateTime.of(2026, 11, 19, 12, 0);
+        String firstId = "00000000-0000-4000-8000-0000000000b1";
+        String secondId = "00000000-0000-4000-8000-0000000000b2";
+        when(caseMapper.listQueued(eq(0), any(LocalDateTime.class), anyString(), eq(3)))
+                .thenReturn(List.of(row(firstId, "P1", due), row(secondId, "P2", due)));
+        when(decisionMapper.findByCaseIds(anyList())).thenReturn(List.of(
+                decision("d-1", firstId), decision("d-2", secondId)));
+
+        ReviewCaseService.Page page = service.listCases(SUBJECT, ROLE, null, 2);
+
+        assertEquals(2, page.items().size());
+        assertEquals(List.of("d-1"), page.items().get(0).decisions().stream()
+                .map(com.leyon.lumin.moderation.api.dto.DecisionItemView::id).toList());
+        assertEquals(List.of("d-2"), page.items().get(1).decisions().stream()
+                .map(com.leyon.lumin.moderation.api.dto.DecisionItemView::id).toList());
+        verify(decisionMapper, times(1)).findByCaseIds(anyList());
     }
 
     @Test
@@ -95,6 +120,12 @@ class ReviewCaseServiceTest {
         LuminBusinessException cursorError = assertThrows(LuminBusinessException.class,
                 () -> service.listCases(SUBJECT, ROLE, "not-a-cursor", 10));
         assertEquals(ErrorCode.P1001, cursorError.code());
+    }
+
+    private ReviewDecisionRow decision(String id, String caseId) {
+        return new ReviewDecisionRow(id, caseId, SUBJECT, "HUMAN", "PASS", "G",
+                "OK_1001", "合规", "[]", 1, 1L, LocalDateTime.now(),
+                LocalDateTime.now(), SUBJECT, SUBJECT, 1L);
     }
 
     private ReviewCaseRow row(String id, String priority, LocalDateTime due) {
