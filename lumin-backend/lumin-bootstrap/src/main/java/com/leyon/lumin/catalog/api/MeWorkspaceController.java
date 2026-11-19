@@ -50,18 +50,10 @@ public class MeWorkspaceController {
     public ResponseEntity<ApiEnvelope> getMyWork(
             @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
             @PathVariable String workId) {
-        WorkService.MyWorkDetail detail = workService.getMyWork(subject, workId);
-        AuthorWorkView view = new AuthorWorkView(detail.id(), detail.state(), detail.title(),
-                detail.draftId(), detail.draftState(), detail.publishedVersionId(),
-                detail.revision());
+        WorkService.AuthorWorkView view = workService.getMyWork(subject, workId);
         return ResponseEntity.ok()
                 .eTag("\"" + view.revision() + "\"")
                 .body(ApiEnvelope.ok(view));
-    }
-
-    /** 契约 AuthorWorkView（05 §3.2）。 */
-    public record AuthorWorkView(String id, String state, String title, String draftId,
-                                 String draftState, String publishedVersionId, long revision) {
     }
 }
 

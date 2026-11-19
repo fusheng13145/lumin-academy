@@ -51,7 +51,7 @@ class WorkServiceTest {
         when(workMapper.findMyWorkDetail("w1", "s1")).thenReturn(new MyWorkDetailRow(
                 "w1", "DRAFT", null, "d1", "EDITABLE", null, 2L));
 
-        WorkService.MyWorkDetail detail = workService.getMyWork("s1", "w1");
+        WorkService.AuthorWorkView detail = workService.getMyWork("s1", "w1");
 
         assertEquals("w1", detail.id());
         assertEquals("DRAFT", detail.state());

@@ -115,18 +115,14 @@ public class WorkService {
     }
 
     /** 作者私有作品详情（05 §3.2 getMyWork；不存在/越权统一 404）。 */
-    public record MyWorkDetail(String id, String state, String title, String draftId,
-                               String draftState, String publishedVersionId, long revision) {
-    }
-
     @Transactional(readOnly = true)
-    public MyWorkDetail getMyWork(String authorId, String workId) {
+    public AuthorWorkView getMyWork(String authorId, String workId) {
         com.leyon.lumin.catalog.repository.MyWorkDetailRow row =
                 workId == null ? null : workMapper.findMyWorkDetail(workId, authorId);
         if (row == null) {
             throw new LuminBusinessException(ErrorCode.B2004);
         }
-        return new MyWorkDetail(row.id(), row.businessState(), row.title(), row.draftId(),
+        return new AuthorWorkView(row.id(), row.businessState(), row.title(), row.draftId(),
                 row.draftState(), row.publishedVersionId(),
                 row.lockVersion() == null ? 1L : row.lockVersion());
     }

@@ -56,7 +56,7 @@ class AuthorReadApiTest {
     @Test
     void getMyWorkReturnsEtagAndAuthorView() throws Exception {
         when(workService.getMyWork(SUBJECT, "work-1")).thenReturn(
-                new WorkService.MyWorkDetail("work-1", "ACTIVE", "作品标题", "draft-1",
+                new WorkService.AuthorWorkView("work-1", "ACTIVE", "作品标题", "draft-1",
                         "EDITABLE", "version-1", 4L));
 
         mockMvc.perform(get("/api/v1/me/works/work-1")
