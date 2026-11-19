@@ -122,14 +122,19 @@ describe('书城数据来源与状态', () => {
     fetchMock.mockRejectedValueOnce(new TypeError('offline'));
     render(<App />);
     await screen.findByRole('alert');
-    let rejectRequest!: (reason: Error) => void;
-    fetchMock.mockImplementation(() => new Promise((_resolve, reject) => { rejectRequest = reject; }));
+    // 书城挂载后有两路在途请求（列表 + 运营精选位 UGC-039）：失败需拒绝全部
+    const pendingRejects: Array<(reason: Error) => void> = [];
+    fetchMock.mockImplementation(() => new Promise((_resolve, reject) => {
+      pendingRejects.push(reject);
+    }));
     const retry = screen.getByRole('button', { name: '重试' });
     retry.focus();
     await userEvent.setup().keyboard('{Enter}');
     const heading = screen.getByRole('heading', { name: '书城', level: 1 });
     expect(document.activeElement).toBe(heading);
-    await act(async () => rejectRequest(new TypeError('offline')));
+    await act(async () => {
+      pendingRejects.forEach((reject) => reject(new TypeError('offline')));
+    });
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(document.activeElement).toBe(heading);
   });

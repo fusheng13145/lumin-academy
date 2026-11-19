@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AgeBand, BookState, FilterState, SortKey, WordBucket } from '../../types';
 import { BOOKS } from '../../mocks/mock';
 import { readerService } from '../../services/readerService';
-import type { WorkListItemDto } from '../../services/readerService';
+import type { FeaturedItemDto, WorkListItemDto } from '../../services/readerService';
 import { gradeBand, gradeLabel } from '../../lib/realBook';
 import { BookCard } from './components/BookCard';
 import {
@@ -128,6 +128,8 @@ function LiveCatalog({ ageBand, announce, onOpenDetail, onRetry }: CatalogConten
 function LiveCatalogContent({ submittedQuery, ageBand, announce, onOpenDetail, onRetry }: CatalogContentProps & { submittedQuery: string | null; onRetry: () => void }) {
   const [state, setState] = useState<CatalogState>({ status: 'loading' });
   const [loadingMore, setLoadingMore] = useState(false);
+  const [featured, setFeatured] = useState<FeaturedItemDto[]>([]);
+
 
   // 浏览（无关键词）或搜索（UGC-038）：空结果与不可用分开呈现——
   // 搜索无命中是「没有找到相关作品」，请求失败是「搜索加载失败」。
@@ -169,6 +171,24 @@ function LiveCatalogContent({ submittedQuery, ageBand, announce, onOpenDetail, o
     return () => { alive = false; };
   }, [ageBand, submittedQuery, announce]);
 
+  // 运营精选位（UGC-039）：可见性由服务端同源裁决；每项干预标识显式。
+  useEffect(() => {
+    let alive = true;
+    void readerService.listFeatured(ageBand).then(
+      (items) => {
+        if (alive) {
+          setFeatured(items);
+        }
+      },
+      () => {
+        if (alive) {
+          setFeatured([]);
+        }
+      },
+    );
+    return () => { alive = false; };
+  }, [ageBand]);
+
   const loadMore = () => {
     if (submittedQuery === null || state.status !== 'ready'
         || state.nextCursor === null || loadingMore) {
@@ -205,8 +225,42 @@ function LiveCatalogContent({ submittedQuery, ageBand, announce, onOpenDetail, o
     );
   }
 
+  // 运营位不与自然列表重复曝光同一作品（列表已在场时精选卡让位）。
+  const featuredShown = featured.filter(
+    (item) => !state.works.some((work) => work.workId === item.workId),
+  );
+
   return (
     <div>
+      {submittedQuery === null && featuredShown.length > 0 ? (
+        <div className="catalog-featured" role="region" aria-label="运营推荐">
+          <h2 className="catalog-featured__title">运营推荐</h2>
+          <ul className="catalog-list" aria-label="运营推荐作品">
+            {featuredShown.map((item) => {
+              const blocked = BAND_RANK[gradeBand(item.grade)] > BAND_RANK[ageBand];
+              return (
+                <li key={'featured-' + item.workId}>
+                  <button
+                    className="catalog-book"
+                    type="button"
+                    disabled={blocked}
+                    onClick={() => onOpenDetail(item.workId)}
+                  >
+                    <span className="catalog-book__main">
+                      <span className="catalog-book__title">{item.title}</span>
+                      <span className="catalog-book__author">{item.author}</span>
+                    </span>
+                    <span className="catalog-book__detail">
+                      {blocked ? '当前年龄带暂不可读'
+                        : `运营推荐 · ${EXPOSURE_LABEL[item.exposureReason] ?? item.exposureReason}`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
       {state.works.length === 0 ? (
         <div className="catalog-state">
           {submittedQuery === null ? '暂无作品' : `没有找到与「${submittedQuery}」相关的作品`}
@@ -252,6 +306,13 @@ function dedupeWorks(existing: WorkListItemDto[], incoming: WorkListItemDto[]): 
   const seen = new Set(existing.map((work) => work.workId));
   return [...existing, ...incoming.filter((work) => !seen.has(work.workId))];
 }
+
+/** 曝光原因字典标签（运营干预显式化，UGC-039）。 */
+const EXPOSURE_LABEL: Record<string, string> = {
+  FEATURED: '推荐位',
+  EDITOR_PICK: '编辑推荐',
+  CATEGORY_SPOTLIGHT: '分类聚焦',
+};
 
 function DemoCatalog({ ageBand, announce, onOpenDetail }: CatalogContentProps) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);

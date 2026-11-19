@@ -809,3 +809,14 @@
     margin-bottom: 4px;
   }
 }
+
+/* 运营精选位（UGC-039）：干预显式标注，不与自然列表混排 */
+.catalog-featured {
+  margin-bottom: var(--sp-5);
+}
+.catalog-featured__title {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-aux);
+  margin: 0 0 var(--sp-2);
+}

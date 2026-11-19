@@ -182,6 +182,31 @@ export async function searchWorks(
   };
 }
 
+/** 读者精选位条目（UGC-039：曝光原因 + 干预标识恒真——运营位显式化）。 */
+export interface FeaturedItemDto {
+  workId: string;
+  versionId: string;
+  title: string;
+  author: string;
+  grade: string;
+  chapterId: string;
+  exposureReason: string;
+  intervention: boolean;
+  positionRank: number;
+}
+
+/** 运营精选位（可见性与 /works 同源过滤由服务端裁决）。 */
+export async function listFeatured(
+    band?: AgeBand | null,
+): Promise<FeaturedItemDto[]> {
+  const envelope = await request<FeaturedItemDto[]>({
+    method: 'GET',
+    path: '/works/featured',
+    headers: readerHeaders(band),
+  });
+  return envelope.data;
+}
+
 export const readerService = {
   listWorks,
   getWork,
@@ -190,4 +215,5 @@ export const readerService = {
   getProgress,
   saveProgress,
   searchWorks,
+  listFeatured,
 };
