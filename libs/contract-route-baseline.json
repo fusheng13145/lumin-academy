@@ -2,10 +2,10 @@
   "contract_sha256": "5add7f6b48fa314c9340c34b12ed4e2604328927f3f24bbb1658c469612dbcaf",
   "contract_operations": 63,
   "contract_paths": 53,
-  "controller_routes": 98,
+  "controller_routes": 114,
   "implemented_count": 63,
   "missing_count": 0,
-  "extra_count": 35,
+  "extra_count": 51,
   "implemented": [
     {
       "operationId": "createProfile",
@@ -550,6 +550,21 @@
     },
     {
       "method": "POST",
+      "path": "/api/v1/me/blocks",
+      "handler": "BlockController#block"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/me/blocks/{subjectId}",
+      "handler": "BlockController#unblock"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/blocks",
+      "handler": "BlockController#list"
+    },
+    {
+      "method": "POST",
       "path": "/api/v1/me/closure",
       "handler": "ClosureController#close"
     },
@@ -557,6 +572,71 @@
       "method": "GET",
       "path": "/api/v1/me/closure",
       "handler": "ClosureController#status"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/mfa/enrollments",
+      "handler": "MfaController#enroll"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/mfa/confirmations",
+      "handler": "MfaController#confirm"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/mfa-challenges",
+      "handler": "MfaController#completeChallenge"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mfa-unbind-requests",
+      "handler": "MfaUnbindController#request"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mfa-unbind-requests",
+      "handler": "MfaUnbindController#list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mfa-unbind-requests/{id}/decisions",
+      "handler": "MfaUnbindController#decide"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/registrations",
+      "handler": "PasswordAuthController#register"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/password-sessions",
+      "handler": "PasswordAuthController#login"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/password-changes",
+      "handler": "PasswordAuthController#changePassword"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/password-resets",
+      "handler": "PasswordResetController#request"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/password-reset-confirmations",
+      "handler": "PasswordResetController#confirm"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/password-reset-tickets",
+      "handler": "PasswordResetTicketController#list"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/password-reset-tickets/{id}/decisions",
+      "handler": "PasswordResetTicketController#decide"
     },
     {
       "method": "GET",
