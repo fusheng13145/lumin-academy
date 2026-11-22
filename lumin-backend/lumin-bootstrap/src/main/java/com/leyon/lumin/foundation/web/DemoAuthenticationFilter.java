@@ -21,6 +21,7 @@ import java.util.UUID;
  * 后续阶段），解析/撤销语义不变。
  */
 @Component
+@org.springframework.core.annotation.Order(2)
 public class DemoAuthenticationFilter extends OncePerRequestFilter {
 
     /** 请求属性键：当前主体（服务端权威注入，非客户端自报）。 */
@@ -48,6 +49,16 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String STUB_SUBJECT =
             UUID.fromString("9f8f8f8f-0000-4000-8000-0000000000a1").toString();
+
+    /** 免认证的 POST 端点白名单（注册/登录/登出/替身签发/二次验证挑战/口令找回；其余一律要令牌）。 */
+    private static final java.util.Set<String> EXEMPT_POST_PATHS = java.util.Set.of(
+            "/api/v1/auth/sessions",
+            "/api/v1/auth/sessions/revocations",
+            "/api/v1/auth/registrations",
+            "/api/v1/auth/password-sessions",
+            "/api/v1/auth/mfa-challenges",
+            "/api/v1/auth/password-resets",
+            "/api/v1/auth/password-reset-confirmations");
     public static final String REVIEWER_L1A_SUBJECT =
             UUID.fromString("8f8f8f8f-0000-4000-8000-0000000000b2").toString();
     public static final String REVIEWER_L2A_SUBJECT =
@@ -131,14 +142,13 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        // 登录/登出端点豁免：签发入口自身不要求已有会话；登出幂等——
-        // 已撤销令牌的重复登出由服务层幂等处理（不重复产生副作用）
-        if ("/api/v1/auth/sessions".equals(request.getRequestURI())
-                || "/api/v1/auth/sessions/revocations".equals(request.getRequestURI())) {
-            if ("POST".equals(request.getMethod())) {
-                chain.doFilter(request, response);
-                return;
-            }
+        // 豁免端点（自身不能要求"已有会话"）：
+        //   登出（幂等，无令牌也 200）、替身签发（仅 demo 模式内部再闸门）、
+        //   口令注册/口令登录（2026-11-20 安全审查 05 项新增真实凭据链路）
+        if ("POST".equals(request.getMethod())
+                && (EXEMPT_POST_PATHS.contains(request.getRequestURI()))) {
+            chain.doFilter(request, response);
+            return;
         }
         // UGC-002 一阶段：持有令牌优先（两种模式一致，服务端权威——不存原文、可撤销）
         String bearer = bearerOf(request.getHeader("Authorization"));
@@ -153,6 +163,18 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
             request.setAttribute(ATTRIBUTE_STUB_NAME, session.stubName());
             request.setAttribute(ATTRIBUTE_ROLE,
                     effectiveRole(session.subject(), session.roleContext()));
+            // 特权账号"仅可登记二次验证"的受限会话：只放行 MFA 端点与登出
+            // （2026-11-20 审查 05 项；挑战令牌已在 resolve 层被拒，无需在此判断）
+            if (com.leyon.lumin.identity.service.AuthSessionService.STUB_MFA_ENROLL_ONLY
+                    .equals(session.stubName())) {
+                String uri = request.getRequestURI();
+                boolean allowed = uri.startsWith("/api/v1/auth/mfa/")
+                        || "/api/v1/auth/sessions/revocations".equals(uri);
+                if (!allowed) {
+                    writeForbidden(response);
+                    return;
+                }
+            }
             chain.doFilter(request, response);
             return;
         }
@@ -188,6 +210,15 @@ public class DemoAuthenticationFilter extends OncePerRequestFilter {
         response.getWriter().write(objectMapper.writeValueAsString(
                 com.leyon.lumin.foundation.contract.ApiEnvelope.error(
                         com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A0001)));
+    }
+
+    /** 403 信封（受限会话越界访问；早于 DispatcherServlet）。 */
+    private void writeForbidden(HttpServletResponse response) throws IOException {
+        response.setStatus(com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A2001.httpStatus());
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write(objectMapper.writeValueAsString(
+                com.leyon.lumin.foundation.contract.ApiEnvelope.error(
+                        com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A2001)));
     }
 
     public static final String ATTRIBUTE_STUB_NAME = "lumin.stubName";

@@ -33,6 +33,8 @@
         <argLine></argLine>
         <!-- 项目路径含中文时 JaCoCo agent 写 target 会静默失败：执行数据统一落 ASCII 临时目录。 -->
         <jacoco.exec.path>${java.io.tmpdir}/lumin-jacoco-${project.artifactId}.exec</jacoco.exec.path>
+        <!-- OWASP dependency-check 版本（可用 -Ddependency-check.version 覆盖） -->
+        <dependency-check.version>12.1.0</dependency-check.version>
     </properties>
 
     <dependencies>
@@ -88,6 +90,33 @@
                                 <goals><goal>report</goal></goals>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- ============================================================
+             依赖安全扫描（2026-11-20 安全审查 17 项；CI 专用，不参与日常构建）
+             用法：mvn -Psecurity-scan org.owasp:dependency-check-maven:check
+             环境变量 NVD_API_KEY（https://nvd.nist.gov/developers/request-an-api-key）
+             缺失时 NVD 会限流（极慢），故 CI 仅在提供密钥时执行该 job。
+             失败阈值 failBuildOnCVSS=7（HIGH/CRITICAL 即拦），报告落 target/。
+             ============================================================ -->
+        <profile>
+            <id>security-scan</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>${dependency-check.version}</version>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                            <formats>
+                                <format>HTML</format>
+                                <format>JSON</format>
+                            </formats>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>

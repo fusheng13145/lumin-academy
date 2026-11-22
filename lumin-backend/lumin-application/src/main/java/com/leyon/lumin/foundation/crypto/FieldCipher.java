@@ -28,7 +28,7 @@ public class FieldCipher {
 
     private final SecretKeySpec key;
 
-    public FieldCipher(@Value("${lumin.crypto.key:${LUMIN_CRYPTO_KEY:lumin-crypto-dev-key}}")
+    public FieldCipher(@Value("${lumin.crypto.key:}")
                        String configuredKey) {
         if (configuredKey == null || configuredKey.isBlank()) {
             // UGC-007：敏感字段加密密钥缺失属部署错误，fail-fast（与游标密钥同口径）

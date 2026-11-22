@@ -44,13 +44,16 @@ public class AuditAppender implements AuditRecorder {
                                  java.util.Map<String, String> after) {
         LocalDateTime eventAt = LocalDateTime.ofInstant(entry.eventAt(), ZoneOffset.UTC);
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        String beforeJson = before == null || before.isEmpty() ? null
-                : objectMapper.writeValueAsString(before);
-        String afterJson = after == null || after.isEmpty() ? null
-                : objectMapper.writeValueAsString(after);
+        // 字段白名单（2026-11-20 审查 18 项）：审计表 append-only，写进去就删不掉，
+        // 因此只接受状态类字段；口令/令牌/邮箱等一律拦下并留 _dropped 计数。
+        java.util.Map<String, String> safeBefore = AuditSnapshotSanitizer.sanitize(before);
+        java.util.Map<String, String> safeAfter = AuditSnapshotSanitizer.sanitize(after);
+        String beforeJson = safeBefore == null ? null
+                : objectMapper.writeValueAsString(safeBefore);
+        String afterJson = safeAfter == null ? null : objectMapper.writeValueAsString(safeAfter);
         String digest = sha256(entry.actorId() + "|" + entry.action() + "|"
                 + entry.resourceType() + "|" + entry.resourceId() + "|" + eventAt
-                + "|" + canonical(before) + "|" + canonical(after));
+                + "|" + canonical(safeBefore) + "|" + canonical(safeAfter));
         mapper.insert(new AuditRecordRow(UUID.randomUUID().toString(), entry.actorId(),
                 entry.roleContext(), entry.action(), entry.resourceType(),
                 entry.resourceId(), beforeJson, afterJson, entry.reason(), entry.traceId(),

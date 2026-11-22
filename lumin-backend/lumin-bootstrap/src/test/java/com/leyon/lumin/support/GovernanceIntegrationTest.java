@@ -126,11 +126,6 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                         .contentType("application/json").content("{}"))
                 .andExpect(status().isAccepted());
         dispatcher.deliverPending();
-        System.out.println("TEMP rows after dispatch: review_case="
-                + jdbc.queryForObject("SELECT COUNT(*) FROM review_case", Integer.class)
-                + " workflow_case_id=" + jdbc.queryForObject(
-                        "SELECT case_id FROM publication_workflow WHERE target_id = ?",
-                        String.class, workId));
         String caseId = jdbc.queryForObject(
                 "SELECT case_id FROM publication_workflow WHERE target_id = ? LIMIT 1",
                 String.class, workId);
@@ -487,11 +482,6 @@ class GovernanceIntegrationTest extends MySqlIntegrationBase {
                         .contentType("application/json").content("{}"))
                 .andExpect(status().isAccepted());
         dispatcher.deliverPending();
-        System.out.println("TEMP rows after dispatch: review_case="
-                + jdbc.queryForObject("SELECT COUNT(*) FROM review_case", Integer.class)
-                + " workflow_case_id=" + jdbc.queryForObject(
-                        "SELECT case_id FROM publication_workflow WHERE target_id = ?",
-                        String.class, workId));
         String caseId = jdbc.queryForObject(
                 "SELECT case_id FROM publication_workflow WHERE target_id = ? LIMIT 1",
                 String.class, workId);

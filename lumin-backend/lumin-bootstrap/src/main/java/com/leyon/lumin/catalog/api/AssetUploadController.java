@@ -32,37 +32,51 @@ import java.util.Map;
 public class AssetUploadController {
 
     private final AssetUploadService service;
+    private final com.leyon.lumin.foundation.web.IdempotentExecutor idempotentExecutor;
 
-    public AssetUploadController(AssetUploadService service) {
+    public AssetUploadController(AssetUploadService service,
+                                 com.leyon.lumin.foundation.web.IdempotentExecutor
+                                         idempotentExecutor) {
         this.service = service;
+        this.idempotentExecutor = idempotentExecutor;
     }
 
-    /** 申请私有单键 PUT（签发 300 秒授权；幂等重放不延长有效期）。 */
+    /** 申请私有单键 PUT（签发 300 秒授权；Idempotency-Key 幂等回放，不延长有效期）。 */
     @PostMapping("/asset-uploads")
-    public ApiEnvelope create(
+    public org.springframework.http.ResponseEntity<String> create(
             @RequestAttribute(DemoAuthenticationFilter.ATTRIBUTE_SUBJECT) String subject,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            jakarta.servlet.http.HttpServletRequest httpRequest,
             @RequestBody CreateAssetUploadRequest request) {
-        var grant = service.create(subject, request.purpose(), request.workId(),
-                request.caseId(), request.contentType(), request.sizeBytes(),
-                request.sha256(), LocalDateTime.now(ZoneOffset.UTC));
-        // 授权 cipher 经 base64url 内联于 PUT URL（300 秒、键隔离、AAD 绑定）
-        String putUrl = "/internal/asset-objects?grant="
-                + java.util.Base64.getUrlEncoder().withoutPadding()
-                        .encodeToString(grant.grantCipher());
-        return ApiEnvelope.ok(Map.of(
-                "id", grant.id(),
-                "createdBy", grant.createdBy(),
-                "createdAt", grant.createdAt(),
-                "request", Map.of("purpose", grant.purpose(),
-                        "contentType", grant.contentType(),
-                        "sizeBytes", grant.sizeBytes(), "sha256", grant.sha256()),
-                "state", grant.state(),
-                "revision", grant.revision(),
-                "method", "PUT",
-                "uploadUrl", putUrl,
-                "expiresAt", grant.expiresAt(),
-                "requiredHeaders", Map.of("Content-Type", "application/octet-stream")));
+        // 2026-11-20 安全审查修复：本接口此前声明了 Idempotency-Key 却未接入
+        // IdempotentExecutor，幂等键是摆设；现与其余写接口同口径（缺键 400/P1001、
+        // 同键不同载荷 409/B2003、命中回放原响应）。
+        return idempotentExecutor.execute(subject, "POST", httpRequest.getRequestURI(),
+                idempotencyKey, null, request, () -> {
+                    var grant = service.create(subject, request.purpose(), request.workId(),
+                            request.caseId(), request.contentType(), request.sizeBytes(),
+                            request.sha256(), LocalDateTime.now(ZoneOffset.UTC));
+                    // 授权 cipher 经 base64url 内联于 PUT URL（300 秒、键隔离、AAD 绑定）
+                    String putUrl = "/internal/asset-objects?grant="
+                            + java.util.Base64.getUrlEncoder().withoutPadding()
+                                    .encodeToString(grant.grantCipher());
+                    return new com.leyon.lumin.foundation.web.IdempotentExecutor.ApiResult(200,
+                            Map.of(
+                                    "id", grant.id(),
+                                    "createdBy", grant.createdBy(),
+                                    "createdAt", grant.createdAt(),
+                                    "request", Map.of("purpose", grant.purpose(),
+                                            "contentType", grant.contentType(),
+                                            "sizeBytes", grant.sizeBytes(), "sha256",
+                                            grant.sha256()),
+                                    "state", grant.state(),
+                                    "revision", grant.revision(),
+                                    "method", "PUT",
+                                    "uploadUrl", putUrl,
+                                    "expiresAt", grant.expiresAt(),
+                                    "requiredHeaders", Map.of("Content-Type",
+                                            "application/octet-stream")));
+                });
     }
 
     /** 上传会话状态（仅上传者本人；只有 COMPLETE 返回非空 assetId）。 */
@@ -104,6 +118,12 @@ public class AssetUploadController {
     public ApiEnvelope putObject(
             @RequestParam("grant") String grantCipher,
             @RequestBody byte[] body) throws Exception {
+        // 2026-11-20 安全审查修复：@RequestBody 已把字节读进堆，无法前置拦 Content-Length；
+        // 此处先按声明上限拒绝（超限 400/P1001），避免超限字节进入摘要/存储链路。
+        if (body == null || body.length > AssetUploadService.MAX_SIZE_BYTES) {
+            throw new com.leyon.lumin.foundation.LuminBusinessException(
+                    com.leyon.lumin.foundation.ErrorCodes.ErrorCode.P1001);
+        }
         var envelope = service.verifyGrantSignature(java.util.Base64.getUrlDecoder()
                 .decode(grantCipher));
         if (envelope.expiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {

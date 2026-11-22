@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 生产部署 profile 显式开启。
  */
 @Component
+@org.springframework.core.annotation.Order(3)
 @ConditionalOnProperty(name = "lumin.rate-limit.enabled", havingValue = "true")
 public class RateLimitFilter extends OncePerRequestFilter {
 
@@ -51,8 +52,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        String subject = String.valueOf(request.getAttribute(
-                DemoAuthenticationFilter.ATTRIBUTE_SUBJECT));
+        // 主体键取认证过滤器注入的属性；缺失（登录/登出等豁免端点）回落客户端地址，
+        // 避免 String.valueOf(null) → "null" 让所有匿名请求共用一个桶（2026-11-20 修复）。
+        Object subjectAttribute = request.getAttribute(
+                DemoAuthenticationFilter.ATTRIBUTE_SUBJECT);
+        String subject = subjectAttribute != null
+                ? subjectAttribute.toString() : "ip:" + request.getRemoteAddr();
         // 路径组：资源前两段（/api/v1/<group>），同类资源共享配额
         String[] segments = request.getRequestURI().split("/");
         String group = segments.length >= 4 ? segments[3] : "other";

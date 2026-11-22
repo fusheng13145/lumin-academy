@@ -71,11 +71,10 @@ public class AssetUploadService {
             if (workId == null || caseId != null) {
                 throw new LuminBusinessException(ErrorCode.P1001);
             }
-            // 归属校验：COVER 仅本 AUTHOR 的作品（04 §2；归属从权威记录读取）
-            var work = workService.getWorkSummary(workId);
-            if (work == null) {
-                throw new LuminBusinessException(ErrorCode.B2004);
-            }
+            // 归属校验：COVER 仅本 AUTHOR 的作品（04 §2；归属从权威记录读取）。
+            // 2026-11-20 安全审查修复：原实现用无归属语义的 getWorkSummary，只判作品存在，
+            // 作者 A 可把封面绑定到作者 B 的作品；改为 requireOwnedWork（不存在/越权统一 404）。
+            workService.requireOwnedWork(workId, subject);
         } else if (caseId == null || workId != null) {
             throw new LuminBusinessException(ErrorCode.P1001);
         }
@@ -105,9 +104,9 @@ public class AssetUploadService {
             }
             return new GrantEnvelope(parts[0], parts[1],
                     LocalDateTime.parse(parts[2].replace("Z", "")));
-        } catch (LuminBusinessException e) {
-            throw e;
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | java.time.format.DateTimeParseException e) {
+            // 载荷非法 / 到期时间戳不可解析 → 一律 401（原实现的 catch(LuminBusinessException)
+            // 分支不可能触发，而 DateTimeParseException 会漏成 500——2026-11-20 修复）
             throw new LuminBusinessException(ErrorCode.A0001);
         }
     }

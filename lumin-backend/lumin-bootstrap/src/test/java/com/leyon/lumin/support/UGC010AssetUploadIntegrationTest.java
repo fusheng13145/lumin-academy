@@ -174,10 +174,7 @@ class UGC010AssetUploadIntegrationTest extends MySqlIntegrationBase {
         // 篡改一字节 → 摘要不符 → 400
         byte[] tampered = pngBytes.clone();
         tampered[0] ^= 0x01;
-        System.out.println("DBG-URL " + uploadUrl);
         var tamperedResult = mockMvc.perform(put(uploadUrl).content(tampered)).andReturn();
-        System.out.println("DBG-TAMPER status=" + tamperedResult.getResponse().getStatus()
-                + " body=" + tamperedResult.getResponse().getContentAsString(StandardCharsets.UTF_8));
         assertThat(tamperedResult.getResponse().getStatus()).isEqualTo(400);
         // 非 PNG 魔数（声明 PNG 但内容为文本）→ CHECKING → 完成 REJECTED
         MvcResult grant3 = mockMvc.perform(post("/api/v1/asset-uploads")

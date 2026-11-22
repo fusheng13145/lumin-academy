@@ -1,0 +1,71 @@
+# 生产环境 profile（2026-11-20 安全审查修复新增）
+#
+# 启用方式：SPRING_PROFILES_ACTIVE=prod（或 --spring.profiles.active=prod）
+#
+# 本文件覆盖 application.yaml 中的开发默认；**密钥一律不在文件内出现**，
+# 必须由部署侧（Secret Manager / CI 变量）注入：
+#   DATABASE_DSN / DATABASE_USERNAME / DATABASE_PASSWORD
+#   LUMIN_CURSOR_KEY / LUMIN_CRYPTO_KEY / DEEPSEEK_API_KEY
+#
+# 启动门禁：SecurityStartupValidator 在 environment != dev/local/test/ci 时
+# 拒绝 lumin.auth.mode=demo（未设置 LUMIN_AUTH_MODE=session 将直接启动失败）。
+
+spring:
+  devtools:
+    # devtools 已不进入 fat jar（Boot 插件默认排除），此处同时关掉属性覆盖
+    restart:
+      enabled: false
+    add-properties: false
+  datasource:
+    hikari:
+      # 生产必须快速失败：数据库不可达时启动即异常，而不是半启动后静默 503
+      initialization-fail-timeout: 10000
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    validate-on-migrate: true
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+  tomcat:
+    # 原始字节上传端点（/internal/asset-objects）声明上限 5MiB；余量留作协议开销
+    max-swallow-size: 8MB
+
+lumin:
+  deployment:
+    environment: production
+    https: true
+  auth:
+    mode: session
+    # 免认证入口按 IP 配额（落库固定窗口；可经 LUMIN_AUTH_IP_LIMIT_ATTEMPTS 调大 NAT 出口）
+    ip-limit:
+      enabled: true
+      attempts-per-minute: 20
+    reset:
+      # smtp = 真实投递（需配齐 LUMIN_AUTH_RESET_MAIL_*）；unconfigured 时工单转
+      # DELIVERY_FAILED 交人工客服。带口令却不开 STARTTLS/SMTPS → 启动失败
+      mail-mode: ${LUMIN_AUTH_RESET_MAIL_MODE:unconfigured}
+      mail:
+        host: ${LUMIN_AUTH_RESET_MAIL_HOST:}
+        port: ${LUMIN_AUTH_RESET_MAIL_PORT:587}
+        username: ${LUMIN_AUTH_RESET_MAIL_USERNAME:}
+        password: ${LUMIN_AUTH_RESET_MAIL_PASSWORD:}
+        from: ${LUMIN_AUTH_RESET_MAIL_FROM:}
+        starttls: ${LUMIN_AUTH_RESET_MAIL_STARTTLS:true}
+        ssl: ${LUMIN_AUTH_RESET_MAIL_SSL:false}
+        timeout-seconds: ${LUMIN_AUTH_RESET_MAIL_TIMEOUT_SECONDS:10}
+  # CORS：生产**必须**显式填入站点来源（逗号分隔），留空则跨源一律不放行
+  cors:
+    allowed-origins: ${LUMIN_CORS_ALLOWED_ORIGINS:}
+  rate-limit:
+    enabled: true
+    writes-per-minute: 120
+
+logging:
+  level:
+    root: INFO
+    # 生产不打开 MyBatis SQL 与请求体日志（避免把业务正文写进日志）
+    com.leyon.lumin: INFO

@@ -11,8 +11,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.UUID;
 
-/** 每请求生成 traceId 写入 MDC（02 §5.2 事件信封与日志关联口径），请求结束清理。 */
+/** 每请求生成 traceId 写入 MDC（02 §5.2 事件信封与日志关联口径），请求结束清理。
+ *  显式最先执行：信封/日志的 traceId 依赖该 MDC 已就位（2026-11-20 过滤器定序）。 */
 @Component
+@org.springframework.core.annotation.Order(
+        org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
 public class TraceIdFilter extends OncePerRequestFilter {
 
     public static final String MDC_TRACE_ID = "traceId";

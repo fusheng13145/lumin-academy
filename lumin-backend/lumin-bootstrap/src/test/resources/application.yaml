@@ -23,8 +23,17 @@ spring:
 lumin:
   outbox:
     enabled: false
+  deployment:
+    environment: test
+    https: false
   cursor:
     key: lumin-cursor-key-test
+  crypto:
+    # 集成测试用固定密钥（主配置已取消开发默认值，测试资源必须显式提供）
+    key: lumin-crypto-key-test
+  auth:
+    # 集成测试沿用 demo 骨架（session 模式的闸门由专用测试类以 properties 覆盖）
+    mode: demo
   review:
     calibration-valid: false
     sample-seed: lumin-review-seed-test

@@ -206,10 +206,25 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
                 Integer.class, recipient, workId);
     }
 
+    /**
+     * 与当前 UTC 时刻不相交的免打扰窗口起点（2026-11-20 修复：原用例写死 22:00→08:00 UTC，
+     * 在 UTC 夜间运行会把预期"应推送"的用例按免打扰丢弃，结论依赖运行时刻；
+     * 本例失败时消费端日志为 {@code sent=0 quietDropped=1}）。
+     */
+    private static String quietStartOutsideNow() {
+        return LocalTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MINUTES)
+                .plusHours(3).toString();
+    }
+
+    private static String quietEndOutsideNow() {
+        return LocalTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MINUTES)
+                .plusHours(5).toString();
+    }
+
     @Test
     void newChapterSendsSingleUpdateToSubscriber() throws Exception {
         String workId = publishWork("追更聚合作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         String chapterId = publishNewChapter(workId, "第二章");
 
         assertThat(updateNotificationCount(SUBJECT_C3)).isEqualTo(1);
@@ -229,7 +244,7 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
     @Test
     void secondChapterSameDayIsDeduped() throws Exception {
         String workId = publishWork("同日去重作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         publishNewChapter(workId, "第二章");
         publishNewChapter(workId, "第三章");
 
@@ -240,7 +255,7 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
     @Test
     void chapterRevisionDoesNotTriggerDigest() throws Exception {
         String workId = publishWork("修订不触发作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         String chapterId = publishNewChapter(workId, "第二章");
         assertThat(updateNotificationCount(SUBJECT_C3)).isEqualTo(1);
 
@@ -253,7 +268,7 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
     @Test
     void unsubscribeStopsDigest() throws Exception {
         String workId = publishWork("退订停止作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .delete("/api/v1/me/subscriptions/" + workId)
                         .header("X-Lumin-Demo-Subject", READER_C3)
@@ -282,7 +297,7 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
     @Test
     void workRemovedStopsDigest() throws Exception {
         String workId = publishWork("下架停止作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         // 发布新章但暂停末轮投递（CONTENT_PUBLISHED_V1 已追加未消费）
         publishNewChapter(workId, "第二章", false);
         // 下架事实注入（治理下架全流程另有 T23 测试）——消费端经
@@ -297,7 +312,7 @@ class UGC037DigestIntegrationTest extends MySqlIntegrationBase {
     @Test
     void inboxReceiptIsIdempotentOnRedelivery() throws Exception {
         String workId = publishWork("收据幂等作品");
-        subscribe(READER_C3, workId, "22:00", "08:00", "UTC", false);
+        subscribe(READER_C3, workId, quietStartOutsideNow(), quietEndOutsideNow(), "UTC", false);
         publishNewChapter(workId, "第二章");
         assertThat(updateNotificationCount(SUBJECT_C3)).isEqualTo(1);
 

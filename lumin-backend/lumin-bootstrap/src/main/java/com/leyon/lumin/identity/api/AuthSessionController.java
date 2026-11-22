@@ -22,14 +22,28 @@ import java.util.Map;
 public class AuthSessionController {
 
     private final AuthSessionService service;
+    private final String authMode;
 
-    public AuthSessionController(AuthSessionService service) {
+    public AuthSessionController(AuthSessionService service,
+                                 @org.springframework.beans.factory.annotation.Value(
+                                         "${lumin.auth.mode:demo}") String authMode) {
         this.service = service;
+        this.authMode = authMode;
     }
 
-    /** 签发会话（P0：替身名称 ∈ 有界集合；未知替身 401/A0001）。 */
+    /** 签发会话（P0：替身名称 ∈ 有界集合；未知替身 401/A0001）。
+     *
+     * <p>2026-11-20 安全审查修复：替身签发**仅在 demo 模式可用**。此前
+     * {@code lumin.auth.mode=session} 下该端点仍可签发任意替身会话（含 ADMIN），
+     * 等于给生产留了一张免费管理员发卡机；现非 demo 模式一律 403/A2001，
+     * 真实登录走 {@code POST /api/v1/auth/password-sessions}。
+     */
     @PostMapping
     public ApiEnvelope issue(@RequestBody IssueRequest request) {
+        if (!"demo".equals(authMode)) {
+            throw new com.leyon.lumin.foundation.LuminBusinessException(
+                    com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A2001);
+        }
         if (request == null || request.stub() == null || request.stub().isBlank()) {
             throw new com.leyon.lumin.foundation.LuminBusinessException(
                     com.leyon.lumin.foundation.ErrorCodes.ErrorCode.A0001);

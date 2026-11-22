@@ -35,6 +35,10 @@ import java.util.UUID;
 @Service
 public class ProfileService {
 
+    /** 注册（建档）运行日志（2026-11-20 安全审查：注册链路此前无业务日志）。 */
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(ProfileService.class);
+
     /** docs/04 §3：birth_date_cipher 的 AAD 用途绑定。 */
     private static final String BIRTH_DATE_AAD = "user_profile.birth_date";
     /** 骨架身份源标识；正式 OIDC 接入后由 issuer 参数替换。 */
@@ -113,8 +117,12 @@ public class ProfileService {
             userProfileMapper.insertProfile(row, now);
         } catch (DuplicateKeyException e) {
             // 并发首次建档：唯一约束兜底，统一 409 而非 500
+            log.warn("建档被拒 event=profile.create result=conflict subject={}", subject);
             throw new LuminBusinessException(ErrorCode.B2001);
         }
+        // 只记年龄带结论，不记出生日期明文（生日仅以密文落库）
+        log.info("建档成功 event=profile.create result=ok subject={} declaredAgeBand={} "
+                + "effectiveAgeBand={}", subject, declared, AgeBand.C4);
         return new ProfileReceipt(subject, "PROFILE", "ACTIVE", 1L);
     }
 

@@ -12,8 +12,12 @@ import java.util.UUID;
  */
 public record ApiEnvelope(String code, String message, Object data, String traceId) {
 
-    /** 与 bootstrap TraceIdFilter 的 MDC 键保持一致，避免应用层依赖 Servlet API。 */
-    private static final String TRACE_MDC_KEY = "lumin.traceId";
+    /**
+     * 与 bootstrap {@code TraceIdFilter} 的 MDC 键保持一致，避免应用层依赖 Servlet API。
+     * 键名必须严格是 {@code traceId}：不一致会导致信封 traceId 回落到随机 UUID，
+     * 与错误日志里的 traceId 断链（2026-11-20 安全审查缺陷修复）。
+     */
+    private static final String TRACE_MDC_KEY = "traceId";
     private static final String OK_MESSAGE = "成功/已受理，语义由操作决定";
 
     public static ApiEnvelope ok(Object data) {

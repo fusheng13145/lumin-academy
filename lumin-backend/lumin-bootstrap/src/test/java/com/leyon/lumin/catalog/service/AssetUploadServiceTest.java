@@ -95,16 +95,27 @@ class AssetUploadServiceTest {
                 "image/png", 0, SHA, NOW));
         assertCode(ErrorCode.P1001, () -> service.create(AUTHOR, "COVER", WORK, null,
                 "image/png", 10, "not-a-sha", NOW));
-        when(workService.getWorkSummary(WORK)).thenReturn(null);
+        when(workService.requireOwnedWork(WORK, AUTHOR))
+                .thenThrow(new LuminBusinessException(ErrorCode.B2004));
         assertCode(ErrorCode.B2004, () -> service.create(AUTHOR, "COVER", WORK, null,
                 "image/png", 10, SHA, NOW));
         assertCode(ErrorCode.P1001, () -> service.create(AUTHOR, "EVIDENCE", WORK, null,
                 "image/png", 10, SHA, NOW));
     }
 
+    /** 2026-11-20 安全审查回归：封面必须绑定**本人**作品，跨作者一律 404。 */
+    @Test
+    void createRejectsCoverBoundToForeignWork() {
+        when(workService.requireOwnedWork(WORK, "intruder"))
+                .thenThrow(new LuminBusinessException(ErrorCode.B2004));
+
+        assertCode(ErrorCode.B2004, () -> service.create("intruder", "COVER", WORK, null,
+                "image/png", 10, SHA, NOW));
+    }
+
     @Test
     void createCoverIssuesSelfContainedSignedGrant() {
-        when(workService.getWorkSummary(WORK)).thenReturn(
+        when(workService.requireOwnedWork(WORK, AUTHOR)).thenReturn(
                 new WorkService.WorkSummary(WORK, AUTHOR, "VALID", "ACTIVE", 1L));
 
         AssetUploadService.Grant grant = service.create(AUTHOR, "COVER", WORK, null,

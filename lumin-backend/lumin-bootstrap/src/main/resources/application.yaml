@@ -30,15 +30,50 @@ lumin:
   outbox:
     enabled: true
     interval-ms: 1000
+  # 2026-11-20 安全审查修复：部署形态（production 时禁止 demo 认证、开始下发 HSTS）
+  deployment:
+    environment: ${LUMIN_ENV:dev}
+    https: ${LUMIN_HTTPS:false}
+  # CORS 白名单（2026-11-20 审查 16 项）：逗号分隔的精确来源，**不支持通配符**；
+  # 留空 = 不注册任何跨源映射（浏览器照旧拦截），而不是默认放开。
+  cors:
+    allowed-origins: ${LUMIN_CORS_ALLOWED_ORIGINS:}
+    max-age-seconds: ${LUMIN_CORS_MAX_AGE_SECONDS:3600}
   auth:
-    # UGC-002：session=演示头被忽略（生产必须 session，部署 profile 置定）；demo=开发/测试骨架
+    # UGC-002：session=演示头被忽略（生产必须 session，安全门禁 SecurityStartupValidator
+    # 在非 dev 环境强制校验）；demo=仅限本地开发/测试骨架
     mode: ${LUMIN_AUTH_MODE:demo}
+    # 免认证入口（登录/注册/二次验证挑战）的按 IP 配额（2026-11-20 审查 19 项）：
+    # 固定 1 分钟窗口、落库计数（多副本一致）；默认 20 次/分钟（NAT 出口共享可调大）
+    ip-limit:
+      enabled: ${LUMIN_AUTH_IP_LIMIT_ENABLED:true}
+      attempts-per-minute: ${LUMIN_AUTH_IP_LIMIT_ATTEMPTS:20}
+    # 口令找回（V24）：unconfigured = 邮件通道"明确失败"并转人工工单（不假装投递成功）；
+    # smtp = 真实投递（参数不全/带口令却不开加密 → 启动失败，见 SecurityStartupValidator）
+    reset:
+      mail-mode: ${LUMIN_AUTH_RESET_MAIL_MODE:unconfigured}
+      mail:
+        host: ${LUMIN_AUTH_RESET_MAIL_HOST:}
+        port: ${LUMIN_AUTH_RESET_MAIL_PORT:587}
+        username: ${LUMIN_AUTH_RESET_MAIL_USERNAME:}
+        password: ${LUMIN_AUTH_RESET_MAIL_PASSWORD:}
+        from: ${LUMIN_AUTH_RESET_MAIL_FROM:}
+        # STARTTLS 默认开且 required：服务器不支持就失败，不降级明文
+        starttls: ${LUMIN_AUTH_RESET_MAIL_STARTTLS:true}
+        ssl: ${LUMIN_AUTH_RESET_MAIL_SSL:false}
+        timeout-seconds: ${LUMIN_AUTH_RESET_MAIL_TIMEOUT_SECONDS:10}
+  # 写操作限流：默认关闭（开发/测试）；生产 profile 显式开启
+  rate-limit:
+    enabled: ${LUMIN_RATE_LIMIT_ENABLED:false}
+    writes-per-minute: ${LUMIN_RATE_LIMIT_WRITES_PER_MINUTE:120}
   cursor:
-    # UGC-009 游标签名密钥：生产必须经 Secret Manager 注入（缺省仅本地开发占位）
-    key: ${LUMIN_CURSOR_KEY:lumin-cursor-dev-key}
+    # UGC-009 游标签名密钥：**无开发默认值**——缺 LUMIN_CURSOR_KEY 即启动失败
+    # （2026-11-20 修复：原默认 lumin-cursor-dev-key 使 fail-fast 永不触发）
+    key: ${LUMIN_CURSOR_KEY:}
   crypto:
-    # UGC-007 字段加密密钥（AES-256-GCM）：生产必须经 Secret Manager 注入（LUMIN_CRYPTO_KEY）
-    key: ${LUMIN_CRYPTO_KEY:lumin-crypto-dev-key}
+    # UGC-007 字段加密密钥（AES-256-GCM）：**无开发默认值**——生产经 Secret Manager 注入
+    # （2026-11-20 修复：原默认 lumin-crypto-dev-key 使 fail-fast 永不触发）
+    key: ${LUMIN_CRYPTO_KEY:}
   review:
     # K-03 校准门禁（T48）通过前为 false——机审路由全转人工（03 §5.3 安全默认）
     calibration-valid: false

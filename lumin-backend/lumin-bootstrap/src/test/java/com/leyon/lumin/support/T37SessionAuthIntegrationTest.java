@@ -43,20 +43,27 @@ class T37SessionAuthIntegrationTest extends MySqlIntegrationBase {
         return UUID.randomUUID().toString();
     }
 
-    /** 签发会话（断言 200 并返回持有令牌）。 */
-    private String issue(String stub) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/sessions")
-                        .header("Idempotency-Key", uuidKey())
-                        .contentType("application/json").content("{\"stub\":\"" + stub + "\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.subject").isNotEmpty())
-                .andReturn();
-        return com.leyon.lumin.support.TestResponseSupport.field(result, "token");
+    /**
+     * 直接种入服务端会话行（2026-11-20 安全审查修复后，替身签发端点在生产/会话模式下
+     * 已关闭为 403/A2001；本类只验证"令牌解析/撤销/过期/注销联动"语义，故用库内
+     * 权威会话行代替签发，真实签发链路由口令登录测试覆盖）。
+     */
+    private String seedSession(String roleContext) throws Exception {
+        String token = UUID.randomUUID() + "." + UUID.randomUUID();
+        jdbc.update("""
+                INSERT INTO auth_session (id, token_hash, subject, stub_name, role_context,
+                    issued_at, expires_at, created_at, updated_at, created_by, updated_by,
+                    lock_version)
+                VALUES (?, SHA2(?, 256), ?, 'SEEDED', ?, NOW(6),
+                    NOW(6) + INTERVAL 12 HOUR, NOW(6), NOW(6), ?, ?, 1)
+                """, UUID.randomUUID().toString(), token, MySqlFixtures.STUB_SUBJECT,
+                roleContext, MySqlFixtures.STUB_SUBJECT, MySqlFixtures.STUB_SUBJECT);
+        return token;
     }
 
     @Test
     void issuedSessionAuthorizesAndForgedOrMissingTokensAreRejected() throws Exception {
-        String token = issue("AUTHOR");
+        String token = seedSession("AUTHOR");
         // Bearer 令牌访问受保护端点 → 200（服务端权威主体）
         mockMvc.perform(get("/api/v1/me/works").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
@@ -73,10 +80,10 @@ class T37SessionAuthIntegrationTest extends MySqlIntegrationBase {
         mockMvc.perform(get("/api/v1/me/works")
                         .header("X-Lumin-Demo-Subject", "AUTHOR"))
                 .andExpect(status().isUnauthorized());
-        // 未知替身签发 → 401
-        assertThat(issueRaw("IMPERSONATOR")).contains("A0001");
+        // 未知替身签发 → 403（会话模式下替身签发端点已关闭，见下方 shut 用例）
+        assertThat(issueRaw("IMPERSONATOR")).contains("A2001");
         // 过期令牌 → 401（直接置 expires_at 过去模拟超时）
-        String expiring = issue("AUTHOR");
+        String expiring = seedSession("AUTHOR");
         jdbc.update("UPDATE auth_session SET expires_at = NOW(6) - INTERVAL 1 MINUTE "
                 + "WHERE token_hash = SHA2(?, 256)", expiring);
         mockMvc.perform(get("/api/v1/me/works").header("Authorization", "Bearer " + expiring))
@@ -86,7 +93,7 @@ class T37SessionAuthIntegrationTest extends MySqlIntegrationBase {
 
     @Test
     void revocationIsIdempotentAndClosureRevokesAllSessions() throws Exception {
-        String token = issue("AUTHOR");
+        String token = seedSession("AUTHOR");
         // 登出 → 200；撤销后令牌失效 → 401；重复撤销幂等 200
         mockMvc.perform(post("/api/v1/auth/sessions/revocations")
                         .header("Authorization", "Bearer " + token)
@@ -103,8 +110,8 @@ class T37SessionAuthIntegrationTest extends MySqlIntegrationBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.revoked").value(true));
         // 注销联动：再签发两枚会话 → 注销 → 全部撤销
-        String tokenA = issue("AUTHOR");
-        String tokenB = issue("AUTHOR");
+        String tokenA = seedSession("AUTHOR");
+        String tokenB = seedSession("AUTHOR");
         String subject = jdbc.queryForObject(
                 "SELECT subject FROM auth_session WHERE token_hash = SHA2(?, 256)",
                 String.class, tokenA);
@@ -135,9 +142,16 @@ class T37SessionAuthIntegrationTest extends MySqlIntegrationBase {
     }
 
     @Test
-    void sessionIssuanceRequiresBoundedStub() throws Exception {
-        // 有界集合外的替身名称一律 401（不接受任意自报身份）
-        assertThat(issueRaw("HACKER")).contains("A0001");
-        assertThat(issueRaw("")).contains("A0001");
+    void demoStubIssuanceIsClosedOutsideDemoMode() throws Exception {
+        // 2026-11-20 修复：session（生产）模式下替身签发一律 403/A2001，
+        // 不再存在"无凭据即可领取 ADMIN 令牌"的发卡机。
+        assertThat(issueRaw("AUTHOR")).contains("A2001");
+        assertThat(issueRaw("ADMIN")).contains("A2001");
+        assertThat(issueRaw("HACKER")).contains("A2001");
+        assertThat(issueRaw("")).contains("A2001");
+        mockMvc.perform(post("/api/v1/auth/sessions")
+                        .header("Idempotency-Key", uuidKey())
+                        .contentType("application/json").content("{\"stub\":\"ADMIN\"}"))
+                .andExpect(status().isForbidden());
     }
 }

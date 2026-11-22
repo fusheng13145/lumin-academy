@@ -47,5 +47,10 @@
             <artifactId>mybatis-spring</artifactId>
             <version>3.0.4</version>
         </dependency>
+        <!-- 口令重置邮件通道：SMTP 客户端（jakarta.mail 实现）。版本由 Spring Boot BOM 管理。 -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>jakarta.mail</artifactId>
+        </dependency>
     </dependencies>
 </project>
